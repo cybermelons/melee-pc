@@ -47,16 +47,20 @@
 extern HSD_RumbleData HSD_Rumble_804C22E0[GC_SLOTS];
 
 static bool s_enabled;
+#if !defined(GC_WEB_TRANSPORT)
 static SDL_hid_device* s_dev;
 static int s_retry_ms = 999;
+#endif
 /* SDL_hid_device_change_count() at the last look for the adapter; 0 = never. */
 static Uint32 s_hid_changes;
 /* Looks left at an adapter that enumerates but will not open yet. */
 static int s_open_retries;
+#if !defined(GC_WEB_TRANSPORT)
 static bool s_warned_open;
 static uint8_t s_rumble[1 + GC_SLOTS] = {0x11};
+#endif
 
-#if !defined(_WIN32) && !defined(__APPLE__)
+#if !defined(GC_WEB_TRANSPORT) && !defined(_WIN32) && !defined(__APPLE__)
 #include <dirent.h>
 #include <stdio.h>
 static bool check_usb_device_attached(uint16_t vid, uint16_t pid) {
@@ -133,6 +137,7 @@ static void publish_snapshot(void) {
 static _Atomic uint64_t s_raw[GC_SLOTS];
 static _Atomic uint64_t s_reports;
 
+#if !defined(GC_WEB_TRANSPORT)
 void pc_gcadapter_init(void) {
     const char* env = getenv("MELEE_GC_ADAPTER");
     s_enabled = !(env != NULL && env[0] == '0');
@@ -142,6 +147,7 @@ void pc_gcadapter_init(void) {
         SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_GAMECUBE, "0");
     }
 }
+#endif /* !GC_WEB_TRANSPORT */
 
 static void clear_slot(int i) {
     s_present[i] = false;
@@ -150,6 +156,7 @@ static void clear_slot(int i) {
     atomic_store_explicit(&s_raw[i], 0, memory_order_relaxed);
 }
 
+#if !defined(GC_WEB_TRANSPORT)
 static void try_open(void) {
     /* Serialise against SDL's own hidapi enumeration (same udev/libusb
      * contexts, and the udev monitor the change count drains), which runs
@@ -224,6 +231,8 @@ static void close_dev(const char* why) {
     }
     publish_snapshot();
 }
+
+#endif /* !GC_WEB_TRANSPORT */
 
 static s8 rel8(uint8_t v, uint8_t origin) {
     const int d = (int)v - (int)origin;
@@ -314,6 +323,7 @@ static void parse_slot(int i, const uint8_t* s, uint64_t now_ns) {
     atomic_store_explicit(&s_raw[i], snap, memory_order_relaxed);
 }
 
+#if !defined(GC_WEB_TRANSPORT)
 static void update_rumble(const uint8_t* slots) {
     /* Adapter motor byte: 0 stop, 1 rumble, 2 brake. Game state last_status:
      * 0 hard stop, 1 stop, 2 rumble. Only a wired pad on a slot with the
@@ -339,6 +349,9 @@ static void update_rumble(const uint8_t* slots) {
     }
 }
 
+#endif /* !GC_WEB_TRANSPORT */
+
+#if !defined(GC_WEB_TRANSPORT)
 void pc_gcadapter_poll(void) {
     if (!s_enabled) {
         return;
@@ -376,6 +389,8 @@ void pc_gcadapter_poll(void) {
         update_rumble(last + 1);
     }
 }
+
+#endif /* !GC_WEB_TRANSPORT */
 
 /* Called at the main-thread input boundary before PADRead. Port 1 is merged
  * with keyboard/touch by keyboard.c; this function owns ports 2 through 4. */

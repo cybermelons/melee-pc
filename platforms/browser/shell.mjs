@@ -2,6 +2,7 @@
 // Minimal host page for the browser build: disc picker, canvas, persistence.
 // The engine's whole host interface is the handful of Module fields set here.
 import { createDiscCache } from './disc-cache.mjs';
+import { createGCAdapter } from './gcadapter.mjs';
 
 const $ = (id) => document.getElementById(id);
 const lines = [];
@@ -53,16 +54,36 @@ window.Module = {
   onAbort: (reason) => status(`Engine stopped: ${reason}`),
   onGraphicsPreparation: (done, total) =>
     status(done === total ? 'Starting…' : `Preparing graphics… ${Math.floor(done * 100 / total)}%`),
-  onRuntimeInitialized: () => { ready = true; status('Choose a GALE01 disc image (.iso or .gcm).'); updateStart(); },
+  onRuntimeInitialized: () => {
+    ready = true;
+    status('Choose a GALE01 disc image (.iso or .gcm).');
+    updateStart();
+    adapter = createGCAdapter(Module, log);
+    // An adapter authorised in an earlier visit reopens without a gesture.
+    adapter.resume().then((found) => {
+      $('adapter').hidden = found;
+      if (found) log('GC adapter: reconnected');
+    }, (error) => log(`GC adapter: ${error.message}`));
+  },
 };
 
 // Not `typeof Module.callMain`: that exists as soon as the script runs, while
 // the wasm is still compiling, and a disc picked by then started a dead runtime.
 let ready = false;
+let adapter = null;
 function updateStart() {
   $('start').disabled = !(ready && $('disc').files.length);
 }
 $('disc').addEventListener('change', updateStart);
+
+$('adapter').addEventListener('click', async () => {
+  try {
+    $('adapter').hidden = await adapter.request();
+  } catch (error) {
+    status(error.message);
+    log(error.stack || error);
+  }
+});
 
 $('start').addEventListener('click', async () => {
   $('start').disabled = true;
