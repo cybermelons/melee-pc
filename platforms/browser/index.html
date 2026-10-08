@@ -2,7 +2,7 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <html lang="en">
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>Melee Web</title>
 <link rel="icon" href="data:,">
 <style>
@@ -12,17 +12,241 @@
   #stats { margin-left: auto; font-variant-numeric: tabular-nums; color: #9c9; }
   #status { color: #fc6; }
   pre { white-space: pre-wrap; color: #999; font-size: 12px; max-height: 14em; overflow: auto; }
+  #launch a { color: #9cf; margin-right: 12px; }
+  #launch-hint { color: #999; }
+  #perf { color: #999; font-size: 13px; }
+  #perf a { color: #9cf; margin-right: 10px; }
   kbd { background: #333; border-radius: 3px; padding: 0 4px; }
+
+  /* The overlay is hidden until shell.mjs decides this is a touch device, so
+     a desktop visitor never gets controls drawn over the picture. */
+  #touch[hidden] { display: none; }
+
+  /* Phones and tablets: the game fills the viewport and everything else goes
+     away. (pointer: coarse) rather than a width breakpoint, because a narrow
+     desktop window still has a mouse and wants the page, while a wide tablet
+     has a finger and wants the overlay.
+
+     100dvh, not 100vh: on mobile Safari 100vh is the height with the browser
+     chrome hidden, so the bottom of the picture sits under the toolbar until
+     the user scrolls. */
+  @media (pointer: coarse) {
+    /* overflow:hidden and a locked height only once the game runs. Before
+       that the page has to scroll, or a tall canvas pushes Start out of reach
+       with no way to get to it. */
+    body { max-width: none; padding: 0; }
+    body.playing { height: 100dvh; overflow: hidden; }
+    h1, #keys { display: none; }
+    /* The page controls are not hidden once the game runs, only moved into the
+       menu panel below, which #menu-panel positions. Hiding them outright left
+       a phone with no way to change mode, pick a disc or read an error without
+       a reload, because every one of those controls lives on this page rather
+       than in the game. */
+    body:not(.playing) #launch, body:not(.playing) #bar, body:not(.playing) #log {
+      padding: 0 12px;
+    }
+    body:not(.playing) h1 { display: revert; padding: 0 12px; }
+
+    /* While the game runs, the page controls become a panel over the picture,
+       opened from the tab the overlay draws. Closed, nothing of them shows.
+
+       A class on <body>, toggled by the overlay's menu button. The panel wraps
+       the page's existing controls rather than copying them, so the markup
+       stays the single definition of what a mode link is. */
+    body.playing #launch, body.playing #perf, body.playing #bar, body.playing #log {
+      display: none;
+    }
+    /* Only while the game runs. #menu-panel wraps the mode links and Start,
+       so a blanket display:none here hid the Start button on a phone and left
+       a black screen with nothing to tap. Before Start the panel must stay an
+       ordinary block in the flow. */
+    body.playing #menu-panel {
+      display: none;
+      position: fixed;
+      /* Above #game, which is fixed and fills the viewport while playing. */
+      z-index: 4;
+      top: calc(9vh + env(safe-area-inset-top));
+      left: 50%; transform: translateX(-50%);
+      width: min(92vw, 520px);
+      max-height: 70dvh; overflow: auto;
+      padding: 12px 16px;
+      border: 2px solid #ffffff44; border-radius: 12px;
+      background: #000000e8;
+      /* The panel is a page control, so taps on it must reach the links and
+         the file picker rather than be refused like the overlay's. */
+      pointer-events: auto; touch-action: auto;
+    }
+    /* Last, so it wins on order and not only on specificity. */
+    body.playing.menu #menu-panel { display: block; }
+    body.playing #menu-panel #launch,
+    body.playing #menu-panel #perf,
+    body.playing #menu-panel #bar,
+    body.playing #menu-panel #log {
+      display: revert; padding: 0;
+    }
+    /* Bigger tap targets than the desktop page: these are links in a row and
+       a thumb needs the spacing. */
+    #menu-panel #launch a, #menu-panel #perf a {
+      display: inline-block; padding: 8px 10px; margin: 0 6px 6px 0;
+      border: 1px solid #ffffff33; border-radius: 8px;
+    }
+    #menu-panel #bar { flex-wrap: wrap; gap: 10px; }
+    #menu-panel button, #menu-panel input { min-height: 44px; font-size: 16px; }
+    #menu-panel #log { max-height: 20dvh; }
+    /* Only once the game runs. #game is black and fills the viewport, so
+       applying this before Start painted a black box over the mode links and
+       the Start button and left the page with nothing to tap. */
+    body.playing #game {
+      position: fixed; inset: 0; display: grid; place-items: center; background: #000;
+    }
+    /* Before that it stays in the flow, under the controls. */
+    body:not(.playing) #game { display: grid; place-items: center; background: #000; }
+    /* Letterboxed to 4:3 rather than stretched or cropped: Melee's HUD sits at
+       the edges of the frame, so a crop eats the damage percentages and a
+       stretch distorts them. */
+    /* Before Start the canvas is only a preview and must leave room for the
+       controls below it; 45dvh keeps the mode links and Start on the first
+       screen. Once the game runs it takes the whole viewport. */
+    body:not(.playing) canvas { max-height: 45dvh; max-width: calc(45dvh * 4 / 3); }
+    canvas {
+      width: 100%; height: auto; max-height: 100dvh;
+      max-width: calc(100dvh * 4 / 3); aspect-ratio: 4 / 3;
+      /* The canvas refuses the browser's gestures as well as the overlay. A
+         thumb that lands between two controls still lands on the canvas, and
+         without this it scrolls the page or triggers pull-to-refresh. */
+      touch-action: none;
+    }
+    #touch { display: block; }
+  }
+
+  /* The overlay sits above the picture and must not eat touches between the
+     controls, or a tap near the middle of the screen would do nothing while
+     still being swallowed. Each control turns pointer events back on. */
+  #touch {
+    position: fixed; inset: 0; display: none; pointer-events: none; z-index: 2;
+    /* The whole overlay refuses the browser's own gestures. Without this a
+       drag on the stick scrolls or zooms the page instead of moving it, and
+       the double-tap on a button zooms in. */
+    touch-action: none; user-select: none; -webkit-user-select: none;
+    -webkit-touch-callout: none;
+  }
+  .pad {
+    position: absolute; pointer-events: auto; touch-action: none;
+    display: grid; place-items: center;
+    border: 2px solid #ffffff55; border-radius: 50%;
+    background: #ffffff18; color: #fff;
+    font: 600 18px/1 system-ui, sans-serif; text-shadow: 0 1px 2px #000a;
+  }
+  .pad.on { background: #ffffff45; border-color: #fffc; }
+  /* Touch targets. A thumb aims worse than it looks like it does, and a near
+     miss in a match is a lost stock, so the buttons are drawn at the size they
+     want to be hit at rather than drawn small with an invisible margin around
+     them. An expanded hit area would overlap its neighbours here -- the face
+     buttons sit 14vh apart -- and a touch in the overlap goes to whichever
+     element happens to paint last, which is not a decision to leave to paint
+     order.
+
+     The minimum in px matters as much as the vh: on a short landscape
+     viewport, where the height is near 390px, 14vh is about 55px. 44px is the
+     floor for a touch target, not a comfortable size, so it is the fallback
+     rather than the target. */
+  .pad.btn { min-width: 44px; min-height: 44px; }
+  /* The controls clear the rounded corners and the home indicator. */
+  #pad-stick { left: calc(4vw + env(safe-area-inset-left)); bottom: calc(6vh + env(safe-area-inset-bottom)); width: 34vh; height: 34vh; }
+  #pad-cstick { right: calc(4vw + env(safe-area-inset-right)); bottom: calc(6vh + env(safe-area-inset-bottom)); width: 26vh; height: 26vh; }
+  /* A sits in the middle of the C-stick and B to its left, as requested. The
+     C-stick ring still works around them: a thumb that lands on the ring aims
+     the C-stick, one that lands on A presses A. */
+  #pad-a { right: calc(4vw + env(safe-area-inset-right) + 7vh); bottom: calc(6vh + env(safe-area-inset-bottom) + 7vh); width: 12vh; height: 12vh; }
+  #pad-b { right: calc(4vw + env(safe-area-inset-right) + 26vh); bottom: calc(6vh + env(safe-area-inset-bottom) + 6vh); width: 14vh; height: 14vh; }
+  /* Y is jump; R takes the position X has on a GameCube controller. */
+  #pad-y { right: calc(4vw + env(safe-area-inset-right) + 6vh); bottom: calc(6vh + env(safe-area-inset-bottom) + 26vh); width: 14vh; height: 14vh; }
+  #pad-r { right: calc(4vw + env(safe-area-inset-right) + 24vh); bottom: calc(6vh + env(safe-area-inset-bottom) + 24vh); width: 14vh; height: 14vh; }
+  /* L is on the left, above the stick, where the left hand already is. */
+  #pad-l { left: calc(4vw + env(safe-area-inset-left)); bottom: calc(6vh + env(safe-area-inset-bottom) + 27vh); width: 14vh; height: 14vh; }
+  #pad-z { left: calc(4vw + env(safe-area-inset-left) + 17vh); bottom: calc(6vh + env(safe-area-inset-bottom) + 27vh); width: 14vh; height: 14vh; }
+  #pad-start {
+    top: calc(2vh + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
+    width: 11vh; height: 6vh; border-radius: 3vh; font-size: 14px;
+  }
+  .nub {
+    width: 42%; height: 42%; border-radius: 50%;
+    background: #ffffff66; pointer-events: none;
+  }
+
+  /* The extra controls. A match needs the stick and the face buttons, but a
+     menu needs X and the D-pad as well, and drawing all 12 at once leaves
+     every one of them too small to hit. So the ones a match does not use sit
+     behind a tab, which is closed by default.
+
+     <details> rather than a class toggled from JS: the open and closed states
+     are then the browser's own, the summary is focusable and announced to a
+     screen reader without extra attributes, and there is no state to reset. */
+  #pad-drawer {
+    position: absolute; pointer-events: auto;
+    top: calc(2vh + env(safe-area-inset-top));
+    right: calc(4vw + env(safe-area-inset-right));
+  }
+  #pad-drawer summary {
+    /* list-style:none and the ::-webkit-details-marker rule remove the
+       disclosure triangle. Safari needs the second one. */
+    list-style: none;
+    display: grid; place-items: center;
+    width: 9vh; height: 6vh; min-width: 44px; min-height: 44px;
+    border: 2px solid #ffffff55; border-radius: 3vh;
+    background: #ffffff18; color: #fff;
+    font: 600 20px/1 system-ui, sans-serif;
+    cursor: pointer; touch-action: manipulation;
+  }
+  #pad-drawer summary::-webkit-details-marker { display: none; }
+  #pad-drawer[open] summary { background: #ffffff45; border-color: #fffc; }
+  /* The tray hangs below the tab and is laid out in flow, so the buttons in
+     it need no coordinates of their own. */
+  #pad-tray {
+    position: absolute; top: 7vh; right: 0;
+    display: flex; gap: 1.5vh;
+    padding: 1.5vh;
+    border: 2px solid #ffffff33; border-radius: 2vh;
+    background: #000000b0;
+  }
+  /* Opposite corner from the drawer tab, so neither covers the other and the
+     tray has room to open. */
+  #pad-full {
+    top: calc(2vh + env(safe-area-inset-top));
+    left: calc(4vw + env(safe-area-inset-left));
+    width: 9vh; height: 6vh; min-width: 44px; min-height: 44px;
+    border-radius: 3vh; font-size: 20px;
+  }
+  /* Beside the fullscreen button, top left. */
+  #pad-menu {
+    top: calc(2vh + env(safe-area-inset-top));
+    left: calc(4vw + env(safe-area-inset-left) + 10vh);
+    width: 9vh; height: 6vh; min-width: 44px; min-height: 44px;
+    border-radius: 3vh; font-size: 20px;
+  }
+  #pad-tray .pad {
+    position: static;
+    width: 11vh; height: 11vh; min-width: 44px; min-height: 44px;
+  }
 </style>
 <h1>Melee Web</h1>
+<div id="menu-panel"><p id="launch"><a href="?MELEE_BOOT_SCENE=vs">Versus</a><a href="?MELEE_BOOT_SCENE=training">Training</a><a href="?MELEE_20XX=1">20XX</a><span id="launch-hint">Pick a mode, then choose a disc image and click Start.</span></p>
+<p id="perf">Render scale, to measure whether a slow frame is the pixel count:
+<a href="?MELEE_BOOT_SCENE=vs&amp;MELEE_SCALE=1">1.0 · 960x720</a>
+<a href="?MELEE_BOOT_SCENE=vs&amp;MELEE_SCALE=0.667">0.667 · 640x480</a>
+<a href="?MELEE_BOOT_SCENE=vs&amp;MELEE_SCALE=0.5">0.5 · 480x360</a>
+</p>
 <div id="bar">
   <input id="disc" type="file" accept=".iso,.gcm">
   <button id="start" disabled>Start</button>
+  <button id="adapter">Connect GC adapter</button>
   <span id="status">Loading engine…</span>
   <span id="stats"></span>
 </div>
-<canvas id="canvas" width="960" height="720" tabindex="0"></canvas>
-<p><kbd>Arrows</kbd> stick · <kbd>X</kbd> A · <kbd>Z</kbd> B · <kbd>C</kbd> X · <kbd>V</kbd> Y · <kbd>Q</kbd> L · <kbd>E</kbd> R · <kbd>Tab</kbd> Z · <kbd>Enter</kbd> Start · <kbd>I</kbd><kbd>J</kbd><kbd>K</kbd><kbd>L</kbd> C-stick</p>
+</div>
+<div id="game"><canvas id="canvas" width="960" height="720" tabindex="0"></canvas>
+<div id="touch" hidden></div></div>
+<p id="keys">A WUP-028 GameCube adapter works through WebHID, with raw 8-bit values. Keyboard fallback:<br><kbd>Arrows</kbd> stick · <kbd>X</kbd> A · <kbd>Z</kbd> B · <kbd>C</kbd> X · <kbd>V</kbd> Y · <kbd>Q</kbd> L · <kbd>E</kbd> R · <kbd>Tab</kbd> Z · <kbd>Enter</kbd> Start · <kbd>I</kbd><kbd>J</kbd><kbd>K</kbd><kbd>L</kbd> C-stick</p>
 <pre id="log"></pre>
 <script type="module" src="./shell.mjs"></script>
 </html>

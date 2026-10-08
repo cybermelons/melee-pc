@@ -4,7 +4,13 @@
 #include <dolphin/pad.h>
 #include <string.h>
 
-#if defined(__ANDROID__) || defined(__APPLE__) || defined(TARGET_OS_IPHONE)
+/* The browser build has touch controls too, but they are an HTML overlay in
+ * platforms/browser rather than SDL finger events: the overlay needs a layout
+ * the engine cannot see, and a DOM element is the only way to draw one. It
+ * therefore uses the state half of this file (pc_touch_set_pad and friends,
+ * reached from JS) and leaves pc_touch_event below as a no-op. */
+#if defined(__ANDROID__) || defined(__APPLE__) || defined(TARGET_OS_IPHONE) ||                     \
+    defined(__EMSCRIPTEN__)
 #include <pthread.h>
 #include <SDL3/SDL_events.h>
 
@@ -62,6 +68,16 @@ void pc_touch_apply(void) {
         PADSetVirtualStatus(0, &st);
     }
 }
+
+#if defined(__EMSCRIPTEN__)
+
+/* The overlay posts a whole pad state, so there is no gesture left to
+ * interpret here and no use for the hardcoded zones in the SDL version. */
+void pc_touch_event(const SDL_Event* e) {
+    (void)e;
+}
+
+#else
 
 static struct {
     SDL_FingerID stick_finger;
@@ -148,6 +164,8 @@ void pc_touch_event(const SDL_Event* e) {
         }
     }
 }
+
+#endif /* __EMSCRIPTEN__ */
 
 #if defined(__ANDROID__)
 #include "pc/net.h"
