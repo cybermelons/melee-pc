@@ -7,6 +7,7 @@ import { createGCAdapter } from './gcadapter.mjs';
 import { checkGraphics } from './gpu-preflight.mjs';
 import { createTouchOverlay } from './touch.mjs';
 import { addMenuButton } from './menu-button.mjs';
+import { showCrash } from './crash.mjs';
 
 const $ = (id) => document.getElementById(id);
 const lines = [];
@@ -54,7 +55,11 @@ let lastReport = 0;
 // than written from its own event handlers, so input reaches the engine on the
 // game frame at 60Hz instead of at the browser's pointer event rate.
 let overlay = null;
+// Set on abort. onFrame is called from the engine's own loop, so this is what
+// stops the page's per-frame work; the engine is already past saving.
+let crashed = false;
 function onFrame() {
+  if (crashed) return;
   if (overlay) overlay.sample();
   const now = performance.now();
   if (frames.last) {
@@ -103,7 +108,7 @@ window.Module = {
   print: log,
   printErr: log,
   onFrame,
-  onAbort: (reason) => status(`Engine stopped: ${reason}`),
+  onAbort: (reason) => { crashed = true; showCrash(reason, { log, status }); },
   onGraphicsPreparation: (done, total) =>
     status(done === total ? 'Starting…' : `Preparing graphics… ${Math.floor(done * 100 / total)}%`),
   onRuntimeInitialized: () => {
