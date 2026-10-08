@@ -183,6 +183,16 @@ bool pc_is_pause_enabled(void) {
     return on;
 }
 
+/* Opt-in, so a lost focus never stops a game someone else is still watching
+ * or playing. See the header for why this is not a default. */
+bool pc_is_pause_on_blur_enabled(void) {
+    static int on = -1;
+    if (on < 0) {
+        on = env_is_set("MELEE_PAUSE_ON_BLUR");
+    }
+    return on;
+}
+
 bool pc_is_20xx_rules_enabled(void) {
     static int on = -1;
     if (on < 0) {

@@ -552,6 +552,9 @@ MELEE_EXPORT int main(int argc, char* argv[]) {
          * compositors stop scanning out a FifoRelaxed surface and the window
          * then sits on a stale frame while the game runs on. */
         .vsync = !(getenv("MELEE_VSYNC") && getenv("MELEE_VSYNC")[0] == '0'),
+        /* A minimized or hidden window stops anyway; this covers a window that
+         * is visible but not focused, which is why it is opt-in (pc.h). */
+        .pauseOnFocusLost = pc_is_pause_on_blur_enabled(),
 #if defined(__ANDROID__)
         .logLevel = LOG_DEBUG,
 #else

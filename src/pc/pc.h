@@ -86,6 +86,12 @@ bool pc_is_20xx_rules_enabled(void);
 /* MELEE_PAUSE=1: keep pausing under the tournament rule set, which turns it
  * off (gm/gmmain_lib.c). */
 bool pc_is_pause_enabled(void);
+/* MELEE_PAUSE_ON_BLUR=1: stop the simulation when the page or window loses
+ * focus while it is still visible. Opt-in: a second player on the same
+ * machine, a stream layout and a side-by-side window all take focus away from
+ * a game that must keep running. A hidden window already stops regardless of
+ * this flag (aurora window::is_paused). */
+bool pc_is_pause_on_blur_enabled(void);
 /* MELEE_20XX=1: turn on the boot-time conveniences a 20XX disc gives, so one
  * flag covers MELEE_BOOT_CSS, MELEE_UNLOCK_ALL and MELEE_SKIP_MEMCARD. Any of
  * those named on its own overrides this, including to 0. */

@@ -26,6 +26,7 @@ def main():
     # here is cheaper than one found in a browser.
     run([sys.executable, ROOT / 'tests/browser/test_exports.py'])
     run([sys.executable, ROOT / 'tests/browser/test_mobile_css.py'])
+    run([sys.executable, ROOT / 'tests/browser/test_pause_on_blur.py'])
     run([sys.executable, tools / 'build_lower.py'])
     run([sys.executable, tools / 'test_disc_lower.py'])
     run([sys.executable, tools / 'compile_game.py', '--jobs', args.jobs])
