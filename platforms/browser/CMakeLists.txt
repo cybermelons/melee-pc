@@ -23,11 +23,13 @@ target_compile_options(aurora_gx PRIVATE ${MELEE_FP_FLAGS})
 target_compile_options(aurora_gd PRIVATE ${MELEE_FP_FLAGS})
 # The upstream PC layer, minus what the browser replaces: main.c and
 # disc_open.c (platforms/browser/main.c, dvd.c), and the launcher, updater and
-# file cache (pc_stubs.c). The GameCube adapter keeps its decode and gets a
+# file cache (pc_stubs.c). The replay writer is the upstream one: its byte
+# sink is SDL IO on a thread, which Emscripten serves against IDBFS. The
+# GameCube adapter keeps its decode and gets a
 # WebHID transport (gcadapter_web.c). Keep in step with PC_SOURCES in the
 # top-level CMakeLists.txt.
 set(BROWSER_PC_SOURCES
- audio.c discfont.c gx.c input_poll.c keyboard.c misc.c os.c region.c stb_vorbis.c thp.c touch.c vi.c widescreen.c
+ audio.c discfont.c gx.c input_poll.c keyboard.c misc.c os.c region.c slp.c slp_format.c stb_vorbis.c thp.c touch.c vi.c widescreen.c
  android_compat.cpp music_stream.cpp textures.cpp
  net.c net_chat.c net_dht.c net_dht_item.c net_handshake.c net_identity.c net_lan.c net_match.c net_rank.c
  net_rank_session.c net_rank_store.c net_reliable.c net_sfx.c net_sim.c net_snapshot.c net_sync.c net_watchdog.c net_wire.c
@@ -47,7 +49,7 @@ target_include_directories(melee_browser PRIVATE ${CMAKE_SOURCE_DIR}/extern/auro
 target_link_libraries(melee_browser PRIVATE aurora::core aurora::gx aurora::gd aurora::vi aurora::pad aurora::si aurora::mtx aurora::os aurora::card aurora::thp)
 target_compile_definitions(melee_browser PRIVATE TARGET_PC=1 MELEE_PC=1 MELEE_USE_BUILTIN_SHA1)
 target_compile_options(melee_browser PRIVATE -Wno-incompatible-pointer-types -Wno-int-conversion ${MELEE_FP_FLAGS})
-target_link_options(melee_browser PRIVATE -O1 --profiling-funcs -sEMULATE_FUNCTION_POINTER_CASTS=1 -sSTACK_SIZE=8388608 -sINITIAL_MEMORY=268435456 -sMAXIMUM_MEMORY=2147483648 -sPTHREAD_POOL_SIZE=4 -sEXIT_RUNTIME=0 -sASSERTIONS=0 -lidbfs.js -sFORCE_FILESYSTEM=1 -sEXPORTED_RUNTIME_METHODS=callMain,FS,ENV,HEAPU8 -sEXPORTED_FUNCTIONS=_main,_malloc -sINVOKE_RUN=0 -sASYNCIFY_IMPORTS=browser_disc_read -sASYNCIFY_STACK_SIZE=1048576 -sERROR_ON_UNDEFINED_SYMBOLS=1 -Wl,--error-limit=0)
+target_link_options(melee_browser PRIVATE -O1 --profiling-funcs -sEMULATE_FUNCTION_POINTER_CASTS=1 -sSTACK_SIZE=8388608 -sINITIAL_MEMORY=268435456 -sMAXIMUM_MEMORY=2147483648 -sPTHREAD_POOL_SIZE=4 -sEXIT_RUNTIME=0 -sASSERTIONS=0 -lidbfs.js -sFORCE_FILESYSTEM=1 -sEXPORTED_RUNTIME_METHODS=callMain,FS,ENV,HEAPU8 -sEXPORTED_FUNCTIONS=_main,_malloc,_pc_slp_web_finish,_pc_slp_web_checkpoint,_pc_input_tas_set -sINVOKE_RUN=0 -sASYNCIFY_IMPORTS=browser_disc_read -sASYNCIFY_STACK_SIZE=1048576 -sERROR_ON_UNDEFINED_SYMBOLS=1 -Wl,--error-limit=0)
 set_target_properties(melee_browser PROPERTIES SUFFIX ".js")
 # emcc's single-pass link fails validation at -O2/-O3 when --fpcast-emu runs
 # ahead of the optimizer (direct calls into cast thunks keep the original
