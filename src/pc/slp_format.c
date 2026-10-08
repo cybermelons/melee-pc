@@ -384,7 +384,7 @@ void slp_raw_header(uint8_t out[SLP_RAW_HEADER_SIZE]) {
  * The game thread only allocates a message and links it in; the worker owns
  * the file and does every open, write, seek and close. */
 
-enum { MSG_BEGIN, MSG_DATA, MSG_END };
+enum { MSG_BEGIN, MSG_DATA, MSG_END, MSG_CHECKPOINT };
 
 typedef struct Msg {
     struct Msg* next;
@@ -396,6 +396,11 @@ typedef struct Msg {
 static SDL_Mutex* s_lock;
 static SDL_Condition* s_cond;
 static SDL_Thread* s_thread;
+/* Emscripten cannot spawn this thread from the game thread: the pthread pool
+ * is fixed and Asyncify cannot grow it. The queue only keeps file IO off the
+ * game thread, and the browser writes to IDBFS, which is RAM until syncfs,
+ * so the fallback runs the same io_* calls inline. */
+static bool s_sync;
 static Msg *s_head, *s_tail;
 static uint64_t s_queued, s_done; /* messages linked in / finished */
 static bool s_quit;
@@ -475,6 +480,23 @@ static void io_begin(const char* dir, const char* stem) {
     pc_log_line("slp: recording to %s", s_path);
 }
 
+/* Make the file on disk parseable without closing it: the length field is
+ * written last by io_close, so a tab killed mid-session would leave 0 there
+ * and no parser would read the events. Called on an interval by the shell. */
+static void io_checkpoint(void) {
+    if (s_io == NULL) {
+        return;
+    }
+    const Sint64 end = SDL_TellIO(s_io);
+    uint8_t len[4];
+    slp_put_u32(len, 0, s_raw_len);
+    if (SDL_SeekIO(s_io, SLP_RAW_LENGTH_OFFSET, SDL_IO_SEEK_SET) < 0) {
+        return;
+    }
+    io_write(len, sizeof len);
+    SDL_SeekIO(s_io, end, SDL_IO_SEEK_SET);
+}
+
 static void process(const Msg* m) {
     switch (m->kind) {
     case MSG_BEGIN: {
@@ -490,6 +512,9 @@ static void process(const Msg* m) {
         break;
     case MSG_END:
         io_close(m->data, m->len);
+        break;
+    case MSG_CHECKPOINT:
+        io_checkpoint();
         break;
     }
 }
@@ -535,12 +560,17 @@ static bool writer_start(void) {
     if (s_lock == NULL || s_cond == NULL) {
         return false;
     }
+    if (s_sync) {
+        return true;
+    }
     s_quit = false;
     s_thread = SDL_CreateThread(worker, "slp writer", NULL);
     if (s_thread == NULL) {
-        pc_log_line("slp: cannot start the writer thread: %s", SDL_GetError());
+        s_sync = true;
+        pc_log_line("slp: no writer thread (%s); recording on the game thread",
+            SDL_GetError());
     }
-    return s_thread != NULL;
+    return true;
 }
 
 static void push(int kind, const void* a, size_t alen, const void* b, size_t blen) {
@@ -559,6 +589,11 @@ static void push(int kind, const void* a, size_t alen, const void* b, size_t ble
     }
     if (blen != 0) {
         memcpy(m->data + alen, b, blen);
+    }
+    if (s_sync) {
+        process(m);
+        free(m);
+        return;
     }
     SDL_LockMutex(s_lock);
     if (s_tail != NULL) {
@@ -586,6 +621,18 @@ void slp_writer_end(const uint8_t* metadata, size_t len) {
     push(MSG_END, metadata, len, NULL, 0);
 }
 
+void slp_writer_checkpoint(void) {
+    if (s_sync) {
+        io_checkpoint(); /* same thread as the writes: no lock needed */
+        return;
+    }
+    if (s_thread == NULL) {
+        return;
+    }
+    push(MSG_CHECKPOINT, NULL, 0, NULL, 0);
+    slp_writer_flush();
+}
+
 void slp_writer_flush(void) {
     if (s_thread == NULL) {
         return;
@@ -599,6 +646,10 @@ void slp_writer_flush(void) {
 }
 
 void slp_writer_shutdown(void) {
+    if (s_sync) {
+        io_close(NULL, 0); /* a session that ended without MSG_END */
+        return;
+    }
     if (s_thread == NULL) {
         return;
     }

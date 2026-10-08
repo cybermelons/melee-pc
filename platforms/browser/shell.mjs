@@ -38,7 +38,10 @@ function syncfs(populate) {
 
 // Any MELEE_* query parameter becomes an environment variable, so the knobs in
 // docs/testing.md work unchanged: ?MELEE_BOOT_SCENE=vs&MELEE_SEED=1
-const ENV = {};
+// MELEE_SLP_DIR defaults to /saves, which is mounted IDBFS with autoPersist,
+// so replays survive a reload without an explicit syncfs. Unset, the writer
+// records nothing (src/pc/slp.c).
+const ENV = { MELEE_SLP_DIR: '/saves/slp' };
 for (const [key, value] of new URLSearchParams(location.search)) {
   if (/^MELEE_[A-Z0-9_]+$/.test(key)) ENV[key] = value;
 }
@@ -103,6 +106,27 @@ $('start').addEventListener('click', async () => {
     // page is hidden rather than on every write.
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden') syncfs(false).catch(log);
+    });
+    // A closed tab runs no atexit hook, so the recorder would leave its last
+    // .slp without the patched raw length or metadata. pagehide is the last
+    // event a browser guarantees; finish the file, then persist /saves.
+    // pagehide does not fire on a crash or an OOM kill, so checkpoint the
+    // open .slp and persist /saves on an interval as well. MELEE_SLP_SAVE_SECS=0
+    // turns it off; the writes themselves are per-frame regardless.
+    const every = Number(ENV.MELEE_SLP_SAVE_SECS ?? 30);
+    if (every > 0) {
+      setInterval(() => {
+        try {
+          Module._pc_slp_web_checkpoint();
+          Module.FS.syncfs(false, () => {});
+        } catch (error) { log(error.message); }
+      }, every * 1000);
+    }
+    addEventListener('pagehide', () => {
+      try {
+        Module._pc_slp_web_finish();
+        Module.FS.syncfs(false, () => {});
+      } catch (error) { log(error.message); }
     });
     status('');
     $('canvas').focus();

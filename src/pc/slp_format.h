@@ -230,6 +230,9 @@ void slp_writer_append(const uint8_t* data, size_t len);
  * length and closes the file. */
 void slp_writer_end(const uint8_t* metadata, size_t len);
 /* Blocks until everything queued so far is on disk. */
+/* Patch the raw length into the open file so a session killed without
+ * slp_writer_end still parses. Cheap: one seek, 4 bytes, one seek back. */
+void slp_writer_checkpoint(void);
 void slp_writer_flush(void);
 /* flush, then stop the worker (process exit). */
 void slp_writer_shutdown(void);
