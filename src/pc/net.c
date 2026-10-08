@@ -45,6 +45,11 @@
 #include <SDL3/SDL_timer.h>
 #include <errno.h>
 #include <stdatomic.h>
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+int browser_net_attach(void* rxbuf);
+int browser_net_send(const void* p, int n);
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -101,6 +106,9 @@ static int s_mac_quiet;
 static unsigned s_stalls, s_advances, s_rollbacks, s_rb_lost;
 static int s_rb_depth_max;
 static uint64_t s_stall_ns_max;
+/* Total time wait_remote held the game thread this window. The worst single
+ * stall says nothing about a frame rate that many small stalls take away. */
+static uint64_t s_stall_ns_sum;
 static uint64_t s_ping_sum;
 static unsigned s_ping_n;
 static uint32_t s_rtt_min, s_rtt_max; /* this stats window */
@@ -368,6 +376,13 @@ static void sock_err_note(const char* what, int e) {
 
 /* One sendto with error translation (caller holds tx_lock). */
 int net_sendto(const void* buf, size_t len) {
+#ifdef __EMSCRIPTEN__
+    int r = browser_net_send(buf, (int)len);
+    if (r < 0) { /* channel not open: a would-block, not a hard error */
+        s_tx_would_block++;
+    }
+    return r;
+#else
     int r =
         (int)sendto(net.sock, (const char*)buf, len, 0, (struct sockaddr*)&net.peer, net.peer_len);
     if (r < 0) {
@@ -379,6 +394,7 @@ int net_sendto(const void* buf, size_t len) {
         }
     }
     return r;
+#endif
 }
 
 /* Wire copy of a host-order input packet out (caller holds tx_lock). Stamps
@@ -1116,7 +1132,23 @@ static void rx_datagram(void* buf, int n, const struct sockaddr_storage* from, s
  * held back. Runs on the receive thread, or on the game thread when there
  * is none. False on a hard socket error (sock_err_note logged it). */
 _Static_assert(HELD_BYTES + NET_MAC_LEN <= 512, "a full input packet must fit rx_pump's buffer");
+#ifdef __EMSCRIPTEN__
+/* The data channel's onmessage (platforms/browser/net_rtc.c) lands here from
+ * the JS event loop, which can only run while the game thread sleeps, never
+ * inside a critical section. */
+static uint8_t s_rtc_rx[512];
+EMSCRIPTEN_KEEPALIVE void browser_net_rx(int n) {
+    if (net.sock == SOCK_INVALID || n < 1 || n > 512) {
+        return;
+    }
+    SDL_LockMutex(s_rx_lock);
+    rx_datagram(s_rtc_rx, n, (const struct sockaddr_storage*)&net.peer, net.peer_len);
+    SDL_UnlockMutex(s_rx_lock);
+}
+#endif
+
 static bool rx_pump(void) {
+#ifndef __EMSCRIPTEN__
     for (int budget = RX_BUDGET; budget > 0; budget--) {
         union {
             Hdr h;
@@ -1143,6 +1175,7 @@ static bool rx_pump(void) {
         rx_datagram(&u, n, &from, from_len);
         SDL_UnlockMutex(s_rx_lock);
     }
+#endif
     if (net.sim_rx_delay_ns != 0) {
         SDL_LockMutex(s_rx_lock);
         uint64_t now = SDL_GetTicksNS();
@@ -1515,6 +1548,24 @@ static void resume_end(uint64_t now) {
 static int connect_timeout_ms(void) {
     return net.connect_timeout_ms > 0 ? net.connect_timeout_ms : CONNECT_TIMEOUT_MS;
 }
+/* A sub-millisecond spin wait, used where this thread must keep polling the
+ * network while it waits. SDL_DelayNS is wrong for this on the browser:
+ * SDL maps it to emscripten_sleep(ns / 1000000), so any delay under a
+ * millisecond asks for 0, and a setTimeout costs about 4.2 ms whatever it
+ * asks for (measured in Chrome: 0, 1 and 2 ms all returned ~4.2 ms). A frame
+ * at 60 Hz is 16.7 ms, so one spin iteration took a quarter of it and
+ * netplay ran at about 47 fps. browser_yield is a MessageChannel round trip
+ * and has no such minimum: 0.007 ms measured, 600 times cheaper. */
+static void net_spin_wait(uint64_t ns) {
+#ifdef __EMSCRIPTEN__
+    (void)ns;
+    extern void browser_yield(void);
+    browser_yield();
+#else
+    SDL_DelayNS(ns);
+#endif
+}
+
 static bool wait_remote(int32_t need) {
     if (s_remote_have >= need) {
         return true;
@@ -1574,12 +1625,13 @@ static bool wait_remote(int32_t need) {
         }
         /* The receive thread is draining the socket meanwhile; half a
          * millisecond is how late its queue can be seen here. */
-        SDL_DelayNS(500000);
+        net_spin_wait(500000);
     }
     if (s_rc != RSM_NONE) {
         resume_end(SDL_GetTicksNS());
     }
     uint64_t dt = SDL_GetTicksNS() - t0;
+    s_stall_ns_sum += dt;
     if (dt > s_stall_ns_max) {
         s_stall_ns_max = dt;
     }
@@ -1818,7 +1870,7 @@ static void session_reset(void) {
     s_rc_sent = false;
     s_stalls = net.skips = s_advances = s_rollbacks = s_rb_lost = 0;
     s_rb_depth_max = s_rb_depth_cur = s_rb_depth_recent = 0;
-    s_stall_ns_max = 0;
+    s_stall_ns_max = s_stall_ns_sum = 0;
     s_stall_frame = -1000;
     net.ping_us = 0;
     s_ping_sum = 0;
@@ -1997,12 +2049,12 @@ static bool addr_is_host(const struct sockaddr* sa) {
 static bool connect_impl(
     sock_t supplied, const char* ip, uint16_t port, int player, uint32_t seed) {
 #ifdef __EMSCRIPTEN__
-    /* A page has no UDP: Emscripten's sockets are WebSocket proxies. Every
-     * session path (MELEE_NET, the lobby's DHT socket) comes through here, so
-     * refusing here keeps netplay inert and its receive thread unstarted. */
-    (void)supplied, (void)ip, (void)port, (void)player, (void)seed;
-    pc_log_line("net: netplay is unavailable in the browser");
-    return false;
+    /* The lobby's DHT path hands over its own socket, which has no data
+     * channel behind it, so it stays refused. */
+    if (supplied != SOCK_INVALID) {
+        pc_log_line("net: browser netplay needs an open WebRTC data channel (Module.netChannel)");
+        return false;
+    }
 #endif
     if (net.tx_lock == NULL) {
         net.tx_lock = SDL_CreateMutex();
@@ -2010,6 +2062,16 @@ static bool connect_impl(
         sock_startup();
     }
     pc_net_disconnect();
+#ifdef __EMSCRIPTEN__
+    /* A page has no UDP, so the session rides the paired WebRTC data channel
+     * (platforms/browser/net_rtc.c). Attach only once s_rx_lock exists and the
+     * previous session is torn down: onmessage can fire from the event loop as
+     * soon as it is installed, and browser_net_rx takes that lock. */
+    if (!browser_net_attach(s_rtc_rx)) {
+        pc_log_line("net: browser netplay needs an open WebRTC data channel (Module.netChannel)");
+        return false;
+    }
+#endif
     char portstr[8];
     snprintf(portstr, sizeof portstr, "%u", port);
     struct addrinfo hints, *res = NULL;
@@ -2171,8 +2233,10 @@ static bool connect_impl(
         net.session, WIRE_VERSION, net.sim_loss, (int)(net.sim_delay_ns / 1000000),
         (int)(net.sim_rx_delay_ns / 1000000), net.sim_jitter_ms, net.sim_reorder, net.sim_dup,
         net.sim_burst);
+#ifndef __EMSCRIPTEN__
     atomic_store(&s_rx_run, true);
     s_rx_thread = SDL_CreateThread(rx_main, "net rx", NULL);
+#endif
     if (s_rx_thread == NULL) {
         /* Still a working session, only without the fix: recv_inputs drains
          * the socket itself, and a stall of this thread reads as latency. */
@@ -2895,9 +2959,9 @@ static void dvd_settle(void) {
             barrier_raise(net.frame + IO_QUIET);
             if (!warned) {
                 warned = true;
-                pc_log_line("net: disc/ARAM transfer still in flight after 5 s at frame %d; "
-                            "running on in lockstep to frame %d",
-                    net.frame, net.rb_barrier);
+                pc_log_line("net: disc/ARAM transfer still in flight after 5 s at frame %d "
+                            "(dvd %d, aram %d); running on in lockstep to frame %d",
+                    net.frame, aurora_dvd_inflight(), aurora_arq_inflight(), net.rb_barrier);
             }
             return;
         }
@@ -2906,7 +2970,17 @@ static void dvd_settle(void) {
          * disc drain reports a healthy thread (and dumps a stack from inside
          * whatever it happens to hold). */
         net_watchdog_heartbeat();
-        SDL_DelayNS(200000);
+        net_spin_wait(200000);
+#ifdef __EMSCRIPTEN__
+        /* Both queues are drained by the game thread, which is this thread:
+         * no worker and no JS callback empties them, so a yield alone waits
+         * for something that cannot happen while we hold the thread. Drain
+         * them here or this loop always runs its 5 s cap out. */
+        extern void browser_disc_deliver(void);
+        extern void browser_arq_deliver(void);
+        browser_disc_deliver();
+        browser_arq_deliver();
+#endif
     }
 }
 
@@ -3133,7 +3207,7 @@ static void fresh_tick(PADStatus* head, bool raw) {
          * its lock, which it waits out for one log line every 10 s. */
         SDL_LockMutex(s_rx_lock);
         pc_log_line("net: frame %d, rollbacks %u (max depth %d, lost %u), stalls %u (worst "
-                    "%.1f ms), skips %u, advances %u, ping %u ms (avg %.0f, min %u, max %u, "
+                    "%.1f ms, total %.0f ms), skips %u, advances %u, ping %u ms (avg %.0f, min %u, max %u, "
                     "jitter %.1f), loss %d%% (%u tx %u rx), offset %+.1f ms, remote behind %d, "
                     "barrier %d, quality %d, dup %u reorder %u sock_err %u resim_eat %u red %d, "
                     "drops (bad_src %u bad_sess %u bad_player %u bad_mac %u malformed %u "
@@ -3141,7 +3215,7 @@ static void fresh_tick(PADStatus* head, bool raw) {
                     "pad reuse %u empty %u, audio replayed %u over %u, seed out-of-tick %u draws "
                     "in %u frames, pad slips %u (queue worst %u, full at write %u), idle ticks %u, "
                     "audio liveness asked %u (engine would say yes %u)",
-            net.frame, s_rollbacks, s_rb_depth_max, s_rb_lost, s_stalls, s_stall_ns_max / 1e6,
+            net.frame, s_rollbacks, s_rb_depth_max, s_rb_lost, s_stalls, s_stall_ns_max / 1e6, s_stall_ns_sum / 1e6,
             net.skips, s_advances, net.ping_us / 1000,
             s_ping_n ? s_ping_sum / 1000.0 / s_ping_n : 0.0, s_rtt_min / 1000, s_rtt_max / 1000,
             jitter_us() / 1000.0, s_loss_pct, net.tx_pkts, s_rx_pkts, net.offset_last / 1000.0,
@@ -3152,6 +3226,7 @@ static void fresh_tick(PADStatus* head, bool raw) {
             s_seed_out_frames, s_pad_slips, s_qdepth_max, s_pad_full, s_tick_idle, s_deaf_asks,
             s_deaf_true);
         s_stall_ns_max = 0;
+        s_stall_ns_sum = 0;
         s_ping_sum = 0;
         s_ping_n = 0;
         s_rtt_min = s_rtt_max = 0;

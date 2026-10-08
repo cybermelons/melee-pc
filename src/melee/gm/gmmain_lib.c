@@ -1424,10 +1424,37 @@ void gmMainLib_8015FBA4(void)
         rules->stock_count = 4;
         rules->stock_time_limit = 8; /* minutes */
         rules->stage_sel = 0;        /* StageSelectMode_On */
-        /* Items off. item_freq is the items menu index minus 1
-         * (mnItemSw_CommitItems, mnitemsw.c:214), so the first entry "Off"
-         * underflows to 0xFF; net_handshake.c treats 0xFF as a valid Off. */
+        rules->friendly_fire = true; /* tournament play is friendly fire on */
+        /* No pausing in a tournament match, unless MELEE_PAUSE asks for it:
+         * one person playing alone on a page still needs a way to stop. */
+        rules->pause = pc_is_pause_enabled();
+        /* handicap and damage_ratio are already the tournament values in
+         * gmMainLib_DefaultGameRules (0 and 10, meaning off and 1.0x), which
+         * the assignment above this block installs, so they are not set again
+         * here. The report below names them anyway, so a change to those
+         * defaults cannot silently alter this rule set. */
+
+        /* Items off, which takes both fields. item_freq is the items menu
+         * index minus 1 (mnItemSw_CommitItems, mnitemsw.c:214), so the first
+         * entry "Off" underflows to 0xFF; net_handshake.c treats 0xFF as a
+         * valid Off. item_freq alone only stops the spawns: the item switch
+         * itself defaults to U64_MAX (gmMainLib_DefaultGamePrefs), every item
+         * enabled, which the CSS then shows as a full item list. Clear the
+         * mask too, so the switch reads off and matches what the frequency
+         * says. */
         gmMainLib_GetGamePrefs()->item_freq = 0xFF;
+        gmMainLib_GetGamePrefs()->item_mask = 0;
+        /* Report the whole set, so a run can assert the rules it played under
+         * rather than the flag that was meant to set them. Every field the
+         * tournament set depends on is here, including the three that come
+         * from gmMainLib_DefaultGameRules rather than from this block: a
+         * change to those defaults shows up as a changed line. */
+        OSReport("20xx rules: stock=%d time=%dmin items=off item_mask=0 "
+                 "stage_sel=%d friendly_fire=%d pause=%d handicap=%d "
+                 "damage_ratio=%d\n",
+                 rules->stock_count, rules->stock_time_limit,
+                 rules->stage_sel, rules->friendly_fire, rules->pause,
+                 rules->handicap, rules->damage_ratio);
     }
 #endif
     resetSaveData();

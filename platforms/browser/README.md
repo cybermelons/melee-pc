@@ -103,6 +103,38 @@ Environment variables go into `Module.ENV` from `preRun`, which is after
 Emscripten creates `ENV` and before the static constructor that snapshots it.
 Then the page mounts `/saves` and `/cache` and calls `callMain([])`.
 
+## Netplay
+
+Two tabs play one match over WebRTC. One player opens the page with a
+`?room=<id>` parameter and sends the same link to the other player. Each
+tab claims a port with the P1 or P2 button. The engine loads after both
+ports are claimed, so a tab never boots into a match it cannot join.
+
+`tools/browser/signal.mjs` on port 8101 carries the offer, the answer and
+the ICE candidates. It stops once the data channel opens, so a session does
+not need it after that point. There is no TURN server, which means both
+players must reach each other directly.
+
+`platforms/browser/net_rtc.c` is the whole transport. The build has no
+`-sPROXY_TO_PTHREAD`, so the game thread is the browser main thread, and
+`RTCDataChannel` does not exist in a Worker. net.c therefore runs with no
+receive thread: `recv_inputs` calls `rx_pump` itself, and the data channel's
+`onmessage` calls the `browser_net_rx` export while the game thread is
+suspended inside a yield. Two rules follow. Never hold `s_rx_lock` or
+`tx_lock` across a call that can sleep. Send with `HEAPU8.slice`, never
+`subarray`, because wasm memory is a `SharedArrayBuffer` under `-pthread`.
+
+```sh
+node tools/browser/signal.mjs &            # port 8101
+MELEE_DISC=/path/to/GALE01.iso PORT=8102 node /path/to/serve.mjs \
+  build/browser/runtime/platforms/browser &
+node tests/browser/netplay-e2e.mjs
+```
+
+Serve the build directory, not `platforms/browser` -- the source directory
+has no `melee_browser.js`. `tests/browser/pair-e2e.mjs` tests the signaling
+and the port claim alone, with no engine and no GPU.
+
 ## Testing
 
 ```sh

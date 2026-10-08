@@ -213,6 +213,75 @@ if (remoteDisc) {
   updateStart();
 }
 
+// Room mode (?room=<id>): claim a controller port and open a WebRTC data channel
+// to the other tab. This must finish before melee_browser.js is injected,
+// because preRun copies ENV into the engine only once that script loads.
+const roomId = new URLSearchParams(location.search).get('room');
+async function pairIfRoom() {
+  if (!roomId) return;
+  const signal = new URLSearchParams(location.search).get('signal') || `http://${location.hostname}:8101`;
+  const me = crypto.randomUUID();
+  const base = `${signal}/r/${encodeURIComponent(roomId)}`;
+  const post = (msg) => fetch(base, { method: 'POST', body: JSON.stringify({ ...msg, from: me }) });
+  const buttons = [$('p1'), $('p2')];
+  for (const b of buttons) b.hidden = false;
+  status('Pick P1 or P2.');
+  const events = new EventSource(`${base}/events?me=${me}`);
+  const gathered = (pc) => new Promise((resolve) => {
+    if (pc.iceGatheringState === 'complete') return resolve();
+    pc.addEventListener('icegatheringstatechange', () => pc.iceGatheringState === 'complete' && resolve());
+  });
+  let slot = -1;
+  let paired;
+  const done = new Promise((resolve) => { paired = resolve; });
+  const open = (dc) => {
+    dc.binaryType = 'arraybuffer';
+    dc.onopen = () => {
+      Module.netChannel = dc;
+      ENV.MELEE_NET = '127.0.0.1:1';
+      ENV.MELEE_NET_PLAYER = String(slot);
+      ENV.MELEE_BOOT_SCENE ??= 'vs';
+      window.meleeNet = { dc, player: slot };
+      events.close();
+      status(`Paired as P${slot + 1}. Loading engine…`);
+      paired();
+    };
+  };
+  let pc = null;
+  const start = async () => {
+    pc = new RTCPeerConnection({ iceServers: [] });
+    status('Pairing…');
+    if (slot === 0) {
+      open(pc.createDataChannel('melee', { ordered: false, maxRetransmits: 0 }));
+      await pc.setLocalDescription(await pc.createOffer());
+      await gathered(pc);
+      post({ type: 'offer', sdp: pc.localDescription.sdp });
+    } else {
+      pc.ondatachannel = (e) => open(e.channel);
+    }
+  };
+  events.addEventListener('state', (e) => {
+    const { claims } = JSON.parse(e.data);
+    slot = claims[0] === me ? 0 : claims[1] === me ? 1 : -1;
+    buttons.forEach((b, i) => { b.disabled = claims[i] !== null && claims[i] !== me; });
+    if (slot >= 0 && claims[0] && claims[1] && !pc) start();
+  });
+  events.addEventListener('offer', async (e) => {
+    await pc.setRemoteDescription({ type: 'offer', sdp: JSON.parse(e.data).sdp });
+    await pc.setLocalDescription(await pc.createAnswer());
+    await gathered(pc);
+    post({ type: 'answer', sdp: pc.localDescription.sdp });
+  });
+  events.addEventListener('answer', (e) =>
+    pc.setRemoteDescription({ type: 'answer', sdp: JSON.parse(e.data).sdp }));
+  buttons.forEach((b, i) => b.addEventListener('click', async () => {
+    const r = await post({ type: 'claim', player: i });
+    if (!r.ok) status(`P${i + 1} is taken.`);
+  }));
+  await done;
+}
+await pairIfRoom();
+
 // Fail with a readable message before the wasm is fetched; otherwise a browser
 // without WebGPU only shows a bare Emscripten abort.
 try {

@@ -183,6 +183,9 @@ extern "C" void browser_arq_deliver() {
     ArqJob job=sArqQueue.front();sArqQueue.pop_front();
     arq_transfer(job);
     if(job.callback)job.callback(job.request);
+    // No arq_worker on this target (ARQInit returns early), so this drain owns
+    // the decrement that balances ARQPostRequest's increment.
+    sArqInflight.fetch_sub(1, std::memory_order_release);
   }
   delivering=false;
 }
