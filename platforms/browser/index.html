@@ -74,20 +74,33 @@
     font: 600 18px/1 system-ui, sans-serif; text-shadow: 0 1px 2px #000a;
   }
   .pad.on { background: #ffffff45; border-color: #fffc; }
+  /* Touch targets. A thumb aims worse than it looks like it does, and a near
+     miss in a match is a lost stock, so the buttons are drawn at the size they
+     want to be hit at rather than drawn small with an invisible margin around
+     them. An expanded hit area would overlap its neighbours here -- the face
+     buttons sit 14vh apart -- and a touch in the overlap goes to whichever
+     element happens to paint last, which is not a decision to leave to paint
+     order.
+
+     The minimum in px matters as much as the vh: on a short landscape
+     viewport, where the height is near 390px, 14vh is about 55px. 44px is the
+     floor for a touch target, not a comfortable size, so it is the fallback
+     rather than the target. */
+  .pad.btn { min-width: 44px; min-height: 44px; }
   /* The controls clear the rounded corners and the home indicator. */
   #pad-stick { left: calc(4vw + env(safe-area-inset-left)); bottom: calc(6vh + env(safe-area-inset-bottom)); width: 34vh; height: 34vh; }
-  #pad-cstick { right: calc(4vw + env(safe-area-inset-right)); bottom: calc(6vh + env(safe-area-inset-bottom)); width: 34vh; height: 34vh; }
+  #pad-cstick { right: calc(4vw + env(safe-area-inset-right)); bottom: calc(6vh + env(safe-area-inset-bottom)); width: 26vh; height: 26vh; }
   /* A sits in the middle of the C-stick and B to its left, as requested. The
      C-stick ring still works around them: a thumb that lands on the ring aims
      the C-stick, one that lands on A presses A. */
-  #pad-a { right: calc(4vw + env(safe-area-inset-right) + 11vh); bottom: calc(6vh + env(safe-area-inset-bottom) + 11vh); width: 12vh; height: 12vh; }
-  #pad-b { right: calc(4vw + env(safe-area-inset-right) + 25vh); bottom: calc(6vh + env(safe-area-inset-bottom) + 11vh); width: 12vh; height: 12vh; }
+  #pad-a { right: calc(4vw + env(safe-area-inset-right) + 7vh); bottom: calc(6vh + env(safe-area-inset-bottom) + 7vh); width: 12vh; height: 12vh; }
+  #pad-b { right: calc(4vw + env(safe-area-inset-right) + 26vh); bottom: calc(6vh + env(safe-area-inset-bottom) + 6vh); width: 14vh; height: 14vh; }
   /* Y is jump; R takes the position X has on a GameCube controller. */
-  #pad-y { right: calc(4vw + env(safe-area-inset-right) + 11vh); bottom: calc(6vh + env(safe-area-inset-bottom) + 25vh); width: 12vh; height: 12vh; }
-  #pad-r { right: calc(4vw + env(safe-area-inset-right)); bottom: calc(6vh + env(safe-area-inset-bottom) + 25vh); width: 12vh; height: 12vh; }
+  #pad-y { right: calc(4vw + env(safe-area-inset-right) + 6vh); bottom: calc(6vh + env(safe-area-inset-bottom) + 26vh); width: 14vh; height: 14vh; }
+  #pad-r { right: calc(4vw + env(safe-area-inset-right) + 24vh); bottom: calc(6vh + env(safe-area-inset-bottom) + 24vh); width: 14vh; height: 14vh; }
   /* L is on the left, above the stick, where the left hand already is. */
-  #pad-l { left: calc(4vw + env(safe-area-inset-left)); bottom: calc(6vh + env(safe-area-inset-bottom) + 25vh); width: 12vh; height: 12vh; }
-  #pad-z { left: calc(4vw + env(safe-area-inset-left) + 14vh); bottom: calc(6vh + env(safe-area-inset-bottom) + 25vh); width: 12vh; height: 12vh; }
+  #pad-l { left: calc(4vw + env(safe-area-inset-left)); bottom: calc(6vh + env(safe-area-inset-bottom) + 27vh); width: 14vh; height: 14vh; }
+  #pad-z { left: calc(4vw + env(safe-area-inset-left) + 17vh); bottom: calc(6vh + env(safe-area-inset-bottom) + 27vh); width: 14vh; height: 14vh; }
   #pad-start {
     top: calc(2vh + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
     width: 11vh; height: 6vh; border-radius: 3vh; font-size: 14px;
