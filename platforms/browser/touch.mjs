@@ -34,6 +34,22 @@ const STICK_MAX = 80;
 // constant slow walk.
 const DEADZONE = 0.2;
 
+// Melee applies its own absolute stick deadzone of 0.28 on both axes
+// (ftCommonData.horizontal_stick_deadzone and vertical, PlCo.dat), and it is
+// always applied. DEADZONE is smaller, so a linear mapping wastes the travel
+// between them: the overlay starts reporting at 0.2 of the radius but the
+// engine ignores everything until 0.282, which is 28% of the thumb's reach
+// doing nothing. The gap is invisible on a real controller, where the spring
+// gives the thumb somewhere to push against, and obvious on glass.
+//
+// So map the live range onto the engine's instead of onto the raw units: the
+// edge of the visible deadzone becomes the edge of the engine's, and full
+// deflection still reaches STICK_MAX exactly, which the dash, tilt and
+// light-shield thresholds are expressed in. Rounding leaves the first
+// reported step a unit under 0.28, so resting exactly on the deadzone ring
+// still reads as centred rather than as a walk.
+const ENGINE_DEADZONE = 0.28;
+
 // Tap jump, defeated without taking the upward stick away.
 //
 // ftCo_Jump_GetInput jumps when lstick.y crosses tap_jump_threshold AND
@@ -263,9 +279,18 @@ export function createTouchOverlay(Module, log) {
     const scale = length > 1 ? 1 / length : 1;
     let ux = dx * scale;
     let uy = dy * scale;
-    if (Math.hypot(ux, uy) < DEADZONE) {
+    const magnitude = Math.hypot(ux, uy);
+    if (magnitude < DEADZONE) {
       ux = 0;
       uy = 0;
+    } else {
+      // Rescale the magnitude, not each axis: scaling the axes separately
+      // moves the angle, and a stick that reports 43 degrees when the thumb
+      // is at 45 breaks every angle-sensitive move. See ENGINE_DEADZONE.
+      const live = (magnitude - DEADZONE) / (1 - DEADZONE);
+      const gain = (ENGINE_DEADZONE + live * (1 - ENGINE_DEADZONE)) / magnitude;
+      ux *= gain;
+      uy *= gain;
     }
     stick.dx = Math.round(ux * STICK_MAX);
     // Screen Y grows downwards and the pad's grows upwards. The | 0 turns the
@@ -273,7 +298,9 @@ export function createTouchOverlay(Module, log) {
     stick.dy = -Math.round(uy * STICK_MAX) | 0;
     stick.el.classList.add('on');
     const nub = stick.control.nub;
-    nub.style.transform = `translate(${ux * 50}%, ${uy * 50}%)`;
+    // The nub follows the thumb, not the rescaled value: the dot has to stay
+    // under the finger, or the stick looks broken.
+    nub.style.transform = `translate(${dx * scale * 50}%, ${dy * scale * 50}%)`;
   }
 
   function onDown(event) {
