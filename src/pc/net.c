@@ -2959,9 +2959,9 @@ static void dvd_settle(void) {
             barrier_raise(net.frame + IO_QUIET);
             if (!warned) {
                 warned = true;
-                pc_log_line("net: disc/ARAM transfer still in flight after 5 s at frame %d; "
-                            "running on in lockstep to frame %d",
-                    net.frame, net.rb_barrier);
+                pc_log_line("net: disc/ARAM transfer still in flight after 5 s at frame %d "
+                            "(dvd %d, aram %d); running on in lockstep to frame %d",
+                    net.frame, aurora_dvd_inflight(), aurora_arq_inflight(), net.rb_barrier);
             }
             return;
         }
@@ -2971,6 +2971,16 @@ static void dvd_settle(void) {
          * whatever it happens to hold). */
         net_watchdog_heartbeat();
         net_spin_wait(200000);
+#ifdef __EMSCRIPTEN__
+        /* Both queues are drained by the game thread, which is this thread:
+         * no worker and no JS callback empties them, so a yield alone waits
+         * for something that cannot happen while we hold the thread. Drain
+         * them here or this loop always runs its 5 s cap out. */
+        extern void browser_disc_deliver(void);
+        extern void browser_arq_deliver(void);
+        browser_disc_deliver();
+        browser_arq_deliver();
+#endif
     }
 }
 
