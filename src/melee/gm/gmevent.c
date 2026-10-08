@@ -4,6 +4,7 @@
 #include <melee/pl/forward.h>
 
 #include "gm_1601.h"
+#include "gmboot.h"
 #include "gm_16F1.h"
 #include "gm_unsplit.h"
 #include "gmmain_lib.h"
@@ -773,6 +774,16 @@ void gm_Mode_Event_OnInit(void)
     temp_r6->x3 = 0;
     temp_r6->nametag = 0x78;
     temp_r6->unk_535 = 0;
+#ifdef TARGET_PC
+    /* MELEE_EVENT=<0..50>: start on one event match instead of the first.
+     * The level index is the only choice the event scene needs: onEnterVs
+     * above builds the rules, the stage and every player out of
+     * sqEventInitDataLevelTbl for whatever level is set here. Overriding the
+     * index at its init site rather than patching the table means the disc
+     * data is untouched, and every later reader of unk_535 (the results
+     * screen, the high-score write, the unlock checks) stays consistent. */
+    temp_r6->unk_535 = pc_event_boot_level();
+#endif
     temp_r6->x6 = 0;
     temp_r6->x7 = 0;
     temp_r6->x8 = -1;
