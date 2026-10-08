@@ -31,7 +31,11 @@
      chrome hidden, so the bottom of the picture sits under the toolbar until
      the user scrolls. */
   @media (pointer: coarse) {
-    body { max-width: none; padding: 0; height: 100dvh; overflow: hidden; }
+    /* overflow:hidden and a locked height only once the game runs. Before
+       that the page has to scroll, or a tall canvas pushes Start out of reach
+       with no way to get to it. */
+    body { max-width: none; padding: 0; }
+    body.playing { height: 100dvh; overflow: hidden; }
     h1, #keys { display: none; }
     /* The page controls are not hidden once the game runs, only moved into the
        menu panel below, which #menu-panel positions. Hiding them outright left
@@ -46,18 +50,23 @@
     /* While the game runs, the page controls become a panel over the picture,
        opened from the tab the overlay draws. Closed, nothing of them shows.
 
-       :has() on the <details> rather than a class on <body>, so the open state
-       stays the browser's own and no JS keeps the two in step. */
+       A class on <body>, toggled by the overlay's menu button. The panel wraps
+       the page's existing controls rather than copying them, so the markup
+       stays the single definition of what a mode link is. */
     body.playing #launch, body.playing #perf, body.playing #bar, body.playing #log {
       display: none;
     }
-    body.playing.menu #menu-panel { display: block; }
-    #menu-panel {
+    /* Only while the game runs. #menu-panel wraps the mode links and Start,
+       so a blanket display:none here hid the Start button on a phone and left
+       a black screen with nothing to tap. Before Start the panel must stay an
+       ordinary block in the flow. */
+    body.playing #menu-panel {
       display: none;
       position: fixed;
+      /* Above #game, which is fixed and fills the viewport while playing. */
+      z-index: 4;
       top: calc(9vh + env(safe-area-inset-top));
       left: 50%; transform: translateX(-50%);
-      z-index: 3;
       width: min(92vw, 520px);
       max-height: 70dvh; overflow: auto;
       padding: 12px 16px;
@@ -67,6 +76,8 @@
          the file picker rather than be refused like the overlay's. */
       pointer-events: auto; touch-action: auto;
     }
+    /* Last, so it wins on order and not only on specificity. */
+    body.playing.menu #menu-panel { display: block; }
     body.playing #menu-panel #launch,
     body.playing #menu-panel #perf,
     body.playing #menu-panel #bar,
@@ -82,10 +93,21 @@
     #menu-panel #bar { flex-wrap: wrap; gap: 10px; }
     #menu-panel button, #menu-panel input { min-height: 44px; font-size: 16px; }
     #menu-panel #log { max-height: 20dvh; }
-    #game { position: fixed; inset: 0; display: grid; place-items: center; background: #000; }
+    /* Only once the game runs. #game is black and fills the viewport, so
+       applying this before Start painted a black box over the mode links and
+       the Start button and left the page with nothing to tap. */
+    body.playing #game {
+      position: fixed; inset: 0; display: grid; place-items: center; background: #000;
+    }
+    /* Before that it stays in the flow, under the controls. */
+    body:not(.playing) #game { display: grid; place-items: center; background: #000; }
     /* Letterboxed to 4:3 rather than stretched or cropped: Melee's HUD sits at
        the edges of the frame, so a crop eats the damage percentages and a
        stretch distorts them. */
+    /* Before Start the canvas is only a preview and must leave room for the
+       controls below it; 45dvh keeps the mode links and Start on the first
+       screen. Once the game runs it takes the whole viewport. */
+    body:not(.playing) canvas { max-height: 45dvh; max-width: calc(45dvh * 4 / 3); }
     canvas {
       width: 100%; height: auto; max-height: 100dvh;
       max-width: calc(100dvh * 4 / 3); aspect-ratio: 4 / 3;
