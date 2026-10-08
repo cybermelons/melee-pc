@@ -14,9 +14,13 @@ absent.
 
 ## Build and run
 
-Prerequisites: Python 3, CMake, Ninja, Git, LLVM 22 with LibTooling
-(`LLVM_ROOT`, default `/opt/homebrew/opt/llvm@22`), and a real GCC 12+ on `PATH`
-as `gcc-NN` for the lowering oracle.
+Prerequisites: Python 3, CMake, Ninja, Git, LLVM 22 with LibTooling, and a
+real GCC 12+ on `PATH` as `gcc-NN` for the lowering oracle.
+
+LLVM must be the development package, because `disc_lower` links against
+`libclang-cpp`. `tools/browser/common.py` looks in `~/.local/llvm-22`,
+`/opt/homebrew/opt/llvm@22`, `/usr/local/opt/llvm@22` and `/usr/lib/llvm-22`;
+set `LLVM_ROOT` for anywhere else.
 
 ```sh
 python3 tools/browser/setup_sdk.py        # pinned Emscripten into build/browser/emsdk
