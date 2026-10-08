@@ -19,7 +19,9 @@
 // independent switches, and `choice` takes one of several values.
 export const SETTINGS = [
   { key: 'MELEE_BOOT_SCENE', kind: 'choice', label: 'Boot to',
-    options: [['', 'Title screen'], ['vs', 'Versus'], ['training', 'Training']] },
+    hint: 'Event starts on event match 1. Add &MELEE_EVENT=<0-50> to pick another.',
+    options: [['', 'Title screen'], ['vs', 'Versus'], ['training', 'Training'],
+              ['event', 'Event match']] },
   { key: 'MELEE_DEBUG_VS', kind: 'choice', label: 'Versus opponent',
     options: [['', 'Human'], ['cpu', 'CPU']] },
   { key: 'MELEE_20XX', kind: 'flag', label: '20XX conveniences',

@@ -38,7 +38,7 @@ static struct loadData load_data;
 static struct leaveData leave_data;
 
 #ifdef TARGET_PC
-/* MELEE_BOOT_SCENE=<title|vs|classic|training|unranked|direct|ranked>: skip the whole menu walk and
+/* MELEE_BOOT_SCENE=<title|vs|classic|training|event|unranked|direct|ranked>: skip the whole menu walk and
  * boot into one scene with a fixed setup. Menu navigation here can only be
  * driven by synthetic input, which misses keypresses often enough that an
  * automated run cannot rely on it (see tools/smoke_test.py).
@@ -77,6 +77,12 @@ u8 pc_boot_scene(void)
             scene = GM_CLASSIC;
         } else if (strcmp(want, "training") == 0) {
             scene = GM_TRAINING;
+        } else if (strcmp(want, "event") == 0) {
+            /* The event scene needs no character select: onEnterVs in
+             * gmevent.c builds the whole match from the level table, so the
+             * only thing to choose is which level. pc_boot_event_level reads
+             * that, and gmEvent_ApplyBootLevel applies it. */
+            scene = GM_EVENT;
         } else if (strcmp(want, "unranked") == 0) {
             scene = GM_ONLINE;
             gmOnline_SetKind(ONLINE_KIND_UNRANKED);
@@ -88,11 +94,40 @@ u8 pc_boot_scene(void)
             gmOnline_SetKind(ONLINE_KIND_RANKED);
         } else {
             OSReport("MELEE_BOOT_SCENE: unknown scene '%s'; valid values are "
-                     "title, vs, classic, training, unranked, direct, ranked\n",
+                     "title, vs, classic, training, event, unranked, direct, "
+                     "ranked\n",
                      want);
         }
     }
     return scene;
+}
+
+/* MELEE_EVENT=<0..50>: which event match MELEE_BOOT_SCENE=event starts on.
+ * Read once, like the scene above, because the engine caches boot settings
+ * and nothing can change them after startup. An unparsable or out-of-range
+ * value reports and falls back to level 0 rather than indexing the level
+ * table out of bounds. */
+u8 pc_event_boot_level(void)
+{
+    static int done;
+    static u8 level;
+
+    if (!done) {
+        const char* want = getenv("MELEE_EVENT");
+        done = 1;
+        if (want != NULL && want[0] != '\0') {
+            char* end;
+            long v = strtol(want, &end, 10);
+            if (*end != '\0' || v < 0 || v > PC_EVENT_LEVEL_MAX) {
+                OSReport("MELEE_EVENT: '%s' is not a level from 0 to %d; "
+                         "using 0\n",
+                         want, PC_EVENT_LEVEL_MAX);
+            } else {
+                level = (u8) v;
+            }
+        }
+    }
+    return level;
 }
 #endif
 
