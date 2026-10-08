@@ -171,6 +171,18 @@ bool pc_is_boot_css_enabled(void) {
     return on;
 }
 
+/* MELEE_PAUSE=1: keep pausing available even under the tournament rule set,
+ * which turns it off. A page is also how one person plays alone, and a lone
+ * player who cannot pause has no way to stop. Tournament play is the default
+ * because that is what MELEE_20XX_RULES names, so this is an opt-in. */
+bool pc_is_pause_enabled(void) {
+    static int on = -1;
+    if (on < 0) {
+        on = env_is_set("MELEE_PAUSE");
+    }
+    return on;
+}
+
 bool pc_is_20xx_rules_enabled(void) {
     static int on = -1;
     if (on < 0) {

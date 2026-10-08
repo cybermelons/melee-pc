@@ -75,6 +75,9 @@ bool pc_is_boot_css_enabled(void);
  * minute timer, items off and stage select on -- so the character select opens
  * ready to play (gm/gmmain_lib.c). Implied by MELEE_20XX. */
 bool pc_is_20xx_rules_enabled(void);
+/* MELEE_PAUSE=1: keep pausing under the tournament rule set, which turns it
+ * off (gm/gmmain_lib.c). */
+bool pc_is_pause_enabled(void);
 /* MELEE_20XX=1: turn on the boot-time conveniences a 20XX disc gives, so one
  * flag covers MELEE_BOOT_CSS, MELEE_UNLOCK_ALL and MELEE_SKIP_MEMCARD. Any of
  * those named on its own overrides this, including to 0. */
