@@ -86,9 +86,10 @@ function syncfs(populate) {
 
 // Any MELEE_* query parameter becomes an environment variable, so the knobs in
 // docs/testing.md work unchanged: ?MELEE_BOOT_SCENE=vs&MELEE_SEED=1
-// src/pc/slp.c is not in this build: platforms/browser/pc_stubs.c replaces the
-// recorder, so MELEE_SLP_DIR would do nothing here.
-const ENV = {};
+// MELEE_SLP_DIR defaults to /saves, which is mounted IDBFS with autoPersist,
+// so replays survive a reload without an explicit syncfs. Unset, the writer
+// records nothing (src/pc/slp.c).
+const ENV = { MELEE_SLP_DIR: '/saves/slp' };
 for (const [key, value] of new URLSearchParams(location.search)) {
   if (/^MELEE_[A-Z0-9_]+$/.test(key)) ENV[key] = value;
 }
@@ -160,18 +161,28 @@ $('start').addEventListener('click', async () => {
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden') syncfs(false).catch(log);
     });
-    // A crash or an OOM kill fires no event at all, so persist /saves on an
-    // interval too, and once more on pagehide, the last event a browser
-    // guarantees. MELEE_SAVE_SECS=0 turns the interval off.
-    //
-    // There is no replay recorder to flush here: platforms/browser/pc_stubs.c
-    // stubs out the pc_slp_* entry points, so the memory card in /saves is the
-    // only thing the page has to persist.
-    const every = Number(ENV.MELEE_SAVE_SECS ?? 30);
+    // A closed tab runs no atexit hook, so the recorder would leave its last
+    // .slp without the patched raw length or metadata. pagehide is the last
+    // event a browser guarantees; finish the file, then persist /saves.
+    // pagehide does not fire on a crash or an OOM kill, so checkpoint the open
+    // .slp and persist /saves on an interval as well. The interval covers both
+    // the replay and the memory card. MELEE_SAVE_SECS=0 turns it off; the
+    // replay writes themselves are per-frame regardless.
+    const every = Number(ENV.MELEE_SAVE_SECS ?? ENV.MELEE_SLP_SAVE_SECS ?? 30);
     if (every > 0) {
-      setInterval(() => syncfs(false).catch(log), every * 1000);
+      setInterval(() => {
+        try {
+          Module._pc_slp_web_checkpoint();
+        } catch (error) { log(error.message); }
+        syncfs(false).catch(log);
+      }, every * 1000);
     }
-    addEventListener('pagehide', () => { syncfs(false).catch(log); });
+    addEventListener('pagehide', () => {
+      try {
+        Module._pc_slp_web_finish();
+      } catch (error) { log(error.message); }
+      syncfs(false).catch(log);
+    });
     status('');
     // Hides the page furniture on a phone and lets the canvas fill the
     // viewport; the CSS keeps the controls visible until this point so the

@@ -35,6 +35,9 @@ void pc_log_line(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
 typedef union SDL_Event SDL_Event;
 void pc_keyboard_event(const SDL_Event* e);
 void pc_keyboard_apply(void);
+/* Hold these scancodes for exactly the next PADRead. One byte per scancode,
+ * as SDL_GetKeyboardState returns. For a frame-stepping test driver. */
+void pc_keyboard_tas_set(const uint8_t* keys, int count);
 void pc_touch_apply(void);
 
 /* GameCube adapter (WUP-028) read directly for raw 8-bit values

@@ -126,7 +126,7 @@ static int s_last_nf;
 
 static bool slp_scene(void) {
     const int k = gm_804D6720 != NULL ? gm_804D6720->scene_kind : -1;
-    return k == GS_VS || k == GS_SUDDEN_DEATH;
+    return k == GS_VS || k == GS_SUDDEN_DEATH || k == GS_TRAINING;
 }
 
 /* The fighter recorded as (port, follower): the active one of the port, or
@@ -234,6 +234,10 @@ static bool recorded_mode(void) {
     case GM_STAMINA_VS:
     case GM_SINGLE_BUTTON_VS:
     case GM_CAMERA_VS:
+    /* Training records so reps can be mined for L-cancel and SHFFL rates.
+     * It runs through the VS scene controller (gmvs.c), so vs->state is
+     * valid; a session simply never sets match_result. */
+    case GM_TRAINING:
         return true;
     default:
         return false;

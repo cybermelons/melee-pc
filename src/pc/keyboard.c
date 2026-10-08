@@ -19,6 +19,7 @@
 #include <SDL3/SDL_timer.h>
 #include <aurora/event.h>
 #include <stdatomic.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -92,6 +93,11 @@ static SDL_Mutex* s_key_mutex;
  * "X+Down 200"); the keys read as held for hold_ms, one line at a time. */
 static bool s_fifo_key[SDL_SCANCODE_COUNT];
 static bool s_fifo_started;
+/* Frame-accurate input for the browser: pc_keyboard_tas_set queues scancodes
+ * from JS and publish_locked consumes them for exactly one PADRead, the same
+ * one-frame contract as s_key_latched. Focus loss must not clear these: a
+ * background tab reports no keyboard focus, and a TAS has to run anyway. */
+static bool s_tas_key[SDL_SCANCODE_COUNT];
 
 static int fifo_thread(void* path) {
     char line[128];
@@ -345,11 +351,41 @@ void pc_keyboard_apply(void) {
         /* Focus just left. Drop the real-key latch so alt-tabbing mid-hold
          * cannot leave a button pressed, but keep what the fifo holds. */
         for (size_t i = 0; i < SDL_SCANCODE_COUNT; i++) {
-            if (!s_fifo_key[i]) {
+            if (!s_fifo_key[i] && !s_tas_key[i]) {
                 s_key_latched[i] = false;
             }
         }
     }
+    for (size_t i = 0; i < SDL_SCANCODE_COUNT; i++) {
+        if (s_tas_key[i]) {
+            s_key_latched[i] = true;
+        }
+    }
+    memset(s_tas_key, 0, sizeof s_tas_key);
     publish_locked();
+    unlock_keys();
+}
+
+/* Frame-accurate input for a driver that steps the game one frame at a time:
+ * hold exactly these scancodes for the next PADRead, and nothing after it.
+ * keys is a byte per scancode, as SDL_GetKeyboardState returns, so a JS caller
+ * writes straight into the wasm heap. Clearing s_tas_key above gives the same
+ * one-frame contract a sub-frame keypress gets; a driver that wants a 3-frame
+ * hold calls this on 3 consecutive frames. */
+void pc_keyboard_tas_set(const uint8_t* keys, int count) {
+    if (count > SDL_SCANCODE_COUNT) {
+        count = SDL_SCANCODE_COUNT;
+    }
+    lock_keys();
+    memset(s_tas_key, 0, sizeof s_tas_key);
+    for (int i = 0; i < count; i++) {
+        s_tas_key[i] = keys[i] != 0;
+        if (s_tas_key[i]) {
+            /* Without this the merge below is skipped entirely: s_active only
+             * arms on a real keypress or a fifo, and a headless tab has had
+             * neither. */
+            s_active = true;
+        }
+    }
     unlock_keys();
 }

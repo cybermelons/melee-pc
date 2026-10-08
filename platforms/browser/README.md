@@ -10,7 +10,7 @@ Arc graphics as well) holds 60 fps in every scene the tests reach,
 including four CPUs on Final Destination. It needs WebGPU; there is no WebGL
 fallback. Netplay is compiled in but refused at connect (browsers have no UDP),
 and HD texture packs, custom music, the desktop launcher and the updater are
-absent.
+absent. Replays record to `/saves/slp`, which persists in IndexedDB.
 
 ## Build and run
 

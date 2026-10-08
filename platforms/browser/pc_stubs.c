@@ -16,9 +16,12 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#include <emscripten.h>
+
 #include "pc/file_cache.h"
 #include "pc/pc.h"
 #include "pc/slp.h"
+#include "pc/slp_format.h"
 
 /* Desktop launcher preferences; defaults match launcher_data.hpp. The hosting
  * page has no launcher to read them from, so the ones a training setup needs
@@ -97,15 +100,23 @@ bool pc_file_cache_require(const char* filename) {
     return false;
 }
 
-/* Replay recording writes to a native file; the browser has no recorder. */
-void pc_slp_match_start(const struct StartMeleeData* data) {
-    (void)data;
+/* A closed tab runs no atexit hook, so a training session would leave its
+ * .slp without the patched raw length or metadata. shell.mjs calls this on
+ * pagehide; pc_slp_match_end is idempotent (slp.c clears s_rec). */
+EMSCRIPTEN_KEEPALIVE void pc_slp_web_finish(void) {
+    pc_slp_match_end();
+    slp_writer_shutdown();
 }
-void pc_slp_match_end(void) {}
-void pc_slp_tick_begin(void) {}
-void pc_slp_tick_end(uint64_t proc_mask) {
-    (void)proc_mask;
+
+/* Periodic safety net: pagehide does not fire on a crash or an OOM kill. */
+EMSCRIPTEN_KEEPALIVE void pc_slp_web_checkpoint(void) {
+    slp_writer_checkpoint();
 }
-void pc_slp_pre_frame(struct HSD_GObj* gobj) {
-    (void)gobj;
+
+/* TAS input for the test driver: wall-clock key presses cannot hit the frame
+ * windows a SHFFL needs (fast fall at the apex, L within 7 frames of landing).
+ * A driver sets a scancode byte array per rendered frame via Module.onFrame;
+ * pc_keyboard_apply folds it into the one-frame latch. */
+EMSCRIPTEN_KEEPALIVE void pc_input_tas_set(const uint8_t* keys, int count) {
+    pc_keyboard_tas_set(keys, count);
 }
