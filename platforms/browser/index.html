@@ -217,12 +217,29 @@
     width: 9vh; height: 6vh; min-width: 44px; min-height: 44px;
     border-radius: 3vh; font-size: 20px;
   }
-  /* Beside the fullscreen button, top left. */
+  /* The menu button is a direct child of <body>, not of the touch overlay, so
+     a desktop player gets it too. That means it positions itself rather than
+     inheriting the overlay's fixed box, and it needs a z-index above both the
+     overlay (2) and the panel it opens (4) so it stays tappable while the
+     panel is open. Beside the fullscreen button when that exists, top left. */
   #pad-menu {
+    position: fixed; z-index: 5;
     top: calc(2vh + env(safe-area-inset-top));
     left: calc(4vw + env(safe-area-inset-left) + 10vh);
     width: 9vh; height: 6vh; min-width: 44px; min-height: 44px;
-    border-radius: 3vh; font-size: 20px;
+    display: grid; place-items: center;
+    border: 2px solid #ffffff55; border-radius: 3vh;
+    background: #000000b0; color: #fff;
+    font: 600 20px/1 system-ui, sans-serif;
+    cursor: pointer;
+  }
+  /* Only while the game runs: before Start the page controls are visible
+     already, so a button that reveals them has no outcome. */
+  body:not(.playing) #pad-menu { display: none; }
+  /* Fullscreen is a touch-overlay control, so on a fine pointer there is no
+     button to sit beside and the menu takes the corner itself. */
+  @media (pointer: fine) {
+    #pad-menu { left: calc(4vw + env(safe-area-inset-left)); }
   }
   #pad-tray .pad {
     position: static;

@@ -6,6 +6,7 @@ import { openRemoteDisc } from './remote-disc.mjs';
 import { createGCAdapter } from './gcadapter.mjs';
 import { checkGraphics } from './gpu-preflight.mjs';
 import { createTouchOverlay } from './touch.mjs';
+import { addMenuButton } from './menu-button.mjs';
 
 const $ = (id) => document.getElementById(id);
 const lines = [];
@@ -188,6 +189,7 @@ $('start').addEventListener('click', async () => {
     // viewport; the CSS keeps the controls visible until this point so the
     // game can be started and an error can be read.
     document.body.classList.add('playing');
+    addMenuButton();
     if (TOUCH) overlay = createTouchOverlay(Module, log);
     $('canvas').focus();
     Module.callMain([]);

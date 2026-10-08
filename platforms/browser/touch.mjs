@@ -122,22 +122,11 @@ export function createTouchOverlay(Module, log) {
     root.append(full);
   }
 
-  // The page's own controls — the mode links, the disc picker, Start, the
-  // adapter button and the status line — are hidden while the game runs,
-  // because they would otherwise sit on top of the picture. A phone then has
-  // no way to reach them: there is no window chrome to scroll to and every
-  // one of those controls belongs to the page rather than to the game.
-  //
-  // So this button brings them back as a panel. It toggles one class on
-  // <body> and the stylesheet does the rest.
-  const menu = document.createElement('div');
-  menu.className = 'pad btn';
-  menu.id = 'pad-menu';
-  menu.textContent = '\u2630';
-  menu.addEventListener('click', () => {
-    document.body.classList.toggle('menu');
-  });
-  root.append(menu);
+  // The menu button is not created here. It is a page control rather than a
+  // game input, and it is the only way back to the page's own controls once
+  // body.playing hides them, so a desktop player needs it as much as a phone
+  // player does. This overlay only exists on a coarse pointer, so a button
+  // created here would never appear on a desktop. shell.mjs creates it.
 
   // A <details> element, so the open and closed states are the browser's own
   // and there is no toggle handler or open flag to keep in step. The summary

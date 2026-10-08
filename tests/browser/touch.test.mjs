@@ -33,6 +33,9 @@ function stubDom(boxes) {
         if (type === 'click') el.handler = fn;
       },
       setPointerCapture() {},
+      attrs: {},
+      setAttribute(name, value) { el.attrs[name] = value; },
+      getAttribute(name) { return el.attrs[name]; },
       getBoundingClientRect() { return boxes[el.id] || { left: 0, top: 0, width: 100, height: 100 }; },
       // The real closest() walks up to the nearest .pad; a control's nub has
       // to resolve to its owning control, which is what this mirrors.
@@ -54,7 +57,8 @@ function stubDom(boxes) {
   game.requestFullscreen = () => { fullscreen.requests++; return Promise.resolve(); };
   const docHandlers = new Map();
   globalThis.document = {
-    getElementById: (id) => (id === 'touch' ? root : id === 'game' ? game : null),
+    getElementById: (id) => (id === 'touch' ? root : id === 'game' ? game
+      : globalThis.document.body.children.find((el) => el.id === id) || null),
     createElement: make,
     visibilityState: 'visible',
     fullscreenElement: null,
@@ -66,6 +70,9 @@ function stubDom(boxes) {
         contains(c) { return this.set.has(c); },
         toggle(c) { this.set.has(c) ? this.set.delete(c) : this.set.add(c); },
       },
+      // The menu button is a direct child of <body>, not of the overlay.
+      children: [],
+      append(...kids) { globalThis.document.body.children.push(...kids); },
     },
     exitFullscreen() { fullscreen.exits++; return Promise.resolve(); },
     addEventListener(type, fn) { docHandlers.set(type, fn); },
@@ -111,7 +118,11 @@ async function load(boxes) {
   // see what the engine sees has to advance a frame. frame() is what
   // onFrame in shell.mjs does.
   const frame = () => overlay.sample();
-  return { ...dom, mod, byId, overlay, frame };
+  // shell.mjs adds the menu button on the same line it starts the overlay, so
+  // the harness mirrors that rather than testing a state the page never has.
+  const { addMenuButton } = await import('../../platforms/browser/menu-button.mjs');
+  const menu = addMenuButton();
+  return { ...dom, dom: globalThis.document, mod, byId, overlay, menu, frame };
 }
 
 test('the requested layout maps to the GameCube pad bits', async () => {
@@ -339,23 +350,37 @@ test('a fullscreen change releases everything held', async () => {
 });
 
 // The page's controls (mode links, disc picker, Start) are hidden while the
-// game runs, so without this button a phone cannot reach them at all.
+// game runs, so without this button neither a phone nor a desktop can reach
+// them at all. It lives on <body> rather than in the overlay because the
+// overlay only exists on a coarse pointer.
 test('the menu button toggles the panel class on the body', async () => {
-  const { byId } = await load({});
-  const button = byId.get('pad-menu');
-  assert.ok(button, 'pad-menu is missing');
+  const { menu } = await load({});
+  assert.ok(menu, 'pad-menu is missing');
   assert.equal(document.body.classList.contains('menu'), false);
-  button.handler();
+  assert.equal(menu.getAttribute('aria-expanded'), 'false');
+  menu.handler();
   assert.equal(document.body.classList.contains('menu'), true, 'first tap must open it');
-  button.handler();
+  // A screen reader has no other way to tell the panel is open: the class is
+  // on <body> and the styling that reveals the panel is not announced.
+  assert.equal(menu.getAttribute('aria-expanded'), 'true');
+  menu.handler();
   assert.equal(document.body.classList.contains('menu'), false, 'second tap must close it');
+  assert.equal(menu.getAttribute('aria-expanded'), 'false');
+});
+
+// A second call must not stack a second button on the body.
+test('the menu button is added once', async () => {
+  const { dom } = await load({});
+  const { addMenuButton } = await import('../../platforms/browser/menu-button.mjs');
+  assert.equal(addMenuButton(), null, 'a repeat call must not add another button');
+  assert.equal(dom.body.children.filter((el) => el.id === 'pad-menu').length, 1);
 });
 
 // The menu button is a page control, not a game input: a tap on it must not
 // reach the engine as a button press.
 test('the menu and fullscreen buttons send no pad input', async () => {
-  const { mod, byId, frame } = await load({});
-  byId.get('pad-menu').handler();
+  const { mod, byId, menu, frame } = await load({});
+  menu.handler();
   byId.get('pad-full').handler();
   frame();
   assert.equal(mod.calls.length, 0, 'a page control must not claim the pad');
