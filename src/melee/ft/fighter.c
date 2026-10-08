@@ -93,6 +93,7 @@
 #include <sysdolphin/baselib/mtx.h>
 #include <sysdolphin/baselib/random.h>
 #ifdef TARGET_PC
+#include "pc/pc.h"
 #include "pc/slp.h"
 #endif
 
@@ -754,7 +755,15 @@ void Fighter_UnkInitLoad_80068914(Fighter_GObj* gobj,
     Fighter_UnkInitLoad_80068914_Inner1(gobj);
 
     fp->x594_s32 = 0;
+    /* b7 alone: model visible, collision bubbles off. Adding b6 is what the
+     * debug ROM's R + D-pad up reaches (db/dbanim.c), and ftDrawCommon reads
+     * the bit every frame, so setting it here covers respawns too. */
     fp->x21FC_flag.byte = 1;
+#ifdef TARGET_PC
+    if (pc_is_hitboxes_enabled()) {
+        fp->x21FC_flag.b6 = 1;
+    }
+#endif
 
     fp->invisible = false;
     fp->x221E_b1 = 0;

@@ -9,6 +9,7 @@
 #include <melee/ty/toy.h>
 #ifdef TARGET_PC
 #include "gmonlinemode.h"
+#include <pc/pc.h>
 #include <stdlib.h>
 #include <string.h>
 #endif
@@ -104,6 +105,18 @@ void bootOnLoad(GameModeState* scene)
     struct loadData* scene_data = gm_GetGameModeStateEnterData(scene);
     scene_data->x4 = 0;
     scene_data->x0 = 0;
+#ifdef TARGET_PC
+    /* MELEE_BOOT_CSS=1: what 20XX's "boot to CSS" Gekko code does, which
+     * bootOnLeave below already describes -- enter GM_VS and let its own
+     * state machine open on the character select, rather than walking the
+     * intro and the menus. Unlike MELEE_BOOT_SCENE this does not skip the
+     * mode's first state, so the select screen is reached the normal way and
+     * the preload cache is filled by the CSS itself. */
+    if (pc_is_boot_css_enabled()) {
+        scene_data->mode_id = GM_VS;
+        return;
+    }
+#endif
     if (gmMainLib_8046B0F0.skip_intro == true) {
         scene_data->mode_id = GM_TITLE;
     } else {

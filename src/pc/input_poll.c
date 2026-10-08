@@ -126,6 +126,24 @@ bool pc_is_input_hud_enabled(void) {
     return on;
 }
 
+bool pc_is_hitboxes_enabled(void) {
+    static int on = -1;
+    if (on < 0) {
+        const char* e = getenv("MELEE_HITBOXES");
+        on = e != NULL && e[0] != '\0' && e[0] != '0';
+    }
+    return on;
+}
+
+bool pc_is_boot_css_enabled(void) {
+    static int on = -1;
+    if (on < 0) {
+        const char* e = getenv("MELEE_BOOT_CSS");
+        on = e != NULL && e[0] != '\0' && e[0] != '0';
+    }
+    return on;
+}
+
 static int cmp_float(const void* a, const void* b) {
     const float x = *(const float*)a, y = *(const float*)b;
     return (x > y) - (x < y);

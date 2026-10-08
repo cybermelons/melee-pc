@@ -17,16 +17,22 @@
 #include "pc/pc.h"
 #include "pc/slp.h"
 
-/* Desktop launcher preferences; defaults match launcher_data.hpp. MELEE_UCF is
- * the one the launcher also reads from the environment (launcher.cpp). */
+/* Desktop launcher preferences; defaults match launcher_data.hpp. The hosting
+ * page has no launcher to read them from, so the ones a training setup needs
+ * come from the environment the same way MELEE_UCF does (launcher.cpp), which
+ * shell.mjs fills from the MELEE_* query parameters. */
+static bool env_flag(const char* name) {
+    const char* e = getenv(name);
+    return e != NULL && e[0] != '\0' && e[0] != '0';
+}
 bool pc_is_unlock_all_enabled(void) {
-    return false;
+    return env_flag("MELEE_UNLOCK_ALL");
 }
 bool pc_is_frozen_stadium_enabled(void) {
-    return false;
+    return env_flag("MELEE_FROZEN_STADIUM");
 }
 bool pc_is_free_camera_enabled(void) {
-    return false;
+    return env_flag("MELEE_FREE_CAMERA");
 }
 bool pc_is_ucf_enabled(void) {
     const char* env = getenv("MELEE_UCF");
