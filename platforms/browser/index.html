@@ -182,6 +182,23 @@
      <details> rather than a class toggled from JS: the open and closed states
      are then the browser's own, the summary is focusable and announced to a
      screen reader without extra attributes, and there is no state to reset. */
+  /* Two tiers (#3). Tier 1 is the walk-up set -- stick, A, B and jump -- so a
+     visitor does something recognisable without reading a legend. Tier 2 adds
+     the C-stick, the shoulders, Z and Start.
+
+     The tier is one class on <body> and this rule, rather than two layouts or
+     a rebuild of the overlay: both tiers write the same pad state, and tearing
+     controls down mid-match would drop whatever the player was holding. Tier 1
+     is the default, so the hiding rule is the one that needs the class.
+
+     Two elements are deliberately left out. #pad-drawer carries X and the
+     D-pad, which the game's own menus need (the stage select zoom, name entry)
+     and which the analog stick cannot drive, so a tier 1 visitor can still get
+     through the title screen. #pad-full is the fullscreen button, a page
+     control rather than a game input, and it wears .pad only for the shared
+     look. */
+  body.tier1 #touch .pad:not(.tier1):not(#pad-full) { display: none; }
+
   #pad-drawer {
     position: absolute; pointer-events: auto;
     top: calc(2vh + env(safe-area-inset-top));
