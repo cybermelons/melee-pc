@@ -12,17 +12,21 @@
   #stats { margin-left: auto; font-variant-numeric: tabular-nums; color: #9c9; }
   #status { color: #fc6; }
   pre { white-space: pre-wrap; color: #999; font-size: 12px; max-height: 14em; overflow: auto; }
+  #launch a { color: #9cf; margin-right: 12px; }
+  #launch-hint { color: #999; }
   kbd { background: #333; border-radius: 3px; padding: 0 4px; }
 </style>
 <h1>Melee Web</h1>
+<p id="launch"><a href="?MELEE_BOOT_SCENE=vs">Versus</a><a href="?MELEE_BOOT_SCENE=training">Training</a><a href="?MELEE_20XX=1">20XX</a><span id="launch-hint">Pick a mode, then choose a disc image and click Start.</span></p>
 <div id="bar">
   <input id="disc" type="file" accept=".iso,.gcm">
   <button id="start" disabled>Start</button>
+  <button id="adapter">Connect GC adapter</button>
   <span id="status">Loading engine…</span>
   <span id="stats"></span>
 </div>
 <canvas id="canvas" width="960" height="720" tabindex="0"></canvas>
-<p><kbd>Arrows</kbd> stick · <kbd>X</kbd> A · <kbd>Z</kbd> B · <kbd>C</kbd> X · <kbd>V</kbd> Y · <kbd>Q</kbd> L · <kbd>E</kbd> R · <kbd>Tab</kbd> Z · <kbd>Enter</kbd> Start · <kbd>I</kbd><kbd>J</kbd><kbd>K</kbd><kbd>L</kbd> C-stick</p>
+<p>A WUP-028 GameCube adapter works through WebHID, with raw 8-bit values. Keyboard fallback:<br><kbd>Arrows</kbd> stick · <kbd>X</kbd> A · <kbd>Z</kbd> B · <kbd>C</kbd> X · <kbd>V</kbd> Y · <kbd>Q</kbd> L · <kbd>E</kbd> R · <kbd>Tab</kbd> Z · <kbd>Enter</kbd> Start · <kbd>I</kbd><kbd>J</kbd><kbd>K</kbd><kbd>L</kbd> C-stick</p>
 <pre id="log"></pre>
 <script type="module" src="./shell.mjs"></script>
 </html>

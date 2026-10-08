@@ -2,6 +2,9 @@
 // Minimal host page for the browser build: disc picker, canvas, persistence.
 // The engine's whole host interface is the handful of Module fields set here.
 import { createDiscCache } from './disc-cache.mjs';
+import { openRemoteDisc } from './remote-disc.mjs';
+import { createGCAdapter } from './gcadapter.mjs';
+import { checkGraphics } from './gpu-preflight.mjs';
 
 const $ = (id) => document.getElementById(id);
 const lines = [];
@@ -37,6 +40,8 @@ function syncfs(populate) {
 
 // Any MELEE_* query parameter becomes an environment variable, so the knobs in
 // docs/testing.md work unchanged: ?MELEE_BOOT_SCENE=vs&MELEE_SEED=1
+// src/pc/slp.c is not in this build: platforms/browser/pc_stubs.c replaces the
+// recorder, so MELEE_SLP_DIR would do nothing here.
 const ENV = {};
 for (const [key, value] of new URLSearchParams(location.search)) {
   if (/^MELEE_[A-Z0-9_]+$/.test(key)) ENV[key] = value;
@@ -53,25 +58,45 @@ window.Module = {
   onAbort: (reason) => status(`Engine stopped: ${reason}`),
   onGraphicsPreparation: (done, total) =>
     status(done === total ? 'Starting…' : `Preparing graphics… ${Math.floor(done * 100 / total)}%`),
-  onRuntimeInitialized: () => { ready = true; status('Choose a GALE01 disc image (.iso or .gcm).'); updateStart(); },
+  onRuntimeInitialized: () => {
+    ready = true;
+    status(remoteDisc ? 'Ready.' : 'Choose a GALE01 disc image (.iso or .gcm).');
+    updateStart();
+    adapter = createGCAdapter(Module, log);
+    // An adapter authorised in an earlier visit reopens without a gesture.
+    adapter.resume().then((found) => {
+      $('adapter').hidden = found;
+      if (found) log('GC adapter: reconnected');
+    }, (error) => log(`GC adapter: ${error.message}`));
+  },
 };
 
 // Not `typeof Module.callMain`: that exists as soon as the script runs, while
 // the wasm is still compiling, and a disc picked by then started a dead runtime.
 let ready = false;
+let adapter = null;
+// A disc served alongside the page, so a visitor does not supply their own.
+// Probed once at load; null means this server has none.
+let remoteDisc = null;
 function updateStart() {
-  $('start').disabled = !(ready && $('disc').files.length);
+  $('start').disabled = !(ready && (remoteDisc || $('disc').files.length));
 }
 $('disc').addEventListener('change', updateStart);
+
+$('adapter').addEventListener('click', async () => {
+  try {
+    $('adapter').hidden = await adapter.request();
+  } catch (error) {
+    status(error.message);
+    log(error.stack || error);
+  }
+});
 
 $('start').addEventListener('click', async () => {
   $('start').disabled = true;
   $('disc').disabled = true;
   try {
-    // The engine reports adapter and device failures itself (onAbort); this
-    // only catches the common case early, before anything is mounted.
-    if (!navigator.gpu) throw Error('This browser has no WebGPU. Try a current Chrome or Edge.');
-    Module.discFile = $('disc').files[0];
+    Module.discFile = remoteDisc || $('disc').files[0];
     Module.readDisc = createDiscCache(Module.discFile).read;
     for (const dir of ['/saves', '/cache']) {
       Module.FS.mkdirTree(dir);
@@ -83,6 +108,18 @@ $('start').addEventListener('click', async () => {
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden') syncfs(false).catch(log);
     });
+    // A crash or an OOM kill fires no event at all, so persist /saves on an
+    // interval too, and once more on pagehide, the last event a browser
+    // guarantees. MELEE_SAVE_SECS=0 turns the interval off.
+    //
+    // There is no replay recorder to flush here: platforms/browser/pc_stubs.c
+    // stubs out the pc_slp_* entry points, so the memory card in /saves is the
+    // only thing the page has to persist.
+    const every = Number(ENV.MELEE_SAVE_SECS ?? 30);
+    if (every > 0) {
+      setInterval(() => syncfs(false).catch(log), every * 1000);
+    }
+    addEventListener('pagehide', () => { syncfs(false).catch(log); });
     status('');
     $('canvas').focus();
     Module.callMain([]);
@@ -91,6 +128,31 @@ $('start').addEventListener('click', async () => {
     log(error.stack || error);
   }
 });
+
+// Probe for a server-side disc before the engine reports ready, so the picker
+// is only offered when there is nothing to fall back on.
+try {
+  remoteDisc = await openRemoteDisc();
+} catch (error) {
+  log(`Server disc: ${error.message}`);
+}
+if (remoteDisc) {
+  $('disc').hidden = true;
+  // The disc comes from the server, so telling the visitor to choose one
+  // points at a control that is now hidden.
+  $('launch-hint').textContent = 'Pick a mode, then click Start.';
+  log(`Server disc: ${(remoteDisc.size / 1048576).toFixed(0)} MiB`);
+  updateStart();
+}
+
+// Fail with a readable message before the wasm is fetched; otherwise a browser
+// without WebGPU only shows a bare Emscripten abort.
+try {
+  await checkGraphics();
+} catch (error) {
+  status(error.message);
+  throw error; // stops the module, so melee_browser.js is never injected
+}
 
 // Threads need a cross-origin isolated page. Where the server cannot send
 // COOP/COEP (GitHub Pages), coi-sw.js adds them and the page reloads once
