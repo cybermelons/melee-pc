@@ -32,7 +32,15 @@ const cases = [
   { name: 'vs-cpu4', env: { MELEE_BOOT_SCENE: 'vs', MELEE_DEBUG_VS: 'cpu4' } },
 ].filter((c) => process.argv.length < 3 || process.argv.slice(2).includes(c.name));
 
-const browser = await chromium.launch({ channel: 'chrome', headless: false });
+// Chrome by default for its WebGPU support; MELEE_BROWSER_CHANNEL=chromium uses
+// Playwright's bundled build, which is what a machine without Google Chrome has.
+// Headed either way: headless has no WebGPU adapter on most machines.
+const channel = process.env.MELEE_BROWSER_CHANNEL || 'chrome';
+const browser = await chromium.launch({
+  ...(channel === 'chromium' ? {} : { channel }),
+  headless: false,
+  args: ['--enable-unsafe-webgpu', '--enable-features=Vulkan', '--ignore-gpu-blocklist'],
+});
 const results = [];
 try {
   for (const test of cases) {
