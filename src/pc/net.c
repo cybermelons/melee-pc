@@ -2027,10 +2027,9 @@ static bool addr_is_host(const struct sockaddr* sa) {
 static bool connect_impl(
     sock_t supplied, const char* ip, uint16_t port, int player, uint32_t seed) {
 #ifdef __EMSCRIPTEN__
-    /* A page has no UDP, so the session rides the paired WebRTC data channel
-     * (platforms/browser/net_rtc.c). The lobby's DHT path hands over its own
-     * socket, which has no channel behind it, so it stays refused. */
-    if (supplied != SOCK_INVALID || !browser_net_attach(s_rtc_rx)) {
+    /* The lobby's DHT path hands over its own socket, which has no data
+     * channel behind it, so it stays refused. */
+    if (supplied != SOCK_INVALID) {
         pc_log_line("net: browser netplay needs an open WebRTC data channel (Module.netChannel)");
         return false;
     }
@@ -2041,6 +2040,16 @@ static bool connect_impl(
         sock_startup();
     }
     pc_net_disconnect();
+#ifdef __EMSCRIPTEN__
+    /* A page has no UDP, so the session rides the paired WebRTC data channel
+     * (platforms/browser/net_rtc.c). Attach only once s_rx_lock exists and the
+     * previous session is torn down: onmessage can fire from the event loop as
+     * soon as it is installed, and browser_net_rx takes that lock. */
+    if (!browser_net_attach(s_rtc_rx)) {
+        pc_log_line("net: browser netplay needs an open WebRTC data channel (Module.netChannel)");
+        return false;
+    }
+#endif
     char portstr[8];
     snprintf(portstr, sizeof portstr, "%u", port);
     struct addrinfo hints, *res = NULL;
