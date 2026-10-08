@@ -1,0 +1,205 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Touch overlay for phones: an analog stick, a C-stick with the face buttons
+// on it, the two shoulders and Start, drawn as DOM elements over the canvas.
+//
+// src/pc/touch.c has an SDL finger-event path for Android and iOS, but it
+// carries its own hardcoded zones. This build does not use it (pc_touch_event
+// is a no-op under Emscripten) because the layout here has to be visible: a
+// player cannot aim at a region they cannot see. So the DOM owns the layout
+// and only the resulting pad state crosses into C, through pc_touch_set_pad.
+
+// dolphin/pad.h. Melee reads these raw, so the names stay the GameCube ones
+// even where this overlay gives a button a different position.
+const PAD = {
+  A: 0x0100,
+  B: 0x0200,
+  Y: 0x0800,
+  Z: 0x0010,
+  R: 0x0020,
+  L: 0x0040,
+  START: 0x1000,
+};
+
+// Melee's dash, tilt and light-shield thresholds are in raw 8-bit units, so a
+// stick at full deflection must reach the same 80 the GC adapter reports and
+// nothing here rescales to a different range (see gcadapter.mjs).
+const STICK_MAX = 80;
+// Below this fraction of the stick radius the finger reads as centred. A thumb
+// resting on glass never sits still, and without a deadzone that drift is a
+// constant slow walk.
+const DEADZONE = 0.2;
+
+// The pad state the engine sees. Rebuilt from the live pointers every change
+// rather than accumulated, so a touch that ends can never leave a button set.
+const pressed = new Map(); // pointerId -> control
+const sticks = new Map();  // pointerId -> { el, kind, cx, cy, radius, dx, dy }
+
+function buildState() {
+  let buttons = 0;
+  let triggerL = 0;
+  let triggerR = 0;
+  for (const control of pressed.values()) {
+    buttons |= control.button || 0;
+    if (control.button === PAD.L) triggerL = 255;
+    if (control.button === PAD.R) triggerR = 255;
+  }
+  let stickX = 0, stickY = 0, substickX = 0, substickY = 0;
+  for (const stick of sticks.values()) {
+    if (stick.kind === 'stick') {
+      stickX = stick.dx;
+      stickY = stick.dy;
+    } else {
+      substickX = stick.dx;
+      substickY = stick.dy;
+    }
+  }
+  return { buttons, stickX, stickY, substickX, substickY, triggerL, triggerR };
+}
+
+export function createTouchOverlay(Module, log) {
+  const root = document.getElementById('touch');
+  if (!root) return null;
+
+  // A digital shoulder sends the full 255 rather than a mid value: there is no
+  // travel on a touchscreen to express a light shield, and a partial trigger
+  // would make every shield a light one.
+  //
+  // Button positions follow the request: the C-stick sits on the right with A
+  // in its middle and B to its left, Y stays Y for jump, R takes the place X
+  // would have on the right, and L is on the left beside the stick.
+  const controls = [
+    { id: 'stick', kind: 'stick', label: '' },
+    { id: 'cstick', kind: 'cstick', label: 'C' },
+    { id: 'a', button: PAD.A, label: 'A' },
+    { id: 'b', button: PAD.B, label: 'B' },
+    { id: 'y', button: PAD.Y, label: 'Y' },
+    { id: 'r', button: PAD.R, label: 'R' },
+    { id: 'l', button: PAD.L, label: 'L' },
+    { id: 'z', button: PAD.Z, label: 'Z' },
+    { id: 'start', button: PAD.START, label: 'Start' },
+  ];
+
+  const byEl = new Map();
+  for (const control of controls) {
+    const el = document.createElement('div');
+    el.className = `pad ${control.kind || 'btn'}`;
+    el.id = `pad-${control.id}`;
+    el.textContent = control.label;
+    if (control.kind) {
+      // The stick needs a visible thumb so the player can see how far the
+      // deflection has gone; a ring alone gives no feedback.
+      const nub = document.createElement('div');
+      nub.className = 'nub';
+      el.append(nub);
+      control.nub = nub;
+    }
+    control.el = el;
+    byEl.set(el, control);
+    root.append(el);
+  }
+
+  let active = false;
+  function publish() {
+    const st = buildState();
+    // Only claim the virtual pad once a touch has actually happened, so a
+    // desktop visitor with a keyboard is never overridden by an idle overlay.
+    if (!active) {
+      active = true;
+      Module._pc_touch_set_active(1);
+    }
+    Module._pc_touch_set_pad(st.buttons, st.stickX, st.stickY, st.substickX,
+      st.substickY, st.triggerL, st.triggerR);
+  }
+
+  function moveStick(stick, clientX, clientY) {
+    const dx = (clientX - stick.cx) / stick.radius;
+    const dy = (clientY - stick.cy) / stick.radius;
+    const length = Math.hypot(dx, dy);
+    // Past the ring the stick stays at full deflection in that direction
+    // instead of clamping each axis on its own, which would otherwise let a
+    // diagonal reach further than a cardinal and break angle-sensitive moves.
+    const scale = length > 1 ? 1 / length : 1;
+    let ux = dx * scale;
+    let uy = dy * scale;
+    if (Math.hypot(ux, uy) < DEADZONE) {
+      ux = 0;
+      uy = 0;
+    }
+    stick.dx = Math.round(ux * STICK_MAX);
+    // Screen Y grows downwards and the pad's grows upwards. The | 0 turns the
+    // -0 that negating a zero produces back into 0.
+    stick.dy = -Math.round(uy * STICK_MAX) | 0;
+    stick.el.classList.add('on');
+    const nub = stick.control.nub;
+    nub.style.transform = `translate(${ux * 50}%, ${uy * 50}%)`;
+  }
+
+  function onDown(event) {
+    const control = byEl.get(event.target.closest('.pad'));
+    if (!control) return;
+    // Without this the browser also fires a mouse event, scrolls the page, or
+    // pops a selection callout, and the canvas loses the touch entirely.
+    event.preventDefault();
+    control.el.setPointerCapture(event.pointerId);
+    if (control.kind) {
+      const box = control.el.getBoundingClientRect();
+      const stick = {
+        control,
+        el: control.el,
+        kind: control.kind,
+        cx: box.left + box.width / 2,
+        cy: box.top + box.height / 2,
+        // Measured per touch rather than cached: the ring's size follows the
+        // viewport, which changes on rotation and on a browser chrome reveal.
+        radius: box.width / 2,
+        dx: 0,
+        dy: 0,
+      };
+      sticks.set(event.pointerId, stick);
+      moveStick(stick, event.clientX, event.clientY);
+    } else {
+      pressed.set(event.pointerId, control);
+      control.el.classList.add('on');
+    }
+    publish();
+  }
+
+  function onMove(event) {
+    const stick = sticks.get(event.pointerId);
+    if (!stick) return;
+    event.preventDefault();
+    moveStick(stick, event.clientX, event.clientY);
+    publish();
+  }
+
+  function onUp(event) {
+    const stick = sticks.get(event.pointerId);
+    if (stick) {
+      sticks.delete(event.pointerId);
+      stick.el.classList.remove('on');
+      stick.control.nub.style.transform = '';
+    }
+    const control = pressed.get(event.pointerId);
+    if (control) {
+      pressed.delete(event.pointerId);
+      control.el.classList.remove('on');
+    }
+    if (stick || control) {
+      event.preventDefault();
+      publish();
+    }
+  }
+
+  root.addEventListener('pointerdown', onDown);
+  root.addEventListener('pointermove', onMove);
+  // pointercancel matters as much as pointerup here: an incoming call or a
+  // system gesture ends the touch that way, and a missed one sticks a button
+  // down for the rest of the match.
+  for (const type of ['pointerup', 'pointercancel']) {
+    root.addEventListener(type, onUp);
+  }
+
+  root.hidden = false;
+  if (log) log('Touch overlay: on');
+  return { root };
+}

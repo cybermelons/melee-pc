@@ -2,7 +2,7 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <html lang="en">
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>Melee Web</title>
 <link rel="icon" href="data:,">
 <style>
@@ -17,6 +17,81 @@
   #perf { color: #999; font-size: 13px; }
   #perf a { color: #9cf; margin-right: 10px; }
   kbd { background: #333; border-radius: 3px; padding: 0 4px; }
+
+  /* The overlay is hidden until shell.mjs decides this is a touch device, so
+     a desktop visitor never gets controls drawn over the picture. */
+  #touch[hidden] { display: none; }
+
+  /* Phones and tablets: the game fills the viewport and everything else goes
+     away. (pointer: coarse) rather than a width breakpoint, because a narrow
+     desktop window still has a mouse and wants the page, while a wide tablet
+     has a finger and wants the overlay.
+
+     100dvh, not 100vh: on mobile Safari 100vh is the height with the browser
+     chrome hidden, so the bottom of the picture sits under the toolbar until
+     the user scrolls. */
+  @media (pointer: coarse) {
+    body { max-width: none; padding: 0; height: 100dvh; overflow: hidden; }
+    h1, #launch, #perf, #bar, #keys, #log { display: none; }
+    /* Shown again while the game is not running, so a phone can still start
+       it and read an error. #playing goes on <body> at Start. */
+    body:not(.playing) #launch, body:not(.playing) #bar, body:not(.playing) #log {
+      display: revert;
+      padding: 0 12px;
+    }
+    body:not(.playing) h1 { display: revert; padding: 0 12px; }
+    #game { position: fixed; inset: 0; display: grid; place-items: center; background: #000; }
+    /* Letterboxed to 4:3 rather than stretched or cropped: Melee's HUD sits at
+       the edges of the frame, so a crop eats the damage percentages and a
+       stretch distorts them. */
+    canvas {
+      width: 100%; height: auto; max-height: 100dvh;
+      max-width: calc(100dvh * 4 / 3); aspect-ratio: 4 / 3;
+    }
+    #touch { display: block; }
+  }
+
+  /* The overlay sits above the picture and must not eat touches between the
+     controls, or a tap near the middle of the screen would do nothing while
+     still being swallowed. Each control turns pointer events back on. */
+  #touch {
+    position: fixed; inset: 0; display: none; pointer-events: none; z-index: 2;
+    /* The whole overlay refuses the browser's own gestures. Without this a
+       drag on the stick scrolls or zooms the page instead of moving it, and
+       the double-tap on a button zooms in. */
+    touch-action: none; user-select: none; -webkit-user-select: none;
+    -webkit-touch-callout: none;
+  }
+  .pad {
+    position: absolute; pointer-events: auto; touch-action: none;
+    display: grid; place-items: center;
+    border: 2px solid #ffffff55; border-radius: 50%;
+    background: #ffffff18; color: #fff;
+    font: 600 18px/1 system-ui, sans-serif; text-shadow: 0 1px 2px #000a;
+  }
+  .pad.on { background: #ffffff45; border-color: #fffc; }
+  /* The controls clear the rounded corners and the home indicator. */
+  #pad-stick { left: calc(4vw + env(safe-area-inset-left)); bottom: calc(6vh + env(safe-area-inset-bottom)); width: 34vh; height: 34vh; }
+  #pad-cstick { right: calc(4vw + env(safe-area-inset-right)); bottom: calc(6vh + env(safe-area-inset-bottom)); width: 34vh; height: 34vh; }
+  /* A sits in the middle of the C-stick and B to its left, as requested. The
+     C-stick ring still works around them: a thumb that lands on the ring aims
+     the C-stick, one that lands on A presses A. */
+  #pad-a { right: calc(4vw + env(safe-area-inset-right) + 11vh); bottom: calc(6vh + env(safe-area-inset-bottom) + 11vh); width: 12vh; height: 12vh; }
+  #pad-b { right: calc(4vw + env(safe-area-inset-right) + 25vh); bottom: calc(6vh + env(safe-area-inset-bottom) + 11vh); width: 12vh; height: 12vh; }
+  /* Y is jump; R takes the position X has on a GameCube controller. */
+  #pad-y { right: calc(4vw + env(safe-area-inset-right) + 11vh); bottom: calc(6vh + env(safe-area-inset-bottom) + 25vh); width: 12vh; height: 12vh; }
+  #pad-r { right: calc(4vw + env(safe-area-inset-right)); bottom: calc(6vh + env(safe-area-inset-bottom) + 25vh); width: 12vh; height: 12vh; }
+  /* L is on the left, above the stick, where the left hand already is. */
+  #pad-l { left: calc(4vw + env(safe-area-inset-left)); bottom: calc(6vh + env(safe-area-inset-bottom) + 25vh); width: 12vh; height: 12vh; }
+  #pad-z { left: calc(4vw + env(safe-area-inset-left) + 14vh); bottom: calc(6vh + env(safe-area-inset-bottom) + 25vh); width: 12vh; height: 12vh; }
+  #pad-start {
+    top: calc(2vh + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
+    width: 11vh; height: 6vh; border-radius: 3vh; font-size: 14px;
+  }
+  .nub {
+    width: 42%; height: 42%; border-radius: 50%;
+    background: #ffffff66; pointer-events: none;
+  }
 </style>
 <h1>Melee Web</h1>
 <p id="launch"><a href="?MELEE_BOOT_SCENE=vs">Versus</a><a href="?MELEE_BOOT_SCENE=training">Training</a><a href="?MELEE_20XX=1">20XX</a><span id="launch-hint">Pick a mode, then choose a disc image and click Start.</span></p>
@@ -32,8 +107,9 @@
   <span id="status">Loading engine…</span>
   <span id="stats"></span>
 </div>
-<canvas id="canvas" width="960" height="720" tabindex="0"></canvas>
-<p>A WUP-028 GameCube adapter works through WebHID, with raw 8-bit values. Keyboard fallback:<br><kbd>Arrows</kbd> stick · <kbd>X</kbd> A · <kbd>Z</kbd> B · <kbd>C</kbd> X · <kbd>V</kbd> Y · <kbd>Q</kbd> L · <kbd>E</kbd> R · <kbd>Tab</kbd> Z · <kbd>Enter</kbd> Start · <kbd>I</kbd><kbd>J</kbd><kbd>K</kbd><kbd>L</kbd> C-stick</p>
+<div id="game"><canvas id="canvas" width="960" height="720" tabindex="0"></canvas>
+<div id="touch" hidden></div></div>
+<p id="keys">A WUP-028 GameCube adapter works through WebHID, with raw 8-bit values. Keyboard fallback:<br><kbd>Arrows</kbd> stick · <kbd>X</kbd> A · <kbd>Z</kbd> B · <kbd>C</kbd> X · <kbd>V</kbd> Y · <kbd>Q</kbd> L · <kbd>E</kbd> R · <kbd>Tab</kbd> Z · <kbd>Enter</kbd> Start · <kbd>I</kbd><kbd>J</kbd><kbd>K</kbd><kbd>L</kbd> C-stick</p>
 <pre id="log"></pre>
 <script type="module" src="./shell.mjs"></script>
 </html>

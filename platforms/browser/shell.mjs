@@ -5,6 +5,7 @@ import { createDiscCache } from './disc-cache.mjs';
 import { openRemoteDisc } from './remote-disc.mjs';
 import { createGCAdapter } from './gcadapter.mjs';
 import { checkGraphics } from './gpu-preflight.mjs';
+import { createTouchOverlay } from './touch.mjs';
 
 const $ = (id) => document.getElementById(id);
 const lines = [];
@@ -27,6 +28,11 @@ const status = (text) => { $('status').textContent = text; };
 // Mobile does not currently need it. An iPhone holds 60 fps at the full 960x720
 // once the pipeline cache is warm; a cold first run is much slower while shaders
 // compile (see README, "first launch").
+//
+// A phone is a touch device, which is also what decides whether the on-screen
+// controls appear. matchMedia rather than a user-agent test, and the same
+// query the stylesheet uses, so the two cannot disagree about what a phone is.
+const TOUCH = matchMedia('(pointer: coarse)').matches;
 const BASE_WIDTH = 960;
 const BASE_HEIGHT = 720;
 const SCALE = Number(new URLSearchParams(location.search).get('MELEE_SCALE') || 1);
@@ -162,6 +168,11 @@ $('start').addEventListener('click', async () => {
     }
     addEventListener('pagehide', () => { syncfs(false).catch(log); });
     status('');
+    // Hides the page furniture on a phone and lets the canvas fill the
+    // viewport; the CSS keeps the controls visible until this point so the
+    // game can be started and an error can be read.
+    document.body.classList.add('playing');
+    if (TOUCH) createTouchOverlay(Module, log);
     $('canvas').focus();
     Module.callMain([]);
   } catch (error) {
