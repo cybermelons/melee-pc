@@ -8,6 +8,7 @@ import { checkGraphics } from './gpu-preflight.mjs';
 import { createTouchOverlay } from './touch.mjs';
 import { addMenuButton } from './menu-button.mjs';
 import { showCrash } from './crash.mjs';
+import { addSettings } from './settings.mjs';
 
 const $ = (id) => document.getElementById(id);
 const lines = [];
@@ -141,6 +142,11 @@ $('disc').addEventListener('change', updateStart);
 // Hidden before the runtime initializes as well, so it is never tappable on a
 // browser without WebHID.
 if (!navigator.hid) $('adapter').hidden = true;
+
+// Into the menu panel, so the same button that reveals the panel mid-game
+// reveals the settings. Built at load rather than on first open: the form
+// reads the URL, and the URL does not change while the page lives.
+addSettings($('menu-panel'));
 
 $('adapter').addEventListener('click', async () => {
   try {

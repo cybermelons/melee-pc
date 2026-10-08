@@ -281,6 +281,21 @@
     text-decoration: none;
   }
   #crash-hint { margin: 0; color: #999; font-size: 13px; }
+
+  /* The settings form. Inside #menu-panel, so body.playing.menu reveals it
+     with the rest of the panel and no separate rule is needed. */
+  #settings {
+    display: grid; gap: 8px; justify-items: start;
+    margin: 12px 0 0; padding: 12px 0 0;
+    border-top: 1px solid #333;
+  }
+  #settings .setting { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  #settings .setting-hint { color: #999; font-size: 12px; flex-basis: 100%; }
+  /* 44px targets and 16px text: the same minimums the rest of the panel uses,
+     so a tap lands and iOS does not zoom the page on focus. */
+  #settings select, #settings input, #settings button { min-height: 44px; font-size: 16px; }
+  #settings-link { width: 100%; max-width: 46ch; font-family: ui-monospace, monospace; font-size: 13px; }
+  #settings-note { margin: 0; color: #999; font-size: 12px; }
 </style>
 <h1>Melee Web</h1>
 <div id="menu-panel"><p id="launch"><a href="?MELEE_BOOT_SCENE=vs">Versus</a><a href="?MELEE_BOOT_SCENE=vs&amp;MELEE_DEBUG_VS=cpu">1P vs CPU</a><a href="?MELEE_BOOT_SCENE=training">Training</a><a href="?MELEE_20XX=1">20XX</a><a href="" id="new-room">New room</a><span id="launch-hint">Pick a mode, then choose a disc image and click Start.</span></p>
