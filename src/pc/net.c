@@ -2947,17 +2947,6 @@ static void dvd_settle(void) {
          * watchdog's 5 s threshold is exactly this loop's own 5 s cap and a
          * disc drain reports a healthy thread (and dumps a stack from inside
          * whatever it happens to hold). */
-#ifdef __EMSCRIPTEN__
-        /* The browser's "inflight" count is the queue of completion callbacks
-         * (platforms/browser/dvd.c), and pc_os_run_alarms drains it at the
-         * frame boundary -- which this loop is blocking. Drain it here, which
-         * is what makes the read complete inside the tick that issued it on
-         * this target too. */
-        extern void browser_disc_deliver(void);
-        browser_disc_deliver();
-        extern void browser_arq_deliver(void);
-        browser_arq_deliver();
-#endif
         net_watchdog_heartbeat();
         SDL_DelayNS(200000);
     }
