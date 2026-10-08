@@ -49,7 +49,12 @@ window.meleeFrames = frames;
 // log every 2 seconds. A thermal drop is a trend rather than one number, and
 // that needs a series to be visible at all.
 let lastReport = 0;
+// Set at Start on a touch device; the overlay's pad state is read here rather
+// than written from its own event handlers, so input reaches the engine on the
+// game frame at 60Hz instead of at the browser's pointer event rate.
+let overlay = null;
 function onFrame() {
+  if (overlay) overlay.sample();
   const now = performance.now();
   if (frames.last) {
     frames.samples.push(now - frames.last);
@@ -172,7 +177,7 @@ $('start').addEventListener('click', async () => {
     // viewport; the CSS keeps the controls visible until this point so the
     // game can be started and an error can be read.
     document.body.classList.add('playing');
-    if (TOUCH) createTouchOverlay(Module, log);
+    if (TOUCH) overlay = createTouchOverlay(Module, log);
     $('canvas').focus();
     Module.callMain([]);
   } catch (error) {

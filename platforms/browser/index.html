@@ -47,6 +47,10 @@
     canvas {
       width: 100%; height: auto; max-height: 100dvh;
       max-width: calc(100dvh * 4 / 3); aspect-ratio: 4 / 3;
+      /* The canvas refuses the browser's gestures as well as the overlay. A
+         thumb that lands between two controls still lands on the canvas, and
+         without this it scrolls the page or triggers pull-to-refresh. */
+      touch-action: none;
     }
     #touch { display: block; }
   }

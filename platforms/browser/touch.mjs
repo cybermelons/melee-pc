@@ -31,6 +31,8 @@ const DEADZONE = 0.2;
 
 // The pad state the engine sees. Rebuilt from the live pointers every change
 // rather than accumulated, so a touch that ends can never leave a button set.
+const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
+
 const pressed = new Map(); // pointerId -> control
 const sticks = new Map();  // pointerId -> { el, kind, cx, cy, radius, dx, dy }
 
@@ -99,16 +101,62 @@ export function createTouchOverlay(Module, log) {
   }
 
   let active = false;
+  let touched = false;
+  // Buttons seen since the last sample, whether or not they are still held.
+  // A pointer events stream can deliver a press and its release between two
+  // game frames, and a tap dropped that way is a missed input the player made
+  // correctly. src/pc/touch.c latches the same way for the same reason.
+  let latched = 0;
+
+  // The touch handlers only mark the state dirty. The engine reads it once per
+  // game frame through sample() below, so input arrives at the simulation's
+  // 60Hz rather than at whatever rate the browser chooses to fire pointer
+  // events at, which is both faster and irregular.
   function publish() {
-    const st = buildState();
+    touched = true;
+    latched |= buildState().buttons;
+  }
+
+  // Called from the frame hook in shell.mjs, on the game frame.
+  function sample() {
+    if (!touched) return;
     // Only claim the virtual pad once a touch has actually happened, so a
     // desktop visitor with a keyboard is never overridden by an idle overlay.
     if (!active) {
       active = true;
       Module._pc_touch_set_active(1);
     }
-    Module._pc_touch_set_pad(st.buttons, st.stickX, st.stickY, st.substickX,
-      st.substickY, st.triggerL, st.triggerR);
+    const st = buildState();
+    Module._pc_touch_set_pad(st.buttons | latched, st.stickX, st.stickY,
+      st.substickX, st.substickY, st.triggerL, st.triggerR);
+    const reported = latched;
+    latched = 0;
+    // Nothing is held any more, so one more frame is owed: this one reported a
+    // latched tap, and stopping here would leave that press as the last state
+    // the engine saw and hold it for ever. The next frame writes the zero.
+    if (pressed.size === 0 && sticks.size === 0 && reported === 0) {
+      touched = false;
+    }
+  }
+
+  // A notification, an app switch or a call takes the touches away without
+  // sending pointercancel for each one. Without this reset the stick stays
+  // held and the character walks off the stage while the player is elsewhere.
+  function releaseAll() {
+    for (const stick of sticks.values()) {
+      stick.el.classList.remove('on');
+      stick.control.nub.style.transform = '';
+    }
+    for (const control of pressed.values()) {
+      control.el.classList.remove('on');
+    }
+    sticks.clear();
+    pressed.clear();
+    latched = 0;
+    if (active) {
+      Module._pc_touch_set_pad(0, 0, 0, 0, 0, 0, 0);
+    }
+    touched = false;
   }
 
   function moveStick(stick, clientX, clientY) {
@@ -143,20 +191,39 @@ export function createTouchOverlay(Module, log) {
     control.el.setPointerCapture(event.pointerId);
     if (control.kind) {
       const box = control.el.getBoundingClientRect();
+      // Measured per touch rather than cached: the ring's size follows the
+      // viewport, which changes on rotation and on a browser chrome reveal.
+      const radius = box.width / 2;
+      // Floating origin: the centre is where the thumb lands, not the middle
+      // of the ring. A fixed centre means the first move of every touch is
+      // whatever offset the thumb happened to land at, which reads as the
+      // stick jumping before it tracks.
+      //
+      // Held half a radius inside the ring so there is travel in every
+      // direction. Without the clamp, a thumb landing on the rim leaves no
+      // room to push further that way and the stick cannot reach full
+      // deflection outward at all.
+      const limit = radius / 2;
+      const cx = clamp(event.clientX, box.left + box.width / 2 - limit,
+        box.left + box.width / 2 + limit);
+      const cy = clamp(event.clientY, box.top + box.height / 2 - limit,
+        box.top + box.height / 2 + limit);
       const stick = {
         control,
         el: control.el,
         kind: control.kind,
-        cx: box.left + box.width / 2,
-        cy: box.top + box.height / 2,
-        // Measured per touch rather than cached: the ring's size follows the
-        // viewport, which changes on rotation and on a browser chrome reveal.
-        radius: box.width / 2,
+        cx,
+        cy,
+        // The travel left between the floating centre and the rim.
+        radius: radius - limit,
         dx: 0,
         dy: 0,
       };
       sticks.set(event.pointerId, stick);
-      moveStick(stick, event.clientX, event.clientY);
+      // Not moveStick: the thumb is at the origin it just defined, so the
+      // stick starts centred. Calling moveStick here would be a no-op at
+      // best, and at worst would read the clamp offset as deflection.
+      stick.el.classList.add('on');
     } else {
       pressed.set(event.pointerId, control);
       control.el.classList.add('on');
@@ -199,7 +266,14 @@ export function createTouchOverlay(Module, log) {
     root.addEventListener(type, onUp);
   }
 
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') releaseAll();
+  });
+  // Safari does not always fire visibilitychange when the app goes to the
+  // background, but it does fire pagehide.
+  addEventListener('pagehide', releaseAll);
+
   root.hidden = false;
   if (log) log('Touch overlay: on');
-  return { root };
+  return { root, sample, releaseAll };
 }
