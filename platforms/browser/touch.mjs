@@ -34,6 +34,22 @@ const STICK_MAX = 80;
 // constant slow walk.
 const DEADZONE = 0.2;
 
+// Tap jump, defeated without taking the upward stick away.
+//
+// ftCo_Jump_GetInput jumps when lstick.y crosses tap_jump_threshold AND
+// active_timer.lstick.y is still under tap_jump_window (PlCo.dat: 0.6625 and 4
+// frames; some ground states use relaxed_tap_jump_threshold, 0.5625). Both
+// conditions have to hold, so a stick that arrives at full deflection slowly
+// never tap jumps while staying fully available for up-B, up-tilt and upward
+// DI. Capping the value instead would break all three.
+//
+// A thumb flick covers the stick radius in one or two frames. Rising at this
+// much of STICK_MAX per frame, the reported Y needs ceil(0.5625 / 0.1) = 6
+// frames to reach even the lower threshold, which clears the 4 frame window
+// with room for a frame of jitter. Only the upward axis is limited: downward
+// is fastfall and crouch, which want to be instant.
+const UP_RAMP_PER_FRAME = 0.1 * STICK_MAX;
+
 // The pad state the engine sees. Rebuilt from the live pointers every change
 // rather than accumulated, so a touch that ends can never leave a button set.
 const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
@@ -168,6 +184,23 @@ export function createTouchOverlay(Module, log) {
   // game frames, and a tap dropped that way is a missed input the player made
   // correctly. src/pc/touch.c latches the same way for the same reason.
   let latched = 0;
+  // Last upward Y actually reported, so the ramp is per game frame rather than
+  // per pointer event. Only the main stick needs it: the C-stick's up is an
+  // up-smash, which is a deliberate press and not a tap jump input.
+  let rampedUpY = 0;
+
+  // Rate-limit the rise of the upward main stick, leaving every other
+  // direction alone. See UP_RAMP_PER_FRAME.
+  function rampUp(y) {
+    if (y <= 0) {
+      // Downward or centred: no limit, and the ramp resets so the next upward
+      // flick starts from neutral and gets the full 6 frames again.
+      rampedUpY = 0;
+      return y;
+    }
+    rampedUpY = Math.min(y, rampedUpY + UP_RAMP_PER_FRAME);
+    return Math.round(rampedUpY);
+  }
 
   // The touch handlers only mark the state dirty. The engine reads it once per
   // game frame through sample() below, so input arrives at the simulation's
@@ -188,7 +221,7 @@ export function createTouchOverlay(Module, log) {
       Module._pc_touch_set_active(1);
     }
     const st = buildState();
-    Module._pc_touch_set_pad(st.buttons | latched, st.stickX, st.stickY,
+    Module._pc_touch_set_pad(st.buttons | latched, st.stickX, rampUp(st.stickY),
       st.substickX, st.substickY, st.triggerL, st.triggerR);
     const reported = latched;
     latched = 0;

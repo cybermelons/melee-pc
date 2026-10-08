@@ -181,15 +181,18 @@ test('the stick reaches the raw units Melee thresholds against', async () => {
   frame();
   assert.deepEqual([lastPad(mod)[2], lastPad(mod)[3]], [80, 0], 'right');
 
-  // Up is positive on the pad and negative on the screen.
+  // Up is positive on the pad and negative on the screen. It arrives over
+  // several frames rather than at once: the upward axis is rate-limited so a
+  // flick cannot tap jump. See the tap jump tests below.
   move(50, 25);
-  frame();
-  assert.deepEqual([lastPad(mod)[2], lastPad(mod)[3]], [0, 80], 'up');
+  for (let i = 0; i < 16; i++) frame();
+  assert.deepEqual([lastPad(mod)[2], lastPad(mod)[3]], [0, 80], 'up, once ramped');
 
   // Beyond the ring the magnitude is clamped as a vector, so a diagonal cannot
   // reach further than a cardinal does: both axes land on 80/sqrt(2) = 57.
+  // The upward component ramps, so this needs the frames to settle as well.
   move(550, -450);
-  frame();
+  for (let i = 0; i < 16; i++) frame();
   const diag = lastPad(mod);
   assert.deepEqual([diag[2], diag[3]], [57, 57], 'clamped diagonal');
   assert.ok(Math.hypot(diag[2], diag[3]) <= STICK_MAX + 1, 'no further than a cardinal');
@@ -205,6 +208,85 @@ test('the stick reaches the raw units Melee thresholds against', async () => {
   up(handlers, 'pointerup', stick);
   frame();
   assert.deepEqual([lastPad(mod)[2], lastPad(mod)[3]], [0, 0], 'released');
+});
+
+test('an upward flick cannot tap jump, and still reaches full deflection', async () => {
+  // ftCo_Jump_GetInput needs lstick.y over tap_jump_threshold WHILE
+  // active_timer.lstick.y is still under tap_jump_window: PlCo.dat gives 0.6625
+  // and 4 frames, and some ground states use the lower 0.5625. The overlay
+  // rate-limits the upward axis so a flick never satisfies both at once, which
+  // is what turns tap jump off without taking the upward stick away.
+  const RELAXED = Math.ceil(0.5625 * STICK_MAX); // 45
+  const WINDOW = 4;
+  const boxes = { 'pad-stick': { left: 0, top: 0, width: 100, height: 100 } };
+  const { handlers, mod, byId, frame } = await load(boxes);
+  const stick = byId.get('pad-stick');
+  const move = (x, y) =>
+    handlers.get('pointermove')({ pointerId: 1, clientX: x, clientY: y, preventDefault() {} });
+
+  down(handlers, stick, 50, 50);
+  frame();
+  // A flick: straight to full up in one pointer event, which is what a thumb
+  // actually does.
+  move(50, 25);
+
+  // Through the whole window the reported value stays under even the lower
+  // threshold, so neither jump condition is ever met together.
+  for (let i = 0; i < WINDOW; i++) {
+    frame();
+    assert.ok(lastPad(mod)[3] < RELAXED,
+      `frame ${i + 1}: y=${lastPad(mod)[3]} reached the relaxed threshold ${RELAXED} inside the ${WINDOW} frame window`);
+  }
+
+  // Held, it still gets all the way up: up-B, up-tilt and upward DI need it.
+  for (let i = 0; i < 16; i++) frame();
+  assert.equal(lastPad(mod)[3], STICK_MAX, 'a held stick still reaches full up');
+});
+
+test('coming back up through centre re-ramps instead of snapping to full', async () => {
+  // The sequence that needs the reset in rampUp: hold up until the ramp is
+  // charged, come back down, then flick up again. Without the reset the second
+  // flick reports full deflection on its first frame and tap jumps. Starting
+  // from neutral cannot catch this, because a ramp that was never charged has
+  // nothing stale to carry over.
+  const RELAXED = Math.ceil(0.5625 * STICK_MAX);
+  const boxes = { 'pad-stick': { left: 0, top: 0, width: 100, height: 100 } };
+  const { handlers, mod, byId, frame } = await load(boxes);
+  const stick = byId.get('pad-stick');
+  const move = (x, y) =>
+    handlers.get('pointermove')({ pointerId: 1, clientX: x, clientY: y, preventDefault() {} });
+
+  down(handlers, stick, 50, 50);
+  // Up, fully ramped.
+  move(50, 25);
+  for (let i = 0; i < 16; i++) frame();
+  assert.equal(lastPad(mod)[3], STICK_MAX, 'charged by the first hold');
+
+  // Down: immediate, and it discharges the ramp.
+  move(50, 75);
+  frame();
+  assert.equal(lastPad(mod)[3], -STICK_MAX, 'down is immediate, not ramped');
+
+  // Up again: back to the start of the ramp, not straight to full.
+  move(50, 25);
+  frame();
+  assert.ok(lastPad(mod)[3] < RELAXED,
+    `the second flick started pre-charged at ${lastPad(mod)[3]}`);
+});
+
+test('the sideways axis is never limited', async () => {
+  // A sideways flick is a dash, and it has no tap jump to avoid.
+  const boxes = { 'pad-stick': { left: 0, top: 0, width: 100, height: 100 } };
+  const { handlers, mod, byId, frame } = await load(boxes);
+  const stick = byId.get('pad-stick');
+  const move = (x, y) =>
+    handlers.get('pointermove')({ pointerId: 1, clientX: x, clientY: y, preventDefault() {} });
+
+  down(handlers, stick, 50, 50);
+  frame();
+  move(75, 50);
+  frame();
+  assert.equal(lastPad(mod)[2], STICK_MAX, 'sideways is immediate');
 });
 
 test('the stick centre floats to where the thumb lands', async () => {
