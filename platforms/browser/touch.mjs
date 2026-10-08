@@ -106,12 +106,20 @@ export function createTouchOverlay(Module, log) {
   // Button positions follow the request: the C-stick sits on the right with A
   // in its middle and B to its left, Y stays Y for jump, R takes the place X
   // would have on the right, and L is on the left beside the stick.
+  //
+  // `tier1` marks the walk-up set: stick, A, B and jump, four controls, so a
+  // visitor who has never held a GameCube controller does something
+  // recognisable straight away. Everything else is tier 2. The tiers are a
+  // class on <body> and a rule in the stylesheet rather than two layouts,
+  // because both tiers write the same pad state and a rebuild mid-match would
+  // drop whatever was held. Jump is Y here, not the X the issue names: the
+  // positions follow the request above.
   const controls = [
-    { id: 'stick', kind: 'stick', label: '' },
+    { id: 'stick', kind: 'stick', label: '', tier1: true },
     { id: 'cstick', kind: 'cstick', label: 'C' },
-    { id: 'a', button: PAD.A, label: 'A' },
-    { id: 'b', button: PAD.B, label: 'B' },
-    { id: 'y', button: PAD.Y, label: 'Y' },
+    { id: 'a', button: PAD.A, label: 'A', tier1: true },
+    { id: 'b', button: PAD.B, label: 'B', tier1: true },
+    { id: 'y', button: PAD.Y, label: 'Y', tier1: true },
     { id: 'r', button: PAD.R, label: 'R' },
     { id: 'l', button: PAD.L, label: 'L' },
     { id: 'z', button: PAD.Z, label: 'Z' },
@@ -188,6 +196,7 @@ export function createTouchOverlay(Module, log) {
       el.append(nub);
       control.nub = nub;
     }
+    if (control.tier1) el.classList.add('tier1');
     control.el = el;
     byEl.set(el, control);
     (control.drawer ? tray : root).append(el);

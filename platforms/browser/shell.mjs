@@ -7,6 +7,7 @@ import { createGCAdapter } from './gcadapter.mjs';
 import { checkGraphics } from './gpu-preflight.mjs';
 import { createTouchOverlay } from './touch.mjs';
 import { addMenuButton } from './menu-button.mjs';
+import { addTierToggle } from './tier.mjs';
 import { showCrash } from './crash.mjs';
 import { addSettings } from './settings.mjs';
 
@@ -147,6 +148,13 @@ if (!navigator.hid) $('adapter').hidden = true;
 // reveals the settings. Built at load rather than on first open: the form
 // reads the URL, and the URL does not change while the page lives.
 addSettings($('menu-panel'));
+
+// The control tier toggle, in the same panel. Applied at load rather than on
+// first open, so the overlay is already in the stored tier when the game
+// starts. Unlike every control in the settings form, this one takes effect
+// immediately: the tier belongs to the overlay rather than to the engine, so
+// it needs no reload.
+addTierToggle($('menu-panel'));
 
 $('adapter').addEventListener('click', async () => {
   try {
