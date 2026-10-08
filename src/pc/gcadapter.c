@@ -56,7 +56,7 @@ static int s_open_retries;
 static bool s_warned_open;
 static uint8_t s_rumble[1 + GC_SLOTS] = {0x11};
 
-#if !defined(_WIN32) && !defined(__APPLE__)
+#if !defined(_WIN32) && !defined(__APPLE__) && !defined(__EMSCRIPTEN__)
 #include <dirent.h>
 #include <stdio.h>
 static bool check_usb_device_attached(uint16_t vid, uint16_t pid) {
@@ -150,6 +150,8 @@ static void clear_slot(int i) {
     atomic_store_explicit(&s_raw[i], 0, memory_order_relaxed);
 }
 
+#if !defined(__EMSCRIPTEN__)
+
 static void try_open(void) {
     /* Serialise against SDL's own hidapi enumeration (same udev/libusb
      * contexts, and the udev monitor the change count drains), which runs
@@ -179,14 +181,14 @@ static void try_open(void) {
         if (info != NULL && !s_warned_open) {
             s_warned_open = true;
             pc_log_line("GC adapter: WUP-028 attached but could not be opened: %s"
-#if !defined(_WIN32) && !defined(__APPLE__)
+#if !defined(_WIN32) && !defined(__APPLE__) && !defined(__EMSCRIPTEN__)
                         " (udev rule: SUBSYSTEM==\"usb\", ATTRS{idVendor}==\"057e\", "
                         "ATTRS{idProduct}==\"0337\", MODE=\"0666\")"
 #endif
                 ,
                 SDL_GetError());
         }
-#if !defined(_WIN32) && !defined(__APPLE__)
+#if !defined(_WIN32) && !defined(__APPLE__) && !defined(__EMSCRIPTEN__)
         else if (info == NULL && !s_warned_open && check_usb_device_attached(GC_VID, GC_PID))
         {
             s_warned_open = true;
@@ -224,6 +226,8 @@ static void close_dev(const char* why) {
     }
     publish_snapshot();
 }
+
+#endif /* !__EMSCRIPTEN__ */
 
 static s8 rel8(uint8_t v, uint8_t origin) {
     const int d = (int)v - (int)origin;
@@ -314,6 +318,8 @@ static void parse_slot(int i, const uint8_t* s, uint64_t now_ns) {
     atomic_store_explicit(&s_raw[i], snap, memory_order_relaxed);
 }
 
+#if !defined(__EMSCRIPTEN__)
+
 static void update_rumble(const uint8_t* slots) {
     /* Adapter motor byte: 0 stop, 1 rumble, 2 brake. Game state last_status:
      * 0 hard stop, 1 stop, 2 rumble. Only a wired pad on a slot with the
@@ -376,6 +382,50 @@ void pc_gcadapter_poll(void) {
         update_rumble(last + 1);
     }
 }
+
+#else /* __EMSCRIPTEN__ */
+
+/* WebHID half of the adapter path. platforms/browser/gcadapter.mjs opens the
+ * device, prepends the report id Chrome strips, and calls the two entry points
+ * below. Reports arrive from a JS event handler rather than a poll thread, so
+ * there is nothing to drain; input_poll.c still calls this every tick. */
+void pc_gcadapter_poll(void) {}
+
+/* pc_gcadapter_init only sets an SDL hint, so s_enabled stays false in this
+ * build and the shared pc_gcadapter_apply would publish nothing. The open
+ * callback is what turns the path on.
+ *
+ * On disconnect every slot is cleared and republished, so pc_gcadapter_status
+ * reports absent afterwards and no button can stay held. */
+void pc_gcadapter_web_opened(int opened) {
+    s_enabled = opened != 0;
+    if (!s_enabled) {
+        for (int i = 0; i < GC_SLOTS; i++) {
+            clear_slot(i);
+        }
+        publish_snapshot();
+        pc_log_line("GC adapter: disconnected");
+    } else {
+        pc_log_line("GC adapter: WebHID path active, raw 8-bit values");
+    }
+}
+
+/* One whole 37-byte 0x21 report, decoded by the same parse_slot the desktop
+ * build uses. Called from the JS inputreport handler on the main thread, so
+ * no lock is needed beyond the snapshot copy publish_snapshot already takes. */
+void pc_gcadapter_web_report(const uint8_t* data, int len) {
+    if (!s_enabled || data == NULL || len < GC_REPORT || data[0] != 0x21) {
+        return;
+    }
+    atomic_fetch_add_explicit(&s_reports, 1, memory_order_relaxed);
+    const uint64_t now = SDL_GetTicksNS();
+    for (int i = 0; i < GC_SLOTS; i++) {
+        parse_slot(i, data + 1 + 9 * i, now);
+    }
+    publish_snapshot();
+}
+
+#endif /* __EMSCRIPTEN__ */
 
 /* Called at the main-thread input boundary before PADRead. Port 1 is merged
  * with keyboard/touch by keyboard.c; this function owns ports 2 through 4. */
