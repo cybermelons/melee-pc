@@ -289,6 +289,68 @@ test('the sideways axis is never limited', async () => {
   assert.equal(lastPad(mod)[2], STICK_MAX, 'sideways is immediate');
 });
 
+test('leaving the visible deadzone already clears the engine deadzone', async () => {
+  // Melee ignores the stick below 0.28 on each axis, always. A linear mapping
+  // left the travel between the overlay's 0.2 and the engine's 0.28 doing
+  // nothing: a quarter of the thumb's reach with no effect in game. Just past
+  // the ring the engine has to react.
+  const ENGINE = 0.28;
+  const boxes = { 'pad-stick': { left: 0, top: 0, width: 100, height: 100 } };
+  const { handlers, mod, byId, frame } = await load(boxes);
+  const stick = byId.get('pad-stick');
+  const move = (x, y) =>
+    handlers.get('pointermove')({ pointerId: 1, clientX: x, clientY: y, preventDefault() {} });
+
+  down(handlers, stick, 50, 50);
+  // Sideways, so the upward ramp plays no part. The travel radius is 25px,
+  // not the ring's 50: the floating centre is held half a radius inside the
+  // ring so there is room to push in every direction. So 0.24 of it is 6px,
+  // just outside the 0.2 deadzone.
+  move(56, 50);
+  frame();
+  const x = lastPad(mod)[2];
+  assert.ok(x / STICK_MAX > ENGINE,
+    `at 0.22 of the radius the pad read ${x} (${(x / STICK_MAX).toFixed(3)}), `
+    + 'which Melee still discards');
+});
+
+test('resting on the deadzone ring is still centred', async () => {
+  // The other end of the same mapping: the rescale must not make the edge of
+  // the deadzone itself a walk, or a thumb left on the ring drifts.
+  const ENGINE = 0.28;
+  const boxes = { 'pad-stick': { left: 0, top: 0, width: 100, height: 100 } };
+  const { handlers, mod, byId, frame } = await load(boxes);
+  const stick = byId.get('pad-stick');
+  const move = (x, y) =>
+    handlers.get('pointermove')({ pointerId: 1, clientX: x, clientY: y, preventDefault() {} });
+
+  down(handlers, stick, 50, 50);
+  move(55, 50); // exactly 0.2 of the 25px travel radius
+  frame();
+  const x = lastPad(mod)[2];
+  assert.ok(x / STICK_MAX <= ENGINE,
+    `resting on the ring reported ${x}, which Melee reads as a walk`);
+});
+
+test('the rescale moves the magnitude but not the angle', async () => {
+  // Scaling each axis on its own would bend the angle, and the angle is what
+  // DI, up-B and every tilt are read from. A 45 degree thumb has to stay 45
+  // degrees on the pad.
+  const boxes = { 'pad-stick': { left: 0, top: 0, width: 100, height: 100 } };
+  const { handlers, mod, byId, frame } = await load(boxes);
+  const stick = byId.get('pad-stick');
+  const move = (x, y) =>
+    handlers.get('pointermove')({ pointerId: 1, clientX: x, clientY: y, preventDefault() {} });
+
+  down(handlers, stick, 50, 50);
+  // Equal parts right and down: down needs no ramp, so the frame is immediate.
+  move(60, 60);
+  frame();
+  const [, , px, py] = lastPad(mod);
+  assert.ok(px > 0 && py < 0, `expected right and down, got ${px},${py}`);
+  assert.equal(px, -py, `the diagonal bent: ${px} across against ${-py} down`);
+});
+
 test('the stick centre floats to where the thumb lands', async () => {
   // A fixed centre would read the distance from the ring's middle as
   // deflection, so a thumb landing off-centre would start the stick already
