@@ -15,9 +15,34 @@ function log(text) {
 }
 const status = (text) => { $('status').textContent = text; };
 
+// Render size. platforms/browser/main.c reads windowWidth and windowHeight from
+// Module.canvas, so the backing store set here is what the engine renders into.
+// The CSS width is separate and unchanged, so the picture always fills the same
+// box and only the rendered pixel count moves.
+//
+// MELEE_SCALE=<n> multiplies the base size, so one URL is one render size. It
+// is a measurement knob, not a quality setting: it answers whether a slow frame
+// is the pixel count by changing only that. Unset, the base size is unchanged.
+//
+// Mobile does not currently need it. An iPhone holds 60 fps at the full 960x720
+// once the pipeline cache is warm; a cold first run is much slower while shaders
+// compile (see README, "first launch").
+const BASE_WIDTH = 960;
+const BASE_HEIGHT = 720;
+const SCALE = Number(new URLSearchParams(location.search).get('MELEE_SCALE') || 1);
+if (SCALE > 0 && SCALE !== 1) {
+  const canvas = $('canvas');
+  canvas.width = Math.max(64, Math.round(BASE_WIDTH * SCALE));
+  canvas.height = Math.max(48, Math.round(BASE_HEIGHT * SCALE));
+}
+
 // Rolling frame statistics; also read by tests/browser/shell-e2e.mjs.
 const frames = { count: 0, last: 0, samples: [] };
 window.meleeFrames = frames;
+// A phone has no console attached, so the same figures also go to the on-page
+// log every 2 seconds. A thermal drop is a trend rather than one number, and
+// that needs a series to be visible at all.
+let lastReport = 0;
 function onFrame() {
   const now = performance.now();
   if (frames.last) {
@@ -29,7 +54,17 @@ function onFrame() {
     const recent = frames.samples.slice(-120);
     const sorted = [...recent].sort((a, b) => a - b);
     const fps = 1000 * recent.length / recent.reduce((a, b) => a + b, 0);
-    $('stats').textContent = `${fps.toFixed(1)} fps · p99 ${sorted[Math.floor(sorted.length * 0.99)].toFixed(1)} ms`;
+    const mean = recent.reduce((a, b) => a + b, 0) / recent.length;
+    const p99 = sorted[Math.floor(sorted.length * 0.99)];
+    const canvas = $('canvas');
+    const size = `${canvas.width}x${canvas.height}`;
+    $('stats').textContent =
+      `${fps.toFixed(1)} fps · ${mean.toFixed(1)} ms · p99 ${p99.toFixed(1)} ms · ${size}`;
+    if (now - lastReport > 2000) {
+      lastReport = now;
+      log(`t=${(now / 1000).toFixed(0)}s ${fps.toFixed(1)} fps mean=${mean.toFixed(1)}ms` +
+          ` p99=${p99.toFixed(1)}ms ${size}`);
+    }
   }
 }
 
@@ -65,7 +100,9 @@ window.Module = {
     adapter = createGCAdapter(Module, log);
     // An adapter authorised in an earlier visit reopens without a gesture.
     adapter.resume().then((found) => {
-      $('adapter').hidden = found;
+      // Mobile browsers have no WebHID, where the button can only report that.
+      // Keep it hidden there rather than offer a control with one outcome.
+      $('adapter').hidden = found || !navigator.hid;
       if (found) log('GC adapter: reconnected');
     }, (error) => log(`GC adapter: ${error.message}`));
   },
@@ -82,6 +119,10 @@ function updateStart() {
   $('start').disabled = !(ready && (remoteDisc || $('disc').files.length));
 }
 $('disc').addEventListener('change', updateStart);
+
+// Hidden before the runtime initializes as well, so it is never tappable on a
+// browser without WebHID.
+if (!navigator.hid) $('adapter').hidden = true;
 
 $('adapter').addEventListener('click', async () => {
   try {

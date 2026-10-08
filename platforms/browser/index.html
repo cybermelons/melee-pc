@@ -14,10 +14,17 @@
   pre { white-space: pre-wrap; color: #999; font-size: 12px; max-height: 14em; overflow: auto; }
   #launch a { color: #9cf; margin-right: 12px; }
   #launch-hint { color: #999; }
+  #perf { color: #999; font-size: 13px; }
+  #perf a { color: #9cf; margin-right: 10px; }
   kbd { background: #333; border-radius: 3px; padding: 0 4px; }
 </style>
 <h1>Melee Web</h1>
 <p id="launch"><a href="?MELEE_BOOT_SCENE=vs">Versus</a><a href="?MELEE_BOOT_SCENE=training">Training</a><a href="?MELEE_20XX=1">20XX</a><span id="launch-hint">Pick a mode, then choose a disc image and click Start.</span></p>
+<p id="perf">Render scale, to measure whether a slow frame is the pixel count:
+<a href="?MELEE_BOOT_SCENE=vs&amp;MELEE_SCALE=1">1.0 · 960x720</a>
+<a href="?MELEE_BOOT_SCENE=vs&amp;MELEE_SCALE=0.667">0.667 · 640x480</a>
+<a href="?MELEE_BOOT_SCENE=vs&amp;MELEE_SCALE=0.5">0.5 · 480x360</a>
+</p>
 <div id="bar">
   <input id="disc" type="file" accept=".iso,.gcm">
   <button id="start" disabled>Start</button>
