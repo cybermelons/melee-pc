@@ -57,6 +57,9 @@ int main(int argc, char** argv) {
          * CPU-bound so throughput becomes measurable. Parity with
          * src/pc/main.c, which reads the same variable. */
         .vsync = !(getenv("MELEE_VSYNC") && getenv("MELEE_VSYNC")[0] == '0'),
+        /* A hidden tab stops anyway; this covers a tab that is still visible
+         * but not focused, which is why it is opt-in (src/pc/pc.h). */
+        .pauseOnFocusLost = pc_is_pause_on_blur_enabled(),
         .logLevel = LOG_INFO,
         .windowWidth = 960,
         .windowHeight = 720,
