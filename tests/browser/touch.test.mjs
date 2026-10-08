@@ -26,7 +26,12 @@ function stubDom(boxes) {
         contains(c) { return this.set.has(c); },
       },
       append(...kids) { el.children.push(...kids); for (const k of kids) k.parent = el; },
-      addEventListener(type, fn) { handlers.set(type, fn); },
+      addEventListener(type, fn) {
+        handlers.set(type, fn);
+        // Also kept on the element, so a listener bound to one control rather
+        // than delegated at the root can be fired on its own in a test.
+        if (type === 'click') el.handler = fn;
+      },
       setPointerCapture() {},
       getBoundingClientRect() { return boxes[el.id] || { left: 0, top: 0, width: 100, height: 100 }; },
       // The real closest() walks up to the nearest .pad; a control's nub has
@@ -43,15 +48,31 @@ function stubDom(boxes) {
   };
   const root = make('div');
   root.className = 'root';
+  const game = make('div');
+  game.id = 'game';
+  const fullscreen = { requests: 0, exits: 0 };
+  game.requestFullscreen = () => { fullscreen.requests++; return Promise.resolve(); };
   const docHandlers = new Map();
   globalThis.document = {
-    getElementById: (id) => (id === 'touch' ? root : null),
+    getElementById: (id) => (id === 'touch' ? root : id === 'game' ? game : null),
     createElement: make,
     visibilityState: 'visible',
+    fullscreenElement: null,
+    body: {
+      classList: {
+        set: new Set(),
+        add(c) { this.set.add(c); },
+        remove(c) { this.set.delete(c); },
+        contains(c) { return this.set.has(c); },
+        toggle(c) { this.set.has(c) ? this.set.delete(c) : this.set.add(c); },
+      },
+    },
+    exitFullscreen() { fullscreen.exits++; return Promise.resolve(); },
     addEventListener(type, fn) { docHandlers.set(type, fn); },
   };
+  globalThis.fullscreenState = fullscreen;
   globalThis.addEventListener = (type, fn) => docHandlers.set(type, fn);
-  return { root, handlers, docHandlers };
+  return { root, handlers, docHandlers, fullscreen };
 }
 
 // Records what crossed into C. The overlay is only correct in terms of these
@@ -76,7 +97,16 @@ async function load(boxes) {
   const { createTouchOverlay } = await import('../../platforms/browser/touch.mjs');
   const mod = stubModule();
   const overlay = createTouchOverlay(mod, null);
-  const byId = new Map(dom.root.children.map((el) => [el.id, el]));
+  // Recursive: the drawer's controls sit inside the tray rather than directly
+  // under the overlay root.
+  const byId = new Map();
+  const walk = (el) => {
+    for (const kid of el.children) {
+      if (kid.id) byId.set(kid.id, kid);
+      walk(kid);
+    }
+  };
+  walk(dom.root);
   // The engine reads the overlay on the game frame, so a test that wants to
   // see what the engine sees has to advance a frame. frame() is what
   // onFrame in shell.mjs does.
@@ -253,4 +283,80 @@ test('the pad is claimed once, and only after a real touch', async () => {
   frame();
   frame();
   assert.equal(mod.calls.length, settled, 'quiet once released');
+});
+
+// The menu case: a player in fullscreen has no keyboard, so every button the
+// game reads in a menu has to be reachable from the overlay. X and the D-pad
+// are not used in a match, which is why they live in the drawer, but a menu
+// needs them and an unreachable button is an unusable menu.
+test('the drawer carries X and the D-pad, with the right pad bits', async () => {
+  const { handlers, mod, byId, frame } = await load({});
+  const expected = { x: 0x0400, up: 0x0008, down: 0x0004, left: 0x0001, right: 0x0002 };
+  for (const [id, bit] of Object.entries(expected)) {
+    const el = byId.get(`pad-${id}`);
+    assert.ok(el, `pad-${id} is missing from the overlay`);
+    down(handlers, el, 0, 0);
+    frame();
+    assert.equal(mod.calls.at(-1)[1], bit, `pad-${id} sent the wrong bit`);
+    up(handlers, 'pointerup', el);
+    frame();
+  }
+});
+
+// Drawn inside the tray, not at the overlay root: the tray is what the
+// <details> hides when closed, so a control appended to the root instead
+// would stay on screen during a match and cover the picture.
+test('the drawer controls are inside the tray, not loose on the overlay', async () => {
+  const { byId } = await load({});
+  for (const id of ['pad-x', 'pad-up', 'pad-down', 'pad-left', 'pad-right']) {
+    assert.equal(byId.get(id).parent.id, 'pad-tray', `${id} is not in the tray`);
+  }
+  // The match controls stay out of it, or they would be hidden when closed.
+  for (const id of ['pad-a', 'pad-b', 'pad-stick', 'pad-cstick']) {
+    assert.notEqual(byId.get(id).parent.id, 'pad-tray', `${id} must not be in the drawer`);
+  }
+});
+
+// Fullscreen has to promote #game: that element holds the canvas AND this
+// overlay, so requesting it on the canvas would leave every control undrawn.
+test('the fullscreen button requests #game, not the canvas', async () => {
+  const { byId, fullscreen } = await load({});
+  const button = byId.get('pad-full');
+  assert.ok(button, 'pad-full is missing');
+  button.handler();
+  assert.equal(fullscreen.requests, 1);
+});
+
+// A pointerup during the transition can land outside the re-laid-out overlay
+// and never reach onUp, which would hold the button down for ever.
+test('a fullscreen change releases everything held', async () => {
+  const { handlers, docHandlers, mod, byId, frame } = await load({});
+  down(handlers, byId.get('pad-a'), 0, 0);
+  frame();
+  assert.equal(mod.calls.at(-1)[1], 0x0100);
+  docHandlers.get('fullscreenchange')();
+  assert.deepEqual(mod.calls.at(-1).slice(1), [0, 0, 0, 0, 0, 0, 0]);
+});
+
+// The page's controls (mode links, disc picker, Start) are hidden while the
+// game runs, so without this button a phone cannot reach them at all.
+test('the menu button toggles the panel class on the body', async () => {
+  const { byId } = await load({});
+  const button = byId.get('pad-menu');
+  assert.ok(button, 'pad-menu is missing');
+  assert.equal(document.body.classList.contains('menu'), false);
+  button.handler();
+  assert.equal(document.body.classList.contains('menu'), true, 'first tap must open it');
+  button.handler();
+  assert.equal(document.body.classList.contains('menu'), false, 'second tap must close it');
+});
+
+// The menu button is a page control, not a game input: a tap on it must not
+// reach the engine as a button press.
+test('the menu and fullscreen buttons send no pad input', async () => {
+  const { mod, byId, frame } = await load({});
+  byId.get('pad-menu').handler();
+  byId.get('pad-full').handler();
+  frame();
+  assert.equal(mod.calls.length, 0, 'a page control must not claim the pad');
 });

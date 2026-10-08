@@ -32,14 +32,56 @@
      the user scrolls. */
   @media (pointer: coarse) {
     body { max-width: none; padding: 0; height: 100dvh; overflow: hidden; }
-    h1, #launch, #perf, #bar, #keys, #log { display: none; }
-    /* Shown again while the game is not running, so a phone can still start
-       it and read an error. #playing goes on <body> at Start. */
+    h1, #keys { display: none; }
+    /* The page controls are not hidden once the game runs, only moved into the
+       menu panel below, which #menu-panel positions. Hiding them outright left
+       a phone with no way to change mode, pick a disc or read an error without
+       a reload, because every one of those controls lives on this page rather
+       than in the game. */
     body:not(.playing) #launch, body:not(.playing) #bar, body:not(.playing) #log {
-      display: revert;
       padding: 0 12px;
     }
     body:not(.playing) h1 { display: revert; padding: 0 12px; }
+
+    /* While the game runs, the page controls become a panel over the picture,
+       opened from the tab the overlay draws. Closed, nothing of them shows.
+
+       :has() on the <details> rather than a class on <body>, so the open state
+       stays the browser's own and no JS keeps the two in step. */
+    body.playing #launch, body.playing #perf, body.playing #bar, body.playing #log {
+      display: none;
+    }
+    body.playing.menu #menu-panel { display: block; }
+    #menu-panel {
+      display: none;
+      position: fixed;
+      top: calc(9vh + env(safe-area-inset-top));
+      left: 50%; transform: translateX(-50%);
+      z-index: 3;
+      width: min(92vw, 520px);
+      max-height: 70dvh; overflow: auto;
+      padding: 12px 16px;
+      border: 2px solid #ffffff44; border-radius: 12px;
+      background: #000000e8;
+      /* The panel is a page control, so taps on it must reach the links and
+         the file picker rather than be refused like the overlay's. */
+      pointer-events: auto; touch-action: auto;
+    }
+    body.playing #menu-panel #launch,
+    body.playing #menu-panel #perf,
+    body.playing #menu-panel #bar,
+    body.playing #menu-panel #log {
+      display: revert; padding: 0;
+    }
+    /* Bigger tap targets than the desktop page: these are links in a row and
+       a thumb needs the spacing. */
+    #menu-panel #launch a, #menu-panel #perf a {
+      display: inline-block; padding: 8px 10px; margin: 0 6px 6px 0;
+      border: 1px solid #ffffff33; border-radius: 8px;
+    }
+    #menu-panel #bar { flex-wrap: wrap; gap: 10px; }
+    #menu-panel button, #menu-panel input { min-height: 44px; font-size: 16px; }
+    #menu-panel #log { max-height: 20dvh; }
     #game { position: fixed; inset: 0; display: grid; place-items: center; background: #000; }
     /* Letterboxed to 4:3 rather than stretched or cropped: Melee's HUD sits at
        the edges of the frame, so a crop eats the damage percentages and a
@@ -109,9 +151,64 @@
     width: 42%; height: 42%; border-radius: 50%;
     background: #ffffff66; pointer-events: none;
   }
+
+  /* The extra controls. A match needs the stick and the face buttons, but a
+     menu needs X and the D-pad as well, and drawing all 12 at once leaves
+     every one of them too small to hit. So the ones a match does not use sit
+     behind a tab, which is closed by default.
+
+     <details> rather than a class toggled from JS: the open and closed states
+     are then the browser's own, the summary is focusable and announced to a
+     screen reader without extra attributes, and there is no state to reset. */
+  #pad-drawer {
+    position: absolute; pointer-events: auto;
+    top: calc(2vh + env(safe-area-inset-top));
+    right: calc(4vw + env(safe-area-inset-right));
+  }
+  #pad-drawer summary {
+    /* list-style:none and the ::-webkit-details-marker rule remove the
+       disclosure triangle. Safari needs the second one. */
+    list-style: none;
+    display: grid; place-items: center;
+    width: 9vh; height: 6vh; min-width: 44px; min-height: 44px;
+    border: 2px solid #ffffff55; border-radius: 3vh;
+    background: #ffffff18; color: #fff;
+    font: 600 20px/1 system-ui, sans-serif;
+    cursor: pointer; touch-action: manipulation;
+  }
+  #pad-drawer summary::-webkit-details-marker { display: none; }
+  #pad-drawer[open] summary { background: #ffffff45; border-color: #fffc; }
+  /* The tray hangs below the tab and is laid out in flow, so the buttons in
+     it need no coordinates of their own. */
+  #pad-tray {
+    position: absolute; top: 7vh; right: 0;
+    display: flex; gap: 1.5vh;
+    padding: 1.5vh;
+    border: 2px solid #ffffff33; border-radius: 2vh;
+    background: #000000b0;
+  }
+  /* Opposite corner from the drawer tab, so neither covers the other and the
+     tray has room to open. */
+  #pad-full {
+    top: calc(2vh + env(safe-area-inset-top));
+    left: calc(4vw + env(safe-area-inset-left));
+    width: 9vh; height: 6vh; min-width: 44px; min-height: 44px;
+    border-radius: 3vh; font-size: 20px;
+  }
+  /* Beside the fullscreen button, top left. */
+  #pad-menu {
+    top: calc(2vh + env(safe-area-inset-top));
+    left: calc(4vw + env(safe-area-inset-left) + 10vh);
+    width: 9vh; height: 6vh; min-width: 44px; min-height: 44px;
+    border-radius: 3vh; font-size: 20px;
+  }
+  #pad-tray .pad {
+    position: static;
+    width: 11vh; height: 11vh; min-width: 44px; min-height: 44px;
+  }
 </style>
 <h1>Melee Web</h1>
-<p id="launch"><a href="?MELEE_BOOT_SCENE=vs">Versus</a><a href="?MELEE_BOOT_SCENE=training">Training</a><a href="?MELEE_20XX=1">20XX</a><span id="launch-hint">Pick a mode, then choose a disc image and click Start.</span></p>
+<div id="menu-panel"><p id="launch"><a href="?MELEE_BOOT_SCENE=vs">Versus</a><a href="?MELEE_BOOT_SCENE=training">Training</a><a href="?MELEE_20XX=1">20XX</a><span id="launch-hint">Pick a mode, then choose a disc image and click Start.</span></p>
 <p id="perf">Render scale, to measure whether a slow frame is the pixel count:
 <a href="?MELEE_BOOT_SCENE=vs&amp;MELEE_SCALE=1">1.0 · 960x720</a>
 <a href="?MELEE_BOOT_SCENE=vs&amp;MELEE_SCALE=0.667">0.667 · 640x480</a>
@@ -123,6 +220,7 @@
   <button id="adapter">Connect GC adapter</button>
   <span id="status">Loading engine…</span>
   <span id="stats"></span>
+</div>
 </div>
 <div id="game"><canvas id="canvas" width="960" height="720" tabindex="0"></canvas>
 <div id="touch" hidden></div></div>

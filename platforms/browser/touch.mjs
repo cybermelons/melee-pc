@@ -13,11 +13,16 @@
 const PAD = {
   A: 0x0100,
   B: 0x0200,
+  X: 0x0400,
   Y: 0x0800,
   Z: 0x0010,
   R: 0x0020,
   L: 0x0040,
   START: 0x1000,
+  UP: 0x0008,
+  DOWN: 0x0004,
+  LEFT: 0x0001,
+  RIGHT: 0x0002,
 };
 
 // Melee's dash, tilt and light-shield thresholds are in raw 8-bit units, so a
@@ -79,7 +84,74 @@ export function createTouchOverlay(Module, log) {
     { id: 'l', button: PAD.L, label: 'L' },
     { id: 'z', button: PAD.Z, label: 'Z' },
     { id: 'start', button: PAD.START, label: 'Start' },
+    // The rest live in the drawer. The game needs every one of them in a menu
+    // even though a match rarely does: X is a confirm on some screens, and the
+    // D-pad moves the cursor where the analog stick is ignored (the stage
+    // select's zoom, the name entry grid, the debug menu). A full-screen
+    // player cannot reach a keyboard, so the overlay has to carry them.
+    { id: 'x', button: PAD.X, label: 'X', drawer: true },
+    { id: 'up', button: PAD.UP, label: '\u25b2', drawer: true },
+    { id: 'down', button: PAD.DOWN, label: '\u25bc', drawer: true },
+    { id: 'left', button: PAD.LEFT, label: '\u25c0', drawer: true },
+    { id: 'right', button: PAD.RIGHT, label: '\u25b6', drawer: true },
   ];
+
+  // Fullscreen goes on #game, the element that holds the canvas AND this
+  // overlay. Requesting it on the canvas alone would promote only the canvas
+  // into the fullscreen layer and every control here would stop being drawn,
+  // which is exactly the case this control exists to serve.
+  //
+  // The button hides itself where the API is missing: iOS Safari on iPhone
+  // has no element fullscreen, so offering it there is a control with no
+  // outcome. The page is already full-bleed from the CSS, so nothing is lost.
+  const game = document.getElementById('game');
+  if (game && game.requestFullscreen) {
+    const full = document.createElement('div');
+    full.className = 'pad btn';
+    full.id = 'pad-full';
+    full.textContent = '\u26f6';
+    // click, not pointerdown: this one is a page control rather than a game
+    // input, so it does not go through publish() and must not latch a frame.
+    full.addEventListener('click', () => {
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch((error) => log(`Fullscreen: ${error.message}`));
+      } else {
+        game.requestFullscreen().catch((error) => log(`Fullscreen: ${error.message}`));
+      }
+    });
+    root.append(full);
+  }
+
+  // The page's own controls — the mode links, the disc picker, Start, the
+  // adapter button and the status line — are hidden while the game runs,
+  // because they would otherwise sit on top of the picture. A phone then has
+  // no way to reach them: there is no window chrome to scroll to and every
+  // one of those controls belongs to the page rather than to the game.
+  //
+  // So this button brings them back as a panel. It toggles one class on
+  // <body> and the stylesheet does the rest.
+  const menu = document.createElement('div');
+  menu.className = 'pad btn';
+  menu.id = 'pad-menu';
+  menu.textContent = '\u2630';
+  menu.addEventListener('click', () => {
+    document.body.classList.toggle('menu');
+  });
+  root.append(menu);
+
+  // A <details> element, so the open and closed states are the browser's own
+  // and there is no toggle handler or open flag to keep in step. The summary
+  // is the tab the player taps.
+  const drawer = document.createElement('details');
+  drawer.id = 'pad-drawer';
+  const summary = document.createElement('summary');
+  summary.textContent = '+';
+  summary.id = 'pad-more';
+  drawer.append(summary);
+  const tray = document.createElement('div');
+  tray.id = 'pad-tray';
+  drawer.append(tray);
+  root.append(drawer);
 
   const byEl = new Map();
   for (const control of controls) {
@@ -97,7 +169,7 @@ export function createTouchOverlay(Module, log) {
     }
     control.el = el;
     byEl.set(el, control);
-    root.append(el);
+    (control.drawer ? tray : root).append(el);
   }
 
   let active = false;
@@ -265,6 +337,11 @@ export function createTouchOverlay(Module, log) {
   for (const type of ['pointerup', 'pointercancel']) {
     root.addEventListener(type, onUp);
   }
+
+  // Entering or leaving fullscreen re-lays-out the overlay under the player's
+  // thumb, and a pointerup that lands outside it never reaches onUp, which
+  // would hold the button for ever. Drop everything on the transition.
+  document.addEventListener('fullscreenchange', releaseAll);
 
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') releaseAll();
