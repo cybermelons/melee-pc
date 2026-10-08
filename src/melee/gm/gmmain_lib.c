@@ -1402,6 +1402,34 @@ void gmMainLib_8015FBA4(void)
     }
 
     gmMainLib_8045A6C0.x1850 = gmMainLib_DefaultGameRules;
+#ifdef TARGET_PC
+    /* MELEE_20XX=1: the tournament rule set, so the character select opens
+     * ready to play rather than on the retail "2-min KO fest" defaults.
+     *
+     * This is the one place the global GameRules is initialised, which is why
+     * the override belongs here rather than in gm_InitVsMode: that function
+     * fills the per-mode StartMeleeRules and is shared by every special VS
+     * mode (Giant, Lightning, Tiny and the rest), so writing the global from
+     * it ran once per mode setup and disturbed the menu flow. gm_80167BC8
+     * translates this global into the per-mode rules, and mncharsel reads it
+     * for the CSS banner.
+     *
+     * In stock mode the timer comes from stock_time_limit, in minutes (see the
+     * switch in gm_80167BC8). stage_sel is a StageSelectMode; 0 is
+     * StageSelectMode_On.
+     */
+    if (pc_is_20xx_rules_enabled()) {
+        GameRules* rules = &gmMainLib_8045A6C0.x1850;
+        rules->mode = 1;             /* stock */
+        rules->stock_count = 4;
+        rules->stock_time_limit = 8; /* minutes */
+        rules->stage_sel = 0;        /* StageSelectMode_On */
+        /* Items off. item_freq is the items menu index minus 1
+         * (mnItemSw_CommitItems, mnitemsw.c:214), so the first entry "Off"
+         * underflows to 0xFF; net_handshake.c treats 0xFF as a valid Off. */
+        gmMainLib_GetGamePrefs()->item_freq = 0xFF;
+    }
+#endif
     resetSaveData();
 }
 

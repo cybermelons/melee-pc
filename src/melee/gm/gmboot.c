@@ -9,6 +9,7 @@
 #include <melee/ty/toy.h>
 #ifdef TARGET_PC
 #include "gmonlinemode.h"
+#include <pc/pc.h>
 #include <stdlib.h>
 #include <string.h>
 #endif
@@ -55,7 +56,19 @@ u8 pc_boot_scene(void)
         const char* want = getenv("MELEE_BOOT_SCENE");
         done = 1;
         if (want == NULL || want[0] == '\0') {
-            /* nothing */
+            /* MELEE_BOOT_CSS=1 (and so MELEE_20XX=1): the 20XX "boot to CSS"
+             * behaviour, which bootOnLeave describes as a Gekko code that
+             * changes scene_id to a hardcoded GM_VS. Answering here rather
+             * than in bootOnLoad is what makes it work: GM_BOOT runs its
+             * memory-card scene before bootOnLeave ever applies mode_id, and
+             * on an empty card that scene stops on "Create Game Data?" and
+             * waits for a button nobody is there to press. Every caller of
+             * this function already skips GM_BOOT, so the prompt never
+             * appears. GM_VS keeps its own first state, so the character
+             * select is reached normally and fills the preload cache. */
+            if (pc_is_boot_css_enabled()) {
+                scene = GM_VS;
+            }
         } else if (strcmp(want, "title") == 0) {
             scene = GM_TITLE;
         } else if (strcmp(want, "vs") == 0) {

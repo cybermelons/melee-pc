@@ -385,7 +385,18 @@ u32 VIGetRetraceCount(void) {
 }
 
 u64 pc_sim_period_ns(void) {
-    return 1000000000ull / 60;
+    /* The simulation is locked to 60 Hz for determinism (see the comment in
+     * the frame pacing code above). MELEE_SIM_HZ exists only for performance
+     * measurement: raising it removes the vsync pin so the port becomes
+     * CPU-bound and throughput can be measured. Unset, unparseable or <= 0
+     * means 60; values above 10000 are clamped. Parsed once and cached. */
+    static int hz;
+    if (hz == 0) {
+        const char* e = getenv("MELEE_SIM_HZ");
+        int v = e ? atoi(e) : 0;
+        hz = v <= 0 ? 60 : v > 10000 ? 10000 : v;
+    }
+    return 1000000000ull / hz;
 }
 
 u32 VIGetNextField(void) {
