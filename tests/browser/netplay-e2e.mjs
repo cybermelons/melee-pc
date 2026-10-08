@@ -15,11 +15,18 @@ const SERVE = process.env.SERVE || '/home/kiri/repos/melee-web/tools/serve.mjs';
 const DISC = process.env.MELEE_DISC || '/home/kiri/repos/melee-web/melee_1.02.iso';
 const SHOTS = process.env.SHOTS || '/tmp/claude-1000/-home-kiri-repos/b0b22c1a-2078-5ae6-9042-11b01d847b1a/scratchpad';
 
+const SERVE_DIR = process.env.SERVE_DIR || path.join(root, 'build/browser/runtime/platforms/browser');
+const PORT = process.env.SERVE_PORT || '8102';
 const kids = [
-  spawn(process.execPath, [SERVE, path.join(root, 'build/browser/runtime/platforms/browser')],
-    { env: { ...process.env, PORT: '8102', MELEE_DISC: DISC }, stdio: 'ignore' }),
-  spawn(process.execPath, [path.join(root, 'tools/browser/signal.mjs')], { env: { ...process.env, PORT: '8101' }, stdio: 'ignore' }),
+  spawn(process.execPath, [SERVE, SERVE_DIR],
+    { env: { ...process.env, PORT, MELEE_DISC: DISC, MELEE_PASSWORD: '' }, stdio: 'ignore' }),
 ];
+// The deployed shell defaults to a same-origin /signal mount inside serve.mjs;
+// the build dir's shell still wants a standalone signal server on 8101.
+if (!process.env.SERVE_DIR) {
+  kids.push(spawn(process.execPath, [path.join(root, 'tools/browser/signal.mjs')],
+    { env: { ...process.env, PORT: '8101' }, stdio: 'ignore' }));
+}
 let browser;
 let pages = [];
 const logs = [[], []];
@@ -42,7 +49,7 @@ try {
     args: ['--no-sandbox', '--enable-unsafe-webgpu', '--enable-features=Vulkan', '--ignore-gpu-blocklist',
       '--ozone-platform=x11', '--mute-audio', '--window-position=0,0', '--window-size=1280,1000'],
   });
-  const url = `http://127.0.0.1:8102/?room=${randomUUID().slice(0, 8)}&MELEE_BOOT_SCENE=vs&MELEE_SCENE_LOG=1&MELEE_SEED=1`;
+  const url = `http://127.0.0.1:${PORT}/?room=${randomUUID().slice(0, 8)}&MELEE_BOOT_SCENE=vs&MELEE_SCENE_LOG=1&MELEE_SEED=1`;
   const [a, b] = await Promise.all([0, 1].map(async () => (await (await browser.newContext()).newPage())));
   pages = [a, b];
   pages.forEach((p, i) => {

@@ -10,9 +10,14 @@ const send = (room, event, data, except) => {
 };
 const state = (room) => ({ claims: { 0: room.claims[0], 1: room.claims[1] } });
 
-http.createServer((req, res) => {
+// The handler is exported so a host page server can mount it under a path
+// instead of running a second process on its own port. `prefix` is stripped
+// before matching, so /signal/r/<room> and /r/<room> both work.
+export function signalHandler(req, res, prefix = '') {
   const url = new URL(req.url, 'http://x');
-  const m = /^\/r\/([\w-]+)(\/events)?$/.exec(url.pathname);
+  const pathname = prefix && url.pathname.startsWith(prefix)
+    ? url.pathname.slice(prefix.length) : url.pathname;
+  const m = /^\/r\/([\w-]+)(\/events)?$/.exec(pathname);
   if (!m) { res.writeHead(404, CORS); return res.end(); }
   const name = m[1];
   if (req.method === 'GET' && m[2]) {
@@ -50,4 +55,9 @@ http.createServer((req, res) => {
     res.writeHead(204, CORS);
     res.end();
   });
-}).listen(Number(process.env.PORT || 8101), '127.0.0.1');
+}
+
+// Standalone: `node tools/browser/signal.mjs`. Importers get the handler only.
+if (import.meta.url === `file://${process.argv[1]}`) {
+  http.createServer(signalHandler).listen(Number(process.env.PORT || 8101), '127.0.0.1');
+}
