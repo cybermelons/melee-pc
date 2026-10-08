@@ -106,6 +106,9 @@ static int s_mac_quiet;
 static unsigned s_stalls, s_advances, s_rollbacks, s_rb_lost;
 static int s_rb_depth_max;
 static uint64_t s_stall_ns_max;
+/* Total time wait_remote held the game thread this window. The worst single
+ * stall says nothing about a frame rate that many small stalls take away. */
+static uint64_t s_stall_ns_sum;
 static uint64_t s_ping_sum;
 static unsigned s_ping_n;
 static uint32_t s_rtt_min, s_rtt_max; /* this stats window */
@@ -1545,6 +1548,24 @@ static void resume_end(uint64_t now) {
 static int connect_timeout_ms(void) {
     return net.connect_timeout_ms > 0 ? net.connect_timeout_ms : CONNECT_TIMEOUT_MS;
 }
+/* A sub-millisecond spin wait, used where this thread must keep polling the
+ * network while it waits. SDL_DelayNS is wrong for this on the browser:
+ * SDL maps it to emscripten_sleep(ns / 1000000), so any delay under a
+ * millisecond asks for 0, and a setTimeout costs about 4.2 ms whatever it
+ * asks for (measured in Chrome: 0, 1 and 2 ms all returned ~4.2 ms). A frame
+ * at 60 Hz is 16.7 ms, so one spin iteration took a quarter of it and
+ * netplay ran at about 47 fps. browser_yield is a MessageChannel round trip
+ * and has no such minimum: 0.007 ms measured, 600 times cheaper. */
+static void net_spin_wait(uint64_t ns) {
+#ifdef __EMSCRIPTEN__
+    (void)ns;
+    extern void browser_yield(void);
+    browser_yield();
+#else
+    SDL_DelayNS(ns);
+#endif
+}
+
 static bool wait_remote(int32_t need) {
     if (s_remote_have >= need) {
         return true;
@@ -1604,12 +1625,13 @@ static bool wait_remote(int32_t need) {
         }
         /* The receive thread is draining the socket meanwhile; half a
          * millisecond is how late its queue can be seen here. */
-        SDL_DelayNS(500000);
+        net_spin_wait(500000);
     }
     if (s_rc != RSM_NONE) {
         resume_end(SDL_GetTicksNS());
     }
     uint64_t dt = SDL_GetTicksNS() - t0;
+    s_stall_ns_sum += dt;
     if (dt > s_stall_ns_max) {
         s_stall_ns_max = dt;
     }
@@ -1848,7 +1870,7 @@ static void session_reset(void) {
     s_rc_sent = false;
     s_stalls = net.skips = s_advances = s_rollbacks = s_rb_lost = 0;
     s_rb_depth_max = s_rb_depth_cur = s_rb_depth_recent = 0;
-    s_stall_ns_max = 0;
+    s_stall_ns_max = s_stall_ns_sum = 0;
     s_stall_frame = -1000;
     net.ping_us = 0;
     s_ping_sum = 0;
@@ -2948,7 +2970,7 @@ static void dvd_settle(void) {
          * disc drain reports a healthy thread (and dumps a stack from inside
          * whatever it happens to hold). */
         net_watchdog_heartbeat();
-        SDL_DelayNS(200000);
+        net_spin_wait(200000);
     }
 }
 
@@ -3175,7 +3197,7 @@ static void fresh_tick(PADStatus* head, bool raw) {
          * its lock, which it waits out for one log line every 10 s. */
         SDL_LockMutex(s_rx_lock);
         pc_log_line("net: frame %d, rollbacks %u (max depth %d, lost %u), stalls %u (worst "
-                    "%.1f ms), skips %u, advances %u, ping %u ms (avg %.0f, min %u, max %u, "
+                    "%.1f ms, total %.0f ms), skips %u, advances %u, ping %u ms (avg %.0f, min %u, max %u, "
                     "jitter %.1f), loss %d%% (%u tx %u rx), offset %+.1f ms, remote behind %d, "
                     "barrier %d, quality %d, dup %u reorder %u sock_err %u resim_eat %u red %d, "
                     "drops (bad_src %u bad_sess %u bad_player %u bad_mac %u malformed %u "
@@ -3183,7 +3205,7 @@ static void fresh_tick(PADStatus* head, bool raw) {
                     "pad reuse %u empty %u, audio replayed %u over %u, seed out-of-tick %u draws "
                     "in %u frames, pad slips %u (queue worst %u, full at write %u), idle ticks %u, "
                     "audio liveness asked %u (engine would say yes %u)",
-            net.frame, s_rollbacks, s_rb_depth_max, s_rb_lost, s_stalls, s_stall_ns_max / 1e6,
+            net.frame, s_rollbacks, s_rb_depth_max, s_rb_lost, s_stalls, s_stall_ns_max / 1e6, s_stall_ns_sum / 1e6,
             net.skips, s_advances, net.ping_us / 1000,
             s_ping_n ? s_ping_sum / 1000.0 / s_ping_n : 0.0, s_rtt_min / 1000, s_rtt_max / 1000,
             jitter_us() / 1000.0, s_loss_pct, net.tx_pkts, s_rx_pkts, net.offset_last / 1000.0,
@@ -3194,6 +3216,7 @@ static void fresh_tick(PADStatus* head, bool raw) {
             s_seed_out_frames, s_pad_slips, s_qdepth_max, s_pad_full, s_tick_idle, s_deaf_asks,
             s_deaf_true);
         s_stall_ns_max = 0;
+        s_stall_ns_sum = 0;
         s_ping_sum = 0;
         s_ping_n = 0;
         s_rtt_min = s_rtt_max = 0;
