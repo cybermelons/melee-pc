@@ -45,6 +45,11 @@
 #include <SDL3/SDL_timer.h>
 #include <errno.h>
 #include <stdatomic.h>
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+int browser_net_attach(void* rxbuf);
+int browser_net_send(const void* p, int n);
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -368,6 +373,13 @@ static void sock_err_note(const char* what, int e) {
 
 /* One sendto with error translation (caller holds tx_lock). */
 int net_sendto(const void* buf, size_t len) {
+#ifdef __EMSCRIPTEN__
+    int r = browser_net_send(buf, (int)len);
+    if (r < 0) { /* channel not open: a would-block, not a hard error */
+        s_tx_would_block++;
+    }
+    return r;
+#else
     int r =
         (int)sendto(net.sock, (const char*)buf, len, 0, (struct sockaddr*)&net.peer, net.peer_len);
     if (r < 0) {
@@ -379,6 +391,7 @@ int net_sendto(const void* buf, size_t len) {
         }
     }
     return r;
+#endif
 }
 
 /* Wire copy of a host-order input packet out (caller holds tx_lock). Stamps
@@ -1116,7 +1129,23 @@ static void rx_datagram(void* buf, int n, const struct sockaddr_storage* from, s
  * held back. Runs on the receive thread, or on the game thread when there
  * is none. False on a hard socket error (sock_err_note logged it). */
 _Static_assert(HELD_BYTES + NET_MAC_LEN <= 512, "a full input packet must fit rx_pump's buffer");
+#ifdef __EMSCRIPTEN__
+/* The data channel's onmessage (platforms/browser/net_rtc.c) lands here from
+ * the JS event loop, which can only run while the game thread sleeps, never
+ * inside a critical section. */
+static uint8_t s_rtc_rx[512];
+EMSCRIPTEN_KEEPALIVE void browser_net_rx(int n) {
+    if (net.sock == SOCK_INVALID || n < 1 || n > 512) {
+        return;
+    }
+    SDL_LockMutex(s_rx_lock);
+    rx_datagram(s_rtc_rx, n, (const struct sockaddr_storage*)&net.peer, net.peer_len);
+    SDL_UnlockMutex(s_rx_lock);
+}
+#endif
+
 static bool rx_pump(void) {
+#ifndef __EMSCRIPTEN__
     for (int budget = RX_BUDGET; budget > 0; budget--) {
         union {
             Hdr h;
@@ -1143,6 +1172,7 @@ static bool rx_pump(void) {
         rx_datagram(&u, n, &from, from_len);
         SDL_UnlockMutex(s_rx_lock);
     }
+#endif
     if (net.sim_rx_delay_ns != 0) {
         SDL_LockMutex(s_rx_lock);
         uint64_t now = SDL_GetTicksNS();
@@ -1997,12 +2027,13 @@ static bool addr_is_host(const struct sockaddr* sa) {
 static bool connect_impl(
     sock_t supplied, const char* ip, uint16_t port, int player, uint32_t seed) {
 #ifdef __EMSCRIPTEN__
-    /* A page has no UDP: Emscripten's sockets are WebSocket proxies. Every
-     * session path (MELEE_NET, the lobby's DHT socket) comes through here, so
-     * refusing here keeps netplay inert and its receive thread unstarted. */
-    (void)supplied, (void)ip, (void)port, (void)player, (void)seed;
-    pc_log_line("net: netplay is unavailable in the browser");
-    return false;
+    /* A page has no UDP, so the session rides the paired WebRTC data channel
+     * (platforms/browser/net_rtc.c). The lobby's DHT path hands over its own
+     * socket, which has no channel behind it, so it stays refused. */
+    if (supplied != SOCK_INVALID || !browser_net_attach(s_rtc_rx)) {
+        pc_log_line("net: browser netplay needs an open WebRTC data channel (Module.netChannel)");
+        return false;
+    }
 #endif
     if (net.tx_lock == NULL) {
         net.tx_lock = SDL_CreateMutex();
@@ -2171,8 +2202,10 @@ static bool connect_impl(
         net.session, WIRE_VERSION, net.sim_loss, (int)(net.sim_delay_ns / 1000000),
         (int)(net.sim_rx_delay_ns / 1000000), net.sim_jitter_ms, net.sim_reorder, net.sim_dup,
         net.sim_burst);
+#ifndef __EMSCRIPTEN__
     atomic_store(&s_rx_run, true);
     s_rx_thread = SDL_CreateThread(rx_main, "net rx", NULL);
+#endif
     if (s_rx_thread == NULL) {
         /* Still a working session, only without the fix: recv_inputs drains
          * the socket itself, and a stall of this thread reads as latency. */
