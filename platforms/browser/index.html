@@ -245,6 +245,42 @@
     position: static;
     width: 11vh; height: 11vh; min-width: 44px; min-height: 44px;
   }
+
+  /* An abort used to be invisible: onAbort only wrote to #status, and
+     body.playing hides #bar. So a crash left a dead canvas and no reason.
+     This panel is a sibling of #game rather than a child, so none of the
+     body.playing hiding rules reach it, and it sits above every other layer
+     including the menu button. */
+  #crash {
+    /* Static, not fixed: the panel has to sit above the log rather than over
+       it, because its own hint tells the reader to copy the log. showCrash
+       drops body.playing, which puts the page back in the flow underneath. */
+    position: relative; z-index: 6;
+    display: grid; justify-items: center; gap: 4px;
+    margin: 0 0 12px;
+    padding: max(16px, env(safe-area-inset-top)) 16px 16px;
+    background: #1a0e0e; color: #eee;
+    border-bottom: 2px solid #fc6;
+    font: 15px/1.5 system-ui, sans-serif; text-align: center;
+  }
+  #crash[hidden] { display: none; }
+  #crash h2 { margin: 0; font-size: 1.2em; color: #fc6; }
+  /* The reason comes from the engine and can be long, so it wraps rather than
+     overflowing a phone. pre-wrap keeps a wasm stack readable. */
+  #crash-why {
+    margin: 0; max-width: 92vw; color: #f99;
+    font: 12px/1.4 ui-monospace, monospace; white-space: pre-wrap;
+    word-break: break-word;
+  }
+  #crash-act { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin: 8px 0 0; }
+  #crash-act button, #crash-act a {
+    min-height: 44px; min-width: 44px; padding: 10px 16px;
+    display: grid; place-items: center;
+    border: 1px solid #ffffff44; border-radius: 8px;
+    background: #ffffff14; color: #9cf; font-size: 16px; cursor: pointer;
+    text-decoration: none;
+  }
+  #crash-hint { margin: 0; color: #999; font-size: 13px; }
 </style>
 <h1>Melee Web</h1>
 <div id="menu-panel"><p id="launch"><a href="?MELEE_BOOT_SCENE=vs">Versus</a><a href="?MELEE_BOOT_SCENE=vs&amp;MELEE_DEBUG_VS=cpu">1P vs CPU</a><a href="?MELEE_BOOT_SCENE=training">Training</a><a href="?MELEE_20XX=1">20XX</a><a href="" id="new-room">New room</a><span id="launch-hint">Pick a mode, then choose a disc image and click Start.</span></p>
@@ -262,6 +298,9 @@
   <span id="stats"></span>
 </div>
 </div>
+<div id="crash" hidden><h2>The engine stopped</h2><p id="crash-why"></p>
+<p id="crash-act"><button id="crash-reload" type="button">Reload</button><a id="crash-report" href="" target="_blank" rel="noopener">Report this</a></p>
+<p id="crash-hint">The log below is kept so it can be copied into the report.</p></div>
 <div id="game"><canvas id="canvas" width="960" height="720" tabindex="0"></canvas>
 <div id="touch" hidden></div></div>
 <p id="keys">A WUP-028 GameCube adapter works through WebHID, with raw 8-bit values. Keyboard fallback:<br><kbd>Arrows</kbd> stick · <kbd>X</kbd> A · <kbd>Z</kbd> B · <kbd>C</kbd> X · <kbd>V</kbd> Y · <kbd>Q</kbd> L · <kbd>E</kbd> R · <kbd>Tab</kbd> Z · <kbd>Enter</kbd> Start · <kbd>I</kbd><kbd>J</kbd><kbd>K</kbd><kbd>L</kbd> C-stick</p>
