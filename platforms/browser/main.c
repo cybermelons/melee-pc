@@ -50,7 +50,13 @@ int main(int argc, char** argv) {
         .cachePath = "/cache",
         .msaa = 1,
         .maxTextureAnisotropy = 1,
-        .vsync = true,
+        /* MELEE_VSYNC=0 is a measurement knob: with vsync on, the frame
+         * boundary blocks on VBlank, so fps reads as the display refresh rate
+         * and cannot show how much of the frame budget the port actually
+         * uses. Turning it off (with MELEE_SIM_HZ raised) makes the port
+         * CPU-bound so throughput becomes measurable. Parity with
+         * src/pc/main.c, which reads the same variable. */
+        .vsync = !(getenv("MELEE_VSYNC") && getenv("MELEE_VSYNC")[0] == '0'),
         .logLevel = LOG_INFO,
         .windowWidth = 960,
         .windowHeight = 720,
