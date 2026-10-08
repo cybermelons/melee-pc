@@ -71,6 +71,14 @@ bool pc_is_hitboxes_enabled(void);
  * intro and the menu walk (gm/gmboot.c). This is the 20XX "boot to CSS"
  * behaviour. Pair it with MELEE_UNLOCK_ALL to get the full cast there. */
 bool pc_is_boot_css_enabled(void);
+/* MELEE_20XX_RULES=1: seed GameRules with the tournament set -- 4 stock, an 8
+ * minute timer, items off and stage select on -- so the character select opens
+ * ready to play (gm/gmmain_lib.c). Implied by MELEE_20XX. */
+bool pc_is_20xx_rules_enabled(void);
+/* MELEE_20XX=1: turn on the boot-time conveniences a 20XX disc gives, so one
+ * flag covers MELEE_BOOT_CSS, MELEE_UNLOCK_ALL and MELEE_SKIP_MEMCARD. Any of
+ * those named on its own overrides this, including to 0. */
+bool pc_is_20xx_enabled(void);
 
 /* Set once the window is closed; the game loop is expected to exit. */
 extern bool pc_exit_requested;

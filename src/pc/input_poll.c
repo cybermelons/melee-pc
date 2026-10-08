@@ -126,11 +126,39 @@ bool pc_is_input_hud_enabled(void) {
     return on;
 }
 
+static bool env_is_set(const char* name) {
+    const char* e = getenv(name);
+    return e != NULL && e[0] != '\0' && e[0] != '0';
+}
+
+/* MELEE_20XX=1 turns on the boot-time conveniences a 20XX disc gives, so a
+ * hosted page needs one flag rather than four. A flag named on its own still
+ * wins, which is what lets MELEE_20XX=1&MELEE_BOOT_CSS=0 reach the title
+ * screen with the cast still unlocked. */
+bool pc_is_20xx_enabled(void) {
+    static int on = -1;
+    if (on < 0) {
+        on = env_is_set("MELEE_20XX");
+    }
+    return on;
+}
+
+/* A flag MELEE_20XX implies: its own variable decides when it is present, and
+ * MELEE_20XX decides otherwise. getenv is checked for presence, not truth, so
+ * an explicit 0 is a real answer rather than a missing one. */
+static bool env_flag_or_20xx(const char* name) {
+    const char* e = getenv(name);
+    if (e != NULL && e[0] != '\0') {
+        return e[0] != '0';
+    }
+    return pc_is_20xx_enabled();
+}
+
 bool pc_is_hitboxes_enabled(void) {
     static int on = -1;
     if (on < 0) {
-        const char* e = getenv("MELEE_HITBOXES");
-        on = e != NULL && e[0] != '\0' && e[0] != '0';
+        /* Not implied by MELEE_20XX: 20XX leaves bubbles off until asked. */
+        on = env_is_set("MELEE_HITBOXES");
     }
     return on;
 }
@@ -138,8 +166,15 @@ bool pc_is_hitboxes_enabled(void) {
 bool pc_is_boot_css_enabled(void) {
     static int on = -1;
     if (on < 0) {
-        const char* e = getenv("MELEE_BOOT_CSS");
-        on = e != NULL && e[0] != '\0' && e[0] != '0';
+        on = env_flag_or_20xx("MELEE_BOOT_CSS");
+    }
+    return on;
+}
+
+bool pc_is_20xx_rules_enabled(void) {
+    static int on = -1;
+    if (on < 0) {
+        on = env_flag_or_20xx("MELEE_20XX_RULES");
     }
     return on;
 }

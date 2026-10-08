@@ -26,7 +26,13 @@ static bool env_flag(const char* name) {
     return e != NULL && e[0] != '\0' && e[0] != '0';
 }
 bool pc_is_unlock_all_enabled(void) {
-    return env_flag("MELEE_UNLOCK_ALL");
+    /* MELEE_20XX implies this one; an explicit MELEE_UNLOCK_ALL still wins.
+     * See pc_is_20xx_enabled in src/pc/input_poll.c. */
+    const char* e = getenv("MELEE_UNLOCK_ALL");
+    if (e != NULL && e[0] != '\0') {
+        return e[0] != '0';
+    }
+    return pc_is_20xx_enabled();
 }
 bool pc_is_frozen_stadium_enabled(void) {
     return env_flag("MELEE_FROZEN_STADIUM");
