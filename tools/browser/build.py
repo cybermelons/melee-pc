@@ -22,6 +22,10 @@ def main():
     tools = ROOT / 'tools/browser'
 
     run([sys.executable, ROOT / 'tests/browser/test_execution_charset.py'])
+    # Before the link: both read source rather than build output, and a failure
+    # here is cheaper than one found in a browser.
+    run([sys.executable, ROOT / 'tests/browser/test_exports.py'])
+    run([sys.executable, ROOT / 'tests/browser/test_mobile_css.py'])
     run([sys.executable, tools / 'build_lower.py'])
     run([sys.executable, tools / 'test_disc_lower.py'])
     run([sys.executable, tools / 'compile_game.py', '--jobs', args.jobs])

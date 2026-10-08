@@ -44,6 +44,11 @@ void pc_touch_apply(void);
 void pc_gcadapter_init(void);
 void pc_gcadapter_poll(void);
 void pc_gcadapter_apply(void); /* main-thread publication to virtual pads */
+#if defined(__EMSCRIPTEN__)
+/* WebHID transport, called from platforms/browser/gcadapter.mjs. */
+void pc_gcadapter_web_report(const uint8_t* data, int len);
+void pc_gcadapter_web_opened(int opened);
+#endif
 struct PADStatus;
 bool pc_gcadapter_status(int port, struct PADStatus* out);
 /* HUD snapshot: raw[6] = stick x,y  c-stick x,y  L R as the adapter reports
