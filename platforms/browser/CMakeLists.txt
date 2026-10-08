@@ -49,11 +49,18 @@ target_include_directories(melee_browser PRIVATE ${CMAKE_SOURCE_DIR}/extern/auro
 target_link_libraries(melee_browser PRIVATE aurora::core aurora::gx aurora::gd aurora::vi aurora::pad aurora::si aurora::mtx aurora::os aurora::card aurora::thp)
 target_compile_definitions(melee_browser PRIVATE TARGET_PC=1 MELEE_PC=1 MELEE_USE_BUILTIN_SHA1)
 target_compile_options(melee_browser PRIVATE -Wno-incompatible-pointer-types -Wno-int-conversion ${MELEE_FP_FLAGS})
-target_link_options(melee_browser PRIVATE -O1 --profiling-funcs -sEMULATE_FUNCTION_POINTER_CASTS=1 -sSTACK_SIZE=8388608 -sINITIAL_MEMORY=268435456 -sMAXIMUM_MEMORY=2147483648 -sPTHREAD_POOL_SIZE=4 -sEXIT_RUNTIME=0 -sASSERTIONS=0 -lidbfs.js -sFORCE_FILESYSTEM=1 -sEXPORTED_FUNCTIONS=_main,_malloc,_free,_pc_touch_set_pad,_pc_touch_set_active,_pc_gcadapter_web_report,_pc_gcadapter_web_opened,_pc_slp_web_finish,_pc_slp_web_checkpoint,_pc_input_tas_set -sEXPORTED_RUNTIME_METHODS=callMain,FS,ENV,HEAPU8 -sINVOKE_RUN=0 -sASYNCIFY_IMPORTS=browser_disc_read -sASYNCIFY_STACK_SIZE=1048576 -sERROR_ON_UNDEFINED_SYMBOLS=1 -Wl,--error-limit=0)
+target_link_options(melee_browser PRIVATE -O1 --profiling-funcs -sSTACK_SIZE=8388608 -sINITIAL_MEMORY=268435456 -sMAXIMUM_MEMORY=2147483648 -sPTHREAD_POOL_SIZE=4 -sEXIT_RUNTIME=0 -sASSERTIONS=0 -lidbfs.js -sFORCE_FILESYSTEM=1 -sEXPORTED_FUNCTIONS=_main,_malloc,_free,_pc_touch_set_pad,_pc_touch_set_active,_pc_gcadapter_web_report,_pc_gcadapter_web_opened,_pc_slp_web_finish,_pc_slp_web_checkpoint,_pc_input_tas_set -sEXPORTED_RUNTIME_METHODS=callMain,FS,ENV,HEAPU8 -sINVOKE_RUN=0 -sASYNCIFY_IMPORTS=browser_disc_read -sASYNCIFY_STACK_SIZE=1048576 -sERROR_ON_UNDEFINED_SYMBOLS=1 -Wl,--error-limit=0)
 set_target_properties(melee_browser PROPERTIES SUFFIX ".js")
-# emcc's single-pass link fails validation at -O2/-O3 when --fpcast-emu runs
-# ahead of the optimizer (direct calls into cast thunks keep the original
-# arity), so link at -O1 and optimize the finished module as a second pass.
+# Link at -O1 and optimize the finished module as a second wasm-opt pass.
+# EMULATE_FUNCTION_POINTER_CASTS used to be needed here, which forced the -O1
+# link: --fpcast-emu ran ahead of emcc's single-pass optimizer, so direct calls
+# into the cast thunks kept the original arity and -O2/-O3 failed validation.
+# The decomp needs no cast emulation at all. Exactly one prototype disagreed
+# with its definition (ftLib_IsFramesRemaining, declared void but returning
+# ftAnim_IsFramesRemaining's bool); with that fixed, wasm-ld reports no
+# signature mismatch across all 994 game objects and the flag is gone. It cost
+# 1.55 MB of thunks (9.6% of the module) plus a wrapper on every indirect call,
+# and Melee's engine is full of them.
 # Bound inlining after Asyncify: giant functions cause large Safari OMG JIT
 # register-allocation spikes, even while the game heap stays at 256 MiB.
 find_program(WASM_OPT wasm-opt HINTS "${EMSCRIPTEN_ROOT_PATH}/../bin" REQUIRED)
