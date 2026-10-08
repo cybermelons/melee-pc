@@ -49,7 +49,20 @@ target_include_directories(melee_browser PRIVATE ${CMAKE_SOURCE_DIR}/extern/auro
 target_link_libraries(melee_browser PRIVATE aurora::core aurora::gx aurora::gd aurora::vi aurora::pad aurora::si aurora::mtx aurora::os aurora::card aurora::thp)
 target_compile_definitions(melee_browser PRIVATE TARGET_PC=1 MELEE_PC=1 MELEE_USE_BUILTIN_SHA1)
 target_compile_options(melee_browser PRIVATE -Wno-incompatible-pointer-types -Wno-int-conversion ${MELEE_FP_FLAGS})
-target_link_options(melee_browser PRIVATE -O1 --profiling-funcs -sEMULATE_FUNCTION_POINTER_CASTS=1 -sSTACK_SIZE=8388608 -sINITIAL_MEMORY=268435456 -sMAXIMUM_MEMORY=2147483648 -sPTHREAD_POOL_SIZE=4 -sEXIT_RUNTIME=0 -sASSERTIONS=0 -lidbfs.js -sFORCE_FILESYSTEM=1 -sEXPORTED_FUNCTIONS=_main,_malloc,_free,_pc_touch_set_pad,_pc_touch_set_active,_pc_gcadapter_web_report,_pc_gcadapter_web_opened,_pc_slp_web_finish,_pc_slp_web_checkpoint,_pc_input_tas_set -sEXPORTED_RUNTIME_METHODS=callMain,FS,ENV,HEAPU8 -sINVOKE_RUN=0 -sASYNCIFY_IMPORTS=browser_disc_read -sASYNCIFY_STACK_SIZE=1048576 -sERROR_ON_UNDEFINED_SYMBOLS=1 -Wl,--error-limit=0)
+# The wasm name section is 645 KB of the 16.2 MB download (4%), and nothing at
+# runtime reads it: it exists so a profiler and a JS stack trace can show
+# function names instead of indices. Off by default so a player does not
+# download it; -DMELEE_BROWSER_SYMBOLS=ON restores it for profiling, which is
+# what tools/browser/build.py --symbols passes.
+option(MELEE_BROWSER_SYMBOLS "Keep wasm function names for profiling" OFF)
+if(MELEE_BROWSER_SYMBOLS)
+  set(MELEE_SYMBOL_LINK_FLAGS --profiling-funcs)
+  set(MELEE_SYMBOL_OPT_FLAGS -g)
+else()
+  set(MELEE_SYMBOL_LINK_FLAGS "")
+  set(MELEE_SYMBOL_OPT_FLAGS --strip-debug)
+endif()
+target_link_options(melee_browser PRIVATE -O1 ${MELEE_SYMBOL_LINK_FLAGS} -sEMULATE_FUNCTION_POINTER_CASTS=1 -sSTACK_SIZE=8388608 -sINITIAL_MEMORY=268435456 -sMAXIMUM_MEMORY=2147483648 -sPTHREAD_POOL_SIZE=4 -sEXIT_RUNTIME=0 -sASSERTIONS=0 -lidbfs.js -sFORCE_FILESYSTEM=1 -sEXPORTED_FUNCTIONS=_main,_malloc,_free,_pc_touch_set_pad,_pc_touch_set_active,_pc_gcadapter_web_report,_pc_gcadapter_web_opened,_pc_slp_web_finish,_pc_slp_web_checkpoint,_pc_input_tas_set -sEXPORTED_RUNTIME_METHODS=callMain,FS,ENV,HEAPU8 -sINVOKE_RUN=0 -sASYNCIFY_IMPORTS=browser_disc_read -sASYNCIFY_STACK_SIZE=1048576 -sERROR_ON_UNDEFINED_SYMBOLS=1 -Wl,--error-limit=0)
 set_target_properties(melee_browser PROPERTIES SUFFIX ".js")
 # emcc's single-pass link fails validation at -O2/-O3 when --fpcast-emu runs
 # ahead of the optimizer (direct calls into cast thunks keep the original
@@ -58,11 +71,26 @@ set_target_properties(melee_browser PROPERTIES SUFFIX ".js")
 # register-allocation spikes, even while the game heap stays at 256 MiB.
 find_program(WASM_OPT wasm-opt HINTS "${EMSCRIPTEN_ROOT_PATH}/../bin" REQUIRED)
 add_custom_command(TARGET melee_browser POST_BUILD
-  COMMAND ${WASM_OPT} -O3 -g --inline-max-combined-binary-size=20000 --one-caller-inline-max-function-size=2000 --mvp-features --enable-threads --enable-bulk-memory --enable-bulk-memory-opt
+  COMMAND ${WASM_OPT} -O3 ${MELEE_SYMBOL_OPT_FLAGS} --inline-max-combined-binary-size=20000 --one-caller-inline-max-function-size=2000 --mvp-features --enable-threads --enable-bulk-memory --enable-bulk-memory-opt
     --enable-call-indirect-overlong --enable-multivalue --enable-mutable-globals --enable-nontrapping-float-to-int
     --enable-reference-types --enable-sign-ext --pass-arg=directize-initial-contents-immutable
     $<TARGET_FILE_DIR:melee_browser>/melee_browser.wasm -o $<TARGET_FILE_DIR:melee_browser>/melee_browser.wasm
   COMMENT "Optimizing melee_browser.wasm at -O3")
+
+# Precompressed siblings for the static hosts to serve: the wasm is 16.2 MB
+# raw and 5.3 MB gzipped, and that download is the whole startup on a WAN
+# link. Written at build time rather than per request so a 16 MB deflate does
+# not run on every visit. tools/serve.mjs picks a .gz up when the client sends
+# Accept-Encoding: gzip; a host that does not know about them serves the
+# originals, so this adds files and changes nothing else.
+# precompress.cmake rather than a shell redirect, which only works on a
+# generator that runs its commands through a shell.
+add_custom_command(TARGET melee_browser POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E env ${CMAKE_COMMAND}
+    -DMELEE_GZIP_DIR=$<TARGET_FILE_DIR:melee_browser>
+    -P ${CMAKE_CURRENT_SOURCE_DIR}/precompress.cmake
+  VERBATIM
+  COMMENT "Precompressing melee_browser.wasm and .js for static hosts")
 
 # Keep the standalone validation server runnable from a clean build.
 file(GLOB BROWSER_ASSETS CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/*.mjs" "${CMAKE_CURRENT_SOURCE_DIR}/*.js" "${CMAKE_CURRENT_SOURCE_DIR}/*.html")

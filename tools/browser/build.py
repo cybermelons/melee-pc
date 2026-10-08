@@ -18,6 +18,8 @@ def run(cmd):
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('--jobs', type=int, default=6)
+    parser.add_argument('--symbols', action='store_true',
+                        help='keep wasm function names (645 KB) for profiling')
     args = parser.parse_args()
     tools = ROOT / 'tools/browser'
 
@@ -30,7 +32,8 @@ def main():
     run([sys.executable, tools / 'test_disc_lower.py'])
     run([sys.executable, tools / 'compile_game.py', '--jobs', args.jobs])
     run([EMSCRIPTEN / 'emcmake', 'cmake', '-S', ROOT, '-B', BUILD / 'runtime', '-G', 'Ninja',
-         '-DCMAKE_BUILD_TYPE=Release'])
+         '-DCMAKE_BUILD_TYPE=Release',
+         f'-DMELEE_BROWSER_SYMBOLS={"ON" if args.symbols else "OFF"}'])
     run(['cmake', '--build', BUILD / 'runtime', '--target', 'melee_browser', '-j', args.jobs])
     tests = sorted([*(ROOT / 'tests/browser').glob('*.test.mjs'), *(ROOT / 'platforms/browser/tests').glob('*.test.mjs')])
     run([node(), '--test', *tests])
