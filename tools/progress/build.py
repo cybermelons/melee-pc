@@ -70,11 +70,45 @@ def render(data):
 
     return TEMPLATE.format(
         launcher=launcher,
+        links=links_html(data.get('links', {})),
         pins_left='\n  '.join(h for side, h in pins if side == 'left'),
         pins_right='\n  '.join(h for side, h in pins if side == 'right'),
         done=done, total=total, pct=pct, open_count=total - done,
         note=e(data.get('note', '')), base=e(data['base']),
     )
+
+
+def links_html(links):
+    """The deploy and preview URLs as a header row.
+
+    A link is rendered as an anchor only when it is actually serving. The
+    deploy entry carries live=false while GitHub Pages is off, because an
+    anchor to a 404 is worse than a line of text saying why there is no page
+    yet: the reader clicks it, gets nothing, and learns nothing.
+    """
+    e = html.escape
+    if not links:
+        return ''
+    out = []
+    for key in ('deploy', 'preview'):
+        it = links.get(key)
+        if not it:
+            continue
+        # A not-live entry must say why, or the reader sees a bare label and
+        # cannot tell whether it is broken or merely unlinked.
+        if not it.get('live', True) and not it.get('blocked'):
+            raise SystemExit(f'links.{key} is not live and gives no reason: '
+                             f'a reader cannot tell broken from unbuilt')
+        name = e(it.get('label', key))
+        if it.get('live', True):
+            row = f'<a href="{e(it["url"])}" target="_blank" rel="noopener">{name}</a>'
+            if it.get('play'):
+                row += (f' · <a href="{e(it["play"])}" target="_blank"'
+                        f' rel="noopener">launcher</a>')
+        else:
+            row = f'<span class="dead">{name}: {e(it.get("blocked", "not live"))}</span>'
+        out.append(f'<span><b>{e(key)}</b> {row}</span>')
+    return f'<div class="links">{"".join(out)}</div>' if out else ''
 
 
 TEMPLATE = """<!DOCTYPE html>
@@ -104,6 +138,15 @@ TEMPLATE = """<!DOCTYPE html>
   .legend {{ display:flex; gap:1.2rem; justify-content:center; flex-wrap:wrap;
              color:var(--dim); font-size:.85rem; margin-top:.8rem; }}
   .legend span {{ display:flex; align-items:center; gap:.4rem; }}
+  .links {{ display:flex; gap:1.2rem; justify-content:center; flex-wrap:wrap;
+            font-size:.85rem; margin-top:.6rem; }}
+  .links span {{ color:var(--dim); }}
+  .links b {{ font-weight:600; text-transform:uppercase; letter-spacing:.04em;
+              font-size:.72rem; color:var(--dim); margin-right:.35rem; }}
+  .links a {{ color:var(--open); }}
+  /* Not an anchor: the target does not exist yet, so it must not look
+     clickable. */
+  .links .dead {{ color:var(--dim); }}
   .legend i {{ width:10px; height:10px; border-radius:50%; }}
 
   /* Three explicit columns: a label column, the launcher, a label column.
@@ -416,6 +459,7 @@ TEMPLATE = """<!DOCTYPE html>
      Every pin marks a control that still needs work, and links to its issue.</p>
   <div class="bar2"><i style="width:{pct}%"></i></div>
   <p class="counts">{done} closed · {open_count} open · {pct}% of {total}</p>
+  {links}
   <div class="legend">
     <span><i style="background:var(--open)"></i> still to build</span>
     <span><i style="background:var(--closed)"></i> done</span>

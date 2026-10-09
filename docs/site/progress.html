@@ -25,6 +25,15 @@
   .legend { display:flex; gap:1.2rem; justify-content:center; flex-wrap:wrap;
              color:var(--dim); font-size:.85rem; margin-top:.8rem; }
   .legend span { display:flex; align-items:center; gap:.4rem; }
+  .links { display:flex; gap:1.2rem; justify-content:center; flex-wrap:wrap;
+            font-size:.85rem; margin-top:.6rem; }
+  .links span { color:var(--dim); }
+  .links b { font-weight:600; text-transform:uppercase; letter-spacing:.04em;
+              font-size:.72rem; color:var(--dim); margin-right:.35rem; }
+  .links a { color:var(--open); }
+  /* Not an anchor: the target does not exist yet, so it must not look
+     clickable. */
+  .links .dead { color:var(--dim); }
   .legend i { width:10px; height:10px; border-radius:50%; }
 
   /* Three explicit columns: a label column, the launcher, a label column.
@@ -337,6 +346,7 @@
      Every pin marks a control that still needs work, and links to its issue.</p>
   <div class="bar2"><i style="width:32%"></i></div>
   <p class="counts">11 closed · 23 open · 32% of 34</p>
+  <div class="links"><span><b>deploy</b> <span class="dead">GitHub Pages: Pages is not enabled: set Settings &gt; Pages &gt; Source = GitHub Actions. The last 5 runs built the site and failed only at the publish step.</span></span><span><b>preview</b> <a href="http://100.113.182.40:8120/progress.html" target="_blank" rel="noopener">this board, served from tsunomaki</a></span></div>
   <div class="legend">
     <span><i style="background:var(--open)"></i> still to build</span>
     <span><i style="background:var(--closed)"></i> done</span>

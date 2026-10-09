@@ -2,6 +2,19 @@
   "repo": "cybermelon/melee-pc",
   "base": "http://noel:4530/cybermelon/melee-pc/issues/",
   "note": "The board draws the launcher as issue 21 proposes it, not as it is today, and pins each issue to the control that has to exist for that design to be true. A pin whose anchor is not in the mockup fails the build, so the target and the issue list cannot drift apart silently.",
+  "links": {
+    "preview": {
+      "url": "http://100.113.182.40:8120/progress.html",
+      "label": "this board, served from tsunomaki"
+    },
+    "deploy": {
+      "url": "https://cybermelons.github.io/melee-pc/",
+      "play": "https://cybermelons.github.io/melee-pc/play/",
+      "label": "GitHub Pages",
+      "live": false,
+      "blocked": "Pages is not enabled: set Settings > Pages > Source = GitHub Actions. The last 5 runs built the site and failed only at the publish step."
+    }
+  },
   "issues": [
     {
       "n": 21,
