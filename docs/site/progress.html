@@ -303,8 +303,8 @@
   <h1>melee-pc — the launcher, and what is left to build it</h1>
   <p class="sub">This is the launcher as it should end up, not as it is today.
      Every pin marks a control that still needs work, and links to its issue.</p>
-  <div class="bar2"><i style="width:23%"></i></div>
-  <p class="counts">6 closed · 20 open · 23% of 26</p>
+  <div class="bar2"><i style="width:22%"></i></div>
+  <p class="counts">6 closed · 21 open · 22% of 27</p>
   <div class="legend">
     <span><i style="background:var(--open)"></i> still to build</span>
     <span><i style="background:var(--closed)"></i> done</span>
@@ -439,6 +439,7 @@ engine: 60.0 fps</pre></details>
   <a class="pin open left" data-anchor="#ctl-net-relay" href="http://noel:4530/cybermelon/melee-pc/issues/17" target="_blank" rel="noopener"><span class="pin-n">17</span><span class="pin-t">TURN relay for symmetric NAT</span><span class="pin-p">The fallback this control names. Blocked: this network is cone, so it cannot produce the failing case.</span></a>
   <a class="pin open left" data-anchor="#states" href="http://noel:4530/cybermelon/melee-pc/issues/24" target="_blank" rel="noopener"><span class="pin-n">24</span><span class="pin-t">Modes become save states</span><span class="pin-p">Versus and Training stop being places to go. They load into the lobby that already exists, so nobody changes rooms.</span></a>
   <a class="pin closed left" data-anchor="#disc-state" href="http://noel:4530/cybermelon/melee-pc/issues/1" target="_blank" rel="noopener"><span class="pin-n">1</span><span class="pin-t">Verify the port runs on iOS Safari</span><span class="pin-p">The disc loads and boots. Measured working on iOS Safari.</span></a>
+  <a class="pin open left" data-anchor="#disc-state" href="http://noel:4530/cybermelon/melee-web/issues/34" target="_blank" rel="noopener"><span class="pin-n">web#34</span><span class="pin-t">Flatten the web disc path</span><span class="pin-p">What this bar is waiting on: HTTP Range over a 1.4 GB ISO. The engine reads files by name, and 60% of the disc is FMV that never plays. Gated on measuring the real working set.</span></a>
   <a class="pin open left" data-anchor="#join-btn" href="http://noel:4530/cybermelon/melee-pc/issues/25" target="_blank" rel="noopener"><span class="pin-n">25</span><span class="pin-t">Disable Start while the disc loads</span><span class="pin-p">Nothing stops a press during the autoload today, and an early press starts the engine with no disc.</span></a>
   <a class="pin closed left" data-anchor="#port-1" href="http://noel:4530/cybermelon/melee-pc/issues/2" target="_blank" rel="noopener"><span class="pin-n">2</span><span class="pin-t">Touch input layer</span><span class="pin-p">The shared state object every touch control writes to. One per port.</span></a>
   <a class="pin closed left" data-anchor="#port-2" href="http://noel:4530/cybermelon/melee-pc/issues/5" target="_blank" rel="noopener"><span class="pin-n">5</span><span class="pin-t">Gamepad API for Bluetooth pads</span><span class="pin-p">A real pad claims a port like any other controller.</span></a>

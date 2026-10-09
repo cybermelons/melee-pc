@@ -62,8 +62,9 @@ def render(data):
         pins.append((i['side'],
             f'<a class="pin {i["state"]} {i["side"]}" '
             f'data-anchor="{e(i["anchor"])}" '
-            f'href="{e(data["base"])}{i["n"]}" target="_blank" rel="noopener">'
-            f'<span class="pin-n">{i["n"]}</span>'
+            f'href="{e(i.get("base", data["base"]))}{i["n"]}" '
+            f'target="_blank" rel="noopener">'
+            f'<span class="pin-n">{e(i.get("tag", ""))}{i["n"]}</span>'
             f'<span class="pin-t">{e(i["title"])}</span>'
             f'<span class="pin-p">{e(i["pin"])}</span></a>'))
 
@@ -546,7 +547,7 @@ def audit(data):
         return 1
 
     live_state = {int(i['index']): i['state'] for i in live}
-    mine = {i['n']: i['state'] for i in data['issues']}
+    mine = {i['n']: i['state'] for i in data['issues'] if 'base' not in i}
     bad = 0
     for n in sorted(set(live_state) - set(mine)):
         print(f'audit: #{n} is in the tracker and not on the board')

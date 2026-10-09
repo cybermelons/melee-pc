@@ -68,6 +68,16 @@
       "pin": "The disc loads and boots. Measured working on iOS Safari."
     },
     {
+      "n": 34,
+      "base": "http://noel:4530/cybermelon/melee-web/issues/",
+      "tag": "web#",
+      "anchor": "#disc-state",
+      "side": "left",
+      "state": "open",
+      "title": "Flatten the web disc path",
+      "pin": "What this bar is waiting on: HTTP Range over a 1.4 GB ISO. The engine reads files by name, and 60% of the disc is FMV that never plays. Gated on measuring the real working set."
+    },
+    {
       "n": 25,
       "anchor": "#join-btn",
       "side": "left",
