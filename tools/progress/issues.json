@@ -131,7 +131,7 @@
       "side": "right",
       "state": "open",
       "title": "Settings into tabs",
-      "pin": "Three tabs of five. Game, Video and Audio hold the settings that exist; Input and Netplay arrive with the controls in #28."
+      "pin": "Four tabs of five. Netplay arrived with MELEE_NET_DELAY in #28. Input stays empty because no input setting exists in the engine to put in it -- see #32, measured."
     },
     {
       "n": 27,
@@ -267,7 +267,7 @@
       "side": "right",
       "state": "open",
       "title": "Fill the Input tab, including controller options",
-      "pin": "The Input tab is drawn and empty: #26 shipped three tabs of five. Deadzone and curve describe a stick, not a seat, so this issue has to settle per-port against per-page first."
+      "pin": "Measured: none of the 4 rows drawn here exists in the engine. No deadzone, stick curve, tap-jump or C-stick mode anywhere in src/pc, in any of the 60 getenv readers, or among the 28 prefs fields in launcher.cpp. The per-port question is moot until something exists to set. The rows are mockup-only; building them needs native input settings first."
     },
     {
       "n": 33,
