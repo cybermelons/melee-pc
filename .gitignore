@@ -9,6 +9,7 @@ docs/*
 !docs/screenshots/
 !docs/CODING_STYLE.md
 !docs/netcode-plan.md
+!docs/ARCHITECTURE-MAP.md
 !docs/architecture.md
 !docs/building.md
 !docs/debugging.md
