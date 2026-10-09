@@ -44,7 +44,10 @@ TABS = {
         ('ctl-MELEE_BOOT_CSS', 'Boot to character select', 'child', ''),
         ('ctl-MELEE_20XX_RULES', 'Tournament rules', 'child',
          '4 stock, 8 minutes, items off.'),
-        ('ctl-unlock-all', 'Unlock everything', 'child', ''),
+        # Not a 20XX child on the web: pc_is_unlock_all_enabled reads the
+        # native prefs file, not an env var, so no URL can set it. It stays a
+        # row of its own until #28 gives the web side a store for it.
+        ('ctl-unlock-all', 'Unlock everything', _chk(), ''),
         ('ctl-MELEE_UCF', 'Universal controller fix', _chk(True), ''),
         ('ctl-frozen-stadium', 'Pokémon Stadium', _sel('Normal', 'Hazardless'), ''),
         ('ctl-MELEE_PAUSE', 'Allow pausing', _chk(True),
@@ -106,7 +109,7 @@ def _rows(rows):
         if not kids:
             return
         out.append('<details class="kids" open><summary>'
-                   f'{len(kids)} settings</summary>{"".join(kids)}</details>')
+                   f'Individual settings</summary>{"".join(kids)}</details>')
         kids.clear()
 
     for rid, label, control, hint in rows:

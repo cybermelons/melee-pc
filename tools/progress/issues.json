@@ -115,15 +115,15 @@
       "side": "right",
       "state": "open",
       "title": "Settings into tabs",
-      "pin": "96 MELEE_* flags exist and the page showed 7 in one column. Tabs use the width and keep the list short."
+      "pin": "Three tabs of five. Game, Video and Audio hold the settings that exist; Input and Netplay arrive with the controls in #28."
     },
     {
       "n": 27,
       "anchor": "#ctl-MELEE_20XX",
       "side": "right",
-      "state": "open",
+      "state": "closed",
       "title": "20XX as a select-all",
-      "pin": "env_flag_or_20xx turns a sub-flag on when 20XX is on or when it is set alone, so the parent checkbox is what the code already does."
+      "pin": "Landed. The parent follows what env_flag_or_20xx reads: an untouched child follows 20XX, a child set by hand keeps its own value, and the URL carries a child only when it disagrees."
     },
     {
       "n": 28,
