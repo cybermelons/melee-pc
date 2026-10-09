@@ -49,7 +49,7 @@
       "side": "left",
       "state": "open",
       "title": "Spectators and the port queue",
-      "pin": "Past four players everybody watches and queues. The next in line takes the first port that frees."
+      "pin": "Past four players everybody watches and queues. Server side shipped: a release message frees a port and the first waiter still subscribed gets it, in claim order. The lobby does not draw the line yet; the place is a status string."
     },
     {
       "n": 17,
