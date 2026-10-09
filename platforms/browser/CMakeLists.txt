@@ -72,8 +72,13 @@ add_custom_command(TARGET melee_browser POST_BUILD
   COMMENT "Optimizing melee_browser.wasm at -O3")
 
 # Keep the standalone validation server runnable from a clean build.
+# Copy at build time, not configure time. configure_file runs when CMake
+# regenerates, so a page script added after the last configure was missing from
+# the build directory until someone re-ran cmake by hand. The browser tests
+# serve this directory, and a missing module is a 404 that stops the page
+# before the engine starts, which reads as an engine fault rather than a stale
+# copy. copy_if_different on every link keeps the served directory honest.
 file(GLOB BROWSER_ASSETS CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/*.mjs" "${CMAKE_CURRENT_SOURCE_DIR}/*.js" "${CMAKE_CURRENT_SOURCE_DIR}/*.html")
-foreach(asset IN LISTS BROWSER_ASSETS)
-  get_filename_component(name "${asset}" NAME)
-  configure_file("${asset}" "${CMAKE_CURRENT_BINARY_DIR}/${name}" COPYONLY)
-endforeach()
+add_custom_command(TARGET melee_browser POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different ${BROWSER_ASSETS} "${CMAKE_CURRENT_BINARY_DIR}"
+  COMMENT "Refreshing browser page assets")
