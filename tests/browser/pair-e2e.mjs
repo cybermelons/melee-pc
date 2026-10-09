@@ -27,7 +27,8 @@ const check = async (ok, msg) => { if (!ok) await fail(msg); };
 
 try {
   await new Promise((r) => setTimeout(r, 500));
-  browser = await chromium.launch();
+  // Headless: this test needs no GPU. Never a literal false; see CLAUDE.md.
+  browser = await chromium.launch({ headless: true });
   const url = `http://127.0.0.1:8102/?room=${randomUUID().slice(0, 8)}`;
   const [a, b] = await Promise.all([0, 1].map(async () => (await (await browser.newContext()).newPage())));
   for (const p of [a, b]) {

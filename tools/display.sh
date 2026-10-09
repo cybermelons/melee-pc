@@ -18,7 +18,12 @@
 #    an adapter and then lost the device at once, and the engine rendered no
 #    frames over 40 s.
 # Under cage the same page holds 60.0 fps with no page errors.
-export PULSE_SINK=alsa_output.pci-0000_0b_00.1.hdmi-stereo-extra2
+# Audio sink: resolved at source time, not hardcoded. A pinned HDMI sink does
+# not exist on every host, and a missing PULSE_SINK is a silent audio failure
+# inside the compositor. Set PULSE_SINK yourself to override.
+PULSE_SINK=${PULSE_SINK:-$(pactl list short sinks 2>/dev/null | awk '$NF=="IDLE"{print $2; exit}')}
+PULSE_SINK=${PULSE_SINK:-$(pactl list short sinks 2>/dev/null | awk 'NR==1{print $2}')}
+export PULSE_SINK
 
 # Run a command inside a headless compositor. Audio is muted at the browser
 # (--mute-audio) and routed to an idle sink here, because the engine opens its
@@ -44,7 +49,14 @@ export PULSE_SINK=alsa_output.pci-0000_0b_00.1.hdmi-stereo-extra2
 #
 # DISPLAY goes too. It names the X server, which an SDL or Chromium fallback
 # will take once Wayland fails, and that window lands on the same screen.
+#
+# If cage is missing, stop. Without it the command would run against the
+# desktop compositor, which puts a window on the user's screen.
 run_headless() {
+  if ! command -v cage >/dev/null 2>&1; then
+    echo "run_headless: cage is not installed; refusing to run on the desktop display" >&2
+    return 127
+  fi
   XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}" \
   WLR_BACKEND=headless WLR_LIBINPUT_NO_DEVICES=1 \
     cage -- env -u WAYLAND_DISPLAY -u DISPLAY "PULSE_SINK=$PULSE_SINK" "$@"

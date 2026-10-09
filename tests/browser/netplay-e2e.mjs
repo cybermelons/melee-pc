@@ -45,9 +45,11 @@ const BAD = /net: DESYNC|net: disconnected|peer silent|PAGEERROR|abort\(|sendto 
 try {
   await sleep(500);
   browser = await chromium.launch({
-    headless: false, // headless has no WebGPU; cage provides the isolation
+    // headless has no WebGPU; cage provides the isolation. HEADLESS=0 needs
+    // run_headless, never a bare run: see tools/display.sh.
+    headless: process.env.HEADLESS !== '0',
     args: ['--no-sandbox', '--enable-unsafe-webgpu', '--enable-features=Vulkan', '--ignore-gpu-blocklist',
-      '--ozone-platform=x11', '--mute-audio', '--window-position=0,0', '--window-size=1280,1000'],
+      '--mute-audio', '--window-size=1280,1000'],
   });
   const url = `http://127.0.0.1:${PORT}/?room=${randomUUID().slice(0, 8)}&MELEE_BOOT_SCENE=vs&MELEE_SCENE_LOG=1&MELEE_SEED=1`;
   const [a, b] = await Promise.all([0, 1].map(async () => (await (await browser.newContext()).newPage())));

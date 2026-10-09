@@ -34,11 +34,13 @@ const cases = [
 
 // Chrome by default for its WebGPU support; MELEE_BROWSER_CHANNEL=chromium uses
 // Playwright's bundled build, which is what a machine without Google Chrome has.
-// Headed either way: headless has no WebGPU adapter on most machines.
 const channel = process.env.MELEE_BROWSER_CHANNEL || 'chrome';
+// Headless by default. Set HEADLESS=0 to get a real GPU, and then only
+// inside cage: `. tools/display.sh && HEADLESS=0 run_headless node <this file>`.
+// Never write a literal `false` here; that puts a window on the user's screen.
 const browser = await chromium.launch({
   ...(channel === 'chromium' ? {} : { channel }),
-  headless: false,
+  headless: process.env.HEADLESS !== '0',
   args: ['--enable-unsafe-webgpu', '--enable-features=Vulkan', '--ignore-gpu-blocklist'],
 });
 const results = [];

@@ -47,10 +47,13 @@ const cases = process.argv.length > 2
 // Bundled Chromium, not channel 'chrome': this host has no Google Chrome.
 // headless has no WebGPU adapter, so cage provides the isolation instead
 // (tools/display.sh).
+// Headless by default. Set HEADLESS=0 to get a real GPU, and then only
+// inside cage: `. tools/display.sh && HEADLESS=0 run_headless node <this file>`.
+// Never write a literal `false` here; that puts a window on the user's screen.
 const browser = await chromium.launch({
-  headless: false,
+  headless: process.env.HEADLESS !== '0',
   args: ['--no-sandbox', '--enable-unsafe-webgpu', '--enable-features=Vulkan',
-    '--ignore-gpu-blocklist', '--ozone-platform=x11', '--mute-audio'],
+    '--ignore-gpu-blocklist', '--mute-audio'],
 });
 const failures = [];
 try {
