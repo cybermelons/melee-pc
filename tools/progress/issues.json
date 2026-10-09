@@ -42,7 +42,7 @@
       "side": "left",
       "state": "open",
       "title": "Lobby replaces the mode list",
-      "pin": "One persistent room per URL, shipped: platforms/browser/lobby.mjs mints the room with replaceState and draws four port tiles. The mode links are gone. Nothing waits for a partner: the engine boots whatever the ports say, and a claim connects you into the game already running."
+      "pin": "One persistent room per URL, shipped in 00480d1b: lobby.mjs mints the room with replaceState and draws four port tiles, 42 tests cover it. The mode links are gone, and the last MELEE_BOOT_SCENE links on the page -- the #perf render-scale row -- are gone too: they duplicated the Video setting and dropped ?room= on every press, which the #35 ruling makes a real bug rather than a cosmetic one. One correction to this issue's text: it says 'the ports stay as they are' across a save-state load. Per #35 a load now mints a NEW room, so the loader keeps its seat through the reload but re-invites instead of rejoining. Still open on gitea; the owner closes it."
     },
     {
       "n": 35,

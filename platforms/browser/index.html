@@ -61,8 +61,6 @@
   @media (max-width: 560px) {
     .ports { grid-template-columns: 1fr 1fr; }
   }
-  #perf { color: #999; font-size: 13px; }
-  #perf a { color: #9cf; margin-right: 10px; }
   kbd { background: #333; border-radius: 3px; padding: 0 4px; }
 
   /* The overlay is hidden until shell.mjs decides this is a touch device, so
@@ -100,7 +98,7 @@
        A class on <body>, toggled by the overlay's menu button. The panel wraps
        the page's existing controls rather than copying them, so the markup
        stays the single definition of what a mode link is. */
-    body.playing #lobby, body.playing #perf, body.playing #bar, body.playing #log {
+    body.playing #lobby, body.playing #bar, body.playing #log {
       display: none;
     }
     /* Only while the game runs. #menu-panel wraps the mode links and Start,
@@ -126,16 +124,9 @@
     /* Last, so it wins on order and not only on specificity. */
     body.playing.menu #menu-panel { display: block; }
     body.playing #menu-panel #lobby,
-    body.playing #menu-panel #perf,
     body.playing #menu-panel #bar,
     body.playing #menu-panel #log {
       display: revert; padding: 0;
-    }
-    /* Bigger tap targets than the desktop page: these are links in a row and
-       a thumb needs the spacing. */
-    #menu-panel #perf a {
-      display: inline-block; padding: 8px 10px; margin: 0 6px 6px 0;
-      border: 1px solid #ffffff33; border-radius: 8px;
     }
     #menu-panel #bar { flex-wrap: wrap; gap: 10px; }
     #menu-panel button, #menu-panel input { min-height: 44px; font-size: 16px; }
@@ -444,11 +435,6 @@
      Start") and is in no mockup and on no pin. One line about the disc, not
      two. -->
 <p id="disc-state" class="disc">Looking for a disc…</p>
-<p id="perf">Render scale, to measure whether a slow frame is the pixel count:
-<a href="?MELEE_BOOT_SCENE=vs&amp;MELEE_SCALE=1">1.0 · 960x720</a>
-<a href="?MELEE_BOOT_SCENE=vs&amp;MELEE_SCALE=0.667">0.667 · 640x480</a>
-<a href="?MELEE_BOOT_SCENE=vs&amp;MELEE_SCALE=0.5">0.5 · 480x360</a>
-</p>
 <div id="bar">
   <input id="disc" type="file" accept=".iso,.gcm">
   <button id="start" disabled>Start</button>
