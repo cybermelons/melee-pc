@@ -243,7 +243,7 @@
       "side": "left",
       "state": "open",
       "title": "Controller connect belongs on the port",
-      "pin": "The WebHID picker is a page button today. A player connects a pad to the seat they are taking, so the control belongs here, with the source it feeds shown next to it."
+      "pin": "Shipped: every tile has this button, and it offers only the sources this browser can do. The page-level WebHID button is gone, and the picker opens from the press. Picking a source labels the port; only the adapter routes input so far, which is #5 and #2."
     },
     {
       "n": 31,
