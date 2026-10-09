@@ -270,8 +270,18 @@ async function pairIfRoom() {
   };
   let pc = null;
   const start = async () => {
-    pc = new RTCPeerConnection({ iceServers: [] });
+    // A host candidate is a LAN address, so with no STUN server two peers on
+    // different networks never learn an address the other can reach. STUN
+    // gets each side its public address, which is enough for hole punching.
+    // Symmetric NAT still fails and needs a TURN relay: see the ICE failure
+    // message below, which is what tells the players that is what happened.
+    pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
     status('Pairing…');
+    pc.addEventListener('connectionstatechange', () => {
+      if (pc.connectionState === 'failed') {
+        status('Could not connect to the other player. One of your networks blocks direct play.');
+      }
+    });
     if (slot === 0) {
       open(pc.createDataChannel('melee', { ordered: false, maxRetransmits: 0 }));
       await pc.setLocalDescription(await pc.createOffer());
@@ -288,6 +298,12 @@ async function pairIfRoom() {
     if (slot >= 0 && claims[0] && claims[1] && !pc) start();
   });
   events.addEventListener('offer', async (e) => {
+    // The two SSE deliveries are not ordered against each other, so the offer
+    // can arrive before the state event that creates pc. Create it here too
+    // rather than throwing TypeError into a listener nobody is watching.
+    // Only the answering side may create pc here. The offering side already
+    // has one, and must not build a second.
+    if (!pc) { slot = 1; await start(); }
     await pc.setRemoteDescription({ type: 'offer', sdp: JSON.parse(e.data).sdp });
     await pc.setLocalDescription(await pc.createAnswer());
     await gathered(pc);
