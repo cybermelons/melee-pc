@@ -31,17 +31,14 @@
      Centring the launcher and hanging the labels off it with a negative
      offset instead pushed the left column off the left edge of the page,
      where it was unreachable and showed up only as a sideways scrollbar. */
-  .board { display:grid; grid-template-columns:300px minmax(0,620px) 300px;
-            justify-content:center; gap:0 40px;
-            max-width:1420px; margin:0 auto; padding:1rem 1rem 4rem; }
+  .board { display:grid; grid-template-columns:340px minmax(0,640px) 340px;
+            justify-content:center; gap:0 36px;
+            max-width:1500px; margin:0 auto; padding:1rem 1rem 4rem; }
   #stage { position:relative; grid-column:2; }
   /* Each column is its own positioning context, so a label cannot escape
      the page however long it grows. */
   #pin-left { position:relative; grid-column:1; }
   #pin-right { position:relative; grid-column:3; }
-  .board { position:relative; max-width:1540px; margin:0 auto;
-            padding:1rem 1rem 4rem; }
-  #stage { position:relative; width:min(640px,100%); margin:0 auto; }
 
   /* ---- the proposed launcher ---- */
   #menu-panel {
@@ -55,52 +52,88 @@
             color:#6f7280; }
   .sub { margin:0; color:var(--dim); font-size:.82rem; }
 
-  .mode-row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-  .mode { text-align:left; display:grid; gap:2px; padding:10px 12px;
-           background:#191b24; color:var(--fg);
-           border:1px solid var(--line); border-radius:9px; font:inherit; }
-  .mode b { font-size:.95rem; }
-  .mode i { font-style:normal; color:var(--dim); font-size:.76rem; }
-  .mode.wide { width:100%; }
-  #mode-vs { border-color:#3c4252; background:#1d2130; }
-  .room { display:grid; gap:6px; }
+  /* ---- lobby bar: the room code lives top right ---- */
+  #lobby-bar { display:flex; align-items:center; justify-content:space-between;
+                gap:12px; flex-wrap:wrap;
+                border-bottom:1px solid var(--line); padding-bottom:14px; }
+  .lb-left, .lb-right { display:flex; align-items:center; gap:8px; }
+  .lb-title { font-weight:600; font-size:.98rem; white-space:nowrap; }
+  .chip { font-size:.74rem; color:var(--dim); background:#191b24;
+           border:1px solid var(--line); border-radius:99px; padding:3px 9px; }
+  #room-code { display:flex; align-items:baseline; gap:7px; padding:7px 12px;
+                border-radius:8px; background:#1d2130; color:var(--fg);
+                border:1px solid #3c4252; }
+  #room-code b { font:600 .95rem/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+                  letter-spacing:.06em; }
+  #room-code i { font-style:normal; font-size:.7rem; color:var(--dim); }
+  #join-btn { padding:7px 12px; border-radius:8px; background:#191b24;
+               color:var(--fg); border:1px solid var(--line);
+               font-size:.82rem; }
 
-  #bar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-  .file { padding:9px 12px; border:1px dashed #3a3d4a; border-radius:8px;
-           color:var(--dim); font-size:.84rem; }
-  .file input { display:none; }
-  #menu-panel button { font:inherit; }
-  #bar button, .apply-row button { padding:9px 14px; border-radius:8px;
-           border:1px solid var(--line); background:#191b24; color:var(--fg); }
-  .primary { background:var(--accent) !important; color:#1a1405 !important;
-              border-color:var(--accent) !important; font-weight:600; }
+  /* ---- ports: one row, because the lobby is one couch ---- */
+  .ports { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+  .port { display:grid; gap:3px; padding:9px 10px; border-radius:9px;
+           background:#15171f; border:1px solid var(--line); }
+  .port b { font-size:.72rem; letter-spacing:.08em; color:var(--dim); }
+  .port i { font-style:normal; font-size:.84rem; }
+  .port.taken { background:#1d2130; border-color:#3c4252; }
+  .port.cpu i { color:var(--dim); }
+  .port.free { border-style:dashed; }
+  .port.free i { color:#6f7280; }
+  .pbtn { margin-top:2px; padding:4px 8px; border-radius:6px; font-size:.74rem;
+           background:#191b24; color:var(--fg); border:1px solid var(--line); }
+  .port.free .pbtn { background:var(--accent); color:#1a1405;
+                      border-color:var(--accent); font-weight:600; }
+  #queue { margin:0; color:var(--dim); font-size:.78rem; }
+  #queue b { color:var(--fg); font-weight:600; }
 
-  .setting-grid { display:grid; gap:7px; }
+  /* ---- save states, not places to go ---- */
+  .states { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .state { text-align:left; display:grid; gap:2px; padding:9px 10px;
+            background:#191b24; color:var(--fg);
+            border:1px solid var(--line); border-radius:9px; }
+  .state b { font-size:.86rem; }
+  .state i { font-style:normal; color:var(--dim); font-size:.72rem; }
+  #state-vs { border-color:#3c4252; background:#1d2130; }
+  #states-note { margin:0; color:#6f7280; font-size:.76rem; }
+
+  /* ---- settings tabs: horizontal space instead of one long column ----
+     Every pane stays in the markup so a pin can anchor to a control on a tab
+     that is not in front; the hidden panes are moved off-screen rather than
+     display:none, because a display:none element measures 0x0 and the pin
+     placer would stack its label at the top of the column. */
+  .tab-heads { display:flex; gap:4px; flex-wrap:wrap;
+                border-bottom:1px solid var(--line); }
+  .tab { padding:7px 12px; font-size:.82rem; background:none; color:var(--dim);
+          border:1px solid transparent; border-bottom:none;
+          border-radius:7px 7px 0 0; }
+  .tab.on { color:var(--fg); background:#191b24; border-color:var(--line);
+             margin-bottom:-1px; }
+  .panes { position:relative; }
+  .pane { padding:12px 2px 0; }
+  /* An off pane is hidden but still measurable, so a pin can anchor to a
+     control behind another tab. opacity:0 keeps the box; z-index keeps it
+     under the pane in front, which is what paints. */
+  .pane.off { position:absolute; top:0; left:0; right:0; z-index:-1;
+               opacity:0; pointer-events:none; }
+  .pane-grid { display:grid; grid-template-columns:1fr 1fr; gap:7px 18px; }
+
+  .setting.parent { font-weight:600; grid-column:1/-1; }
+  .setting.child { padding-left:18px;
+                    border-left:2px solid #2a2d38; margin-left:4px; }
+  .setting input[type=range] { width:92px; accent-color:var(--accent); }
+
   .setting { display:flex; align-items:center; gap:7px; flex-wrap:wrap;
-              font-size:.86rem; }
+              font-size:.84rem; }
   .setting-label { color:var(--fg); }
   .setting select { background:#191b24; color:var(--fg); font:inherit;
                      border:1px solid var(--line); border-radius:6px;
-                     padding:3px 6px; }
-  .setting-hint { flex-basis:100%; color:#6f7280; font-size:.75rem; }
-
-  .pad-preview { display:grid; gap:6px; padding:10px;
-                  border:1px solid var(--line); border-radius:9px;
-                  background:#15171f; }
-  .pad-h { font-size:.82rem; color:var(--dim); }
-  .pad-map { position:relative; height:84px; }
-  .pm { position:absolute; display:grid; place-items:center;
-         border:1px solid #ffffff2e; border-radius:50%;
-         background:#ffffff12; color:#9a9db0; font-style:normal;
-         font-size:.62rem; }
-  .pm.stick { left:4px; bottom:2px; width:58px; height:58px; }
-  .pm.l { left:14px; top:0; width:30px; height:30px; }
-  .pm.z { left:52px; top:0; width:30px; height:30px; }
-  .pm.a { right:18px; bottom:14px; width:34px; height:34px;
-           border-color:#ffffff55; }
-  .pm.b { right:58px; bottom:6px; width:30px; height:30px; }
-  .pm.y { right:12px; top:4px; width:30px; height:30px; }
-
+                     padding:3px 6px; max-width:11rem; }
+  .setting-hint { flex-basis:100%; color:#6f7280; font-size:.73rem; }
+  .primary { background:var(--accent) !important; color:#1a1405 !important;
+              border-color:var(--accent) !important; font-weight:600; }
+  .apply-row button { padding:9px 14px; border-radius:8px;
+           border:1px solid var(--line); background:#191b24; color:var(--fg); }
   .apply-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
   #settings-link { flex:1; min-width:14rem; background:#0c0d12;
                     color:var(--dim); border:1px solid var(--line);
@@ -158,8 +191,8 @@
   <h1>melee-pc — the launcher, and what is left to build it</h1>
   <p class="sub">This is the launcher as it should end up, not as it is today.
      Every pin marks a control that still needs work, and links to its issue.</p>
-  <div class="bar2"><i style="width:32%"></i></div>
-  <p class="counts">6 closed · 13 open · 32% of 19</p>
+  <div class="bar2"><i style="width:23%"></i></div>
+  <p class="counts">6 closed · 20 open · 23% of 26</p>
   <div class="legend">
     <span><i style="background:var(--open)"></i> still to build</span>
     <span><i style="background:var(--closed)"></i> done</span>
@@ -172,56 +205,75 @@
     
 <div id="menu-panel">
 
-  <section id="modes" class="group">
-    <h2 class="group-h">1 · Pick a mode</h2>
-    <div class="mode-row">
-      <button class="mode" id="mode-vs"><b>Versus</b><i>Two players, one keyboard or two pads</i></button>
-      <button class="mode" id="mode-cpu"><b>1P vs CPU</b><i>One player against the computer</i></button>
-      <button class="mode" id="mode-training"><b>Training</b><i>Scenarios, hitboxes, no stocks</i></button>
-      <button class="mode" id="mode-20xx"><b>20XX</b><i>Full cast, straight to character select</i></button>
+  <header id="lobby-bar">
+    <div class="lb-left">
+      <span class="lb-title">Melee</span>
+      <span id="disc-state" class="chip">Loading disc… 62%</span>
     </div>
-    <div id="room" class="room">
-      <button id="new-room" class="mode wide"><b>New room</b><i>Play with someone over the internet</i></button>
-      <p id="room-relay" class="sub">Rooms connect directly where the network allows it, and fall back to a relay where it does not.</p>
+    <div class="lb-right">
+      <button id="room-code" title="Copy the link to this lobby"><b>FIG-7K2</b><i>copy link</i></button>
+      <button id="join-btn">Join</button>
     </div>
+  </header>
+
+  <section id="lobby" class="group">
+    <h2 class="group-h">Lobby <span class="sub-h">everyone at this link is in this room</span></h2>
+    
+    <div id="ports" class="ports">
+      <div class="port taken" id="port-1"><b>P1</b><i>kiri</i><button class="pbtn">Release</button></div>
+      <div class="port taken" id="port-2"><b>P2</b><i>guest-4f</i><button class="pbtn">Release</button></div>
+      <div class="port cpu" id="port-3"><b>P3</b><i>CPU lv 9</i><button class="pbtn">Take</button></div>
+      <div class="port free" id="port-4"><b>P4</b><i>free</i><button class="pbtn">Take</button></div>
+    </div>
+    <p id="queue" class="sub">2 watching · <b>mango</b> is next for a free port. A port taken mid-match drops in on the next frame.</p>
+
   </section>
 
-  <section id="play" class="group">
-    <h2 class="group-h">2 · Choose a disc and start</h2>
-    <div id="bar">
-      <label id="disc" class="file">Choose a disc image<input type="file" disabled></label>
-      <button id="start" class="primary">Start</button>
-      <button id="adapter">Connect GC adapter</button>
+  <section id="states" class="group">
+    <h2 class="group-h">Load a save state</h2>
+    <div class="states">
+      <button class="state" id="state-vs"><b>Versus</b><i>Character select, 4 ports</i></button>
+      <button class="state" id="state-20xx"><b>20XX lobby</b><i>Full cast, tournament rules</i></button>
+      <button class="state" id="state-training"><b>Training menu</b><i>Hitboxes, no stocks</i></button>
+      <button class="state" id="state-event"><b>Event stage</b><i>Event match 1</i></button>
     </div>
-    <p id="status" class="sub">Engine ready. Pick a disc to enable Start.</p>
-    <p id="phone-note" class="sub">On a phone the game fills the screen and this panel folds behind the menu button.</p>
+    <p id="states-note" class="sub">A state loads into this lobby. Nobody changes rooms, and the ports stay as they are. Training tools run outside the player ports, so a scenario needs no seat of its own.</p>
   </section>
 
   <section id="settings" class="group">
-    <h2 class="group-h">3 · Settings <span class="sub-h">applied at boot, so Apply reloads the page</span></h2>
-    <div class="setting-grid">
-      <label class="setting" id="ctl-MELEE_BOOT_SCENE"><span class="setting-label">Boot to</span><select disabled><option>Title screen</option><option>Versus</option><option>Training</option><option>Event match</option></select><span class="setting-hint">Event starts on event match 1.</span></label>
-      <label class="setting" id="ctl-MELEE_DEBUG_VS"><span class="setting-label">Versus opponent</span><select disabled><option>Human</option><option>CPU</option></select></label>
-      <label class="setting" id="ctl-MELEE_20XX"><input type="checkbox" disabled><span class="setting-label">20XX conveniences</span><span class="setting-hint">Unlocks the cast and boots to character select.</span></label>
-      <label class="setting" id="ctl-MELEE_HITBOXES"><input type="checkbox" disabled><span class="setting-label">Show hitboxes</span></label>
-      <label class="setting" id="ctl-MELEE_PAUSE"><input type="checkbox" disabled checked><span class="setting-label">Allow pausing</span><span class="setting-hint">Tournament rules turn pausing off.</span></label>
-      <label class="setting" id="ctl-MELEE_PAUSE_ON_BLUR"><input type="checkbox" disabled><span class="setting-label">Pause when unfocused</span><span class="setting-hint">A hidden tab always pauses. This covers a visible but unfocused page.</span></label>
-      <label class="setting" id="ctl-MELEE_SCALE"><span class="setting-label">Render scale</span><select disabled><option>1.0 · 960x720</option><option>0.667 · 640x480</option><option>0.5 · 480x360</option></select><span class="setting-hint">Lower renders fewer pixels, to test whether pixel count is the limit.</span></label>
-    </div>
-    <div id="access" class="setting-grid">
-      <label class="setting"><input type="checkbox" disabled><span class="setting-label">Tap to jump</span><span class="setting-hint">Off by default: a tap meant for an attack reads as a jump.</span></label>
-      <label class="setting"><span class="setting-label">Stick deadzone</span><select disabled><option>Default</option><option>Wide</option></select></label>
-    </div>
-    <div id="touch-layout" class="pad-preview">
-      <span class="pad-h">On-screen controls</span>
-      <div class="pad-map">
-        <i class="pm stick">stick</i><i class="pm b">B</i><i class="pm a">A</i>
-        <i class="pm y">Y</i><i class="pm l">L</i><i class="pm z">Z</i>
-      </div>
-      <span class="setting-hint">Tier 1 is the walk-up set. The rest sits behind a tab.</span>
+    <h2 class="group-h">Settings <span class="sub-h">applied at boot, so Apply reloads the page</span></h2>
+    <div id="setting-body">
+      <div class="tab-heads" id="setting-tabs"><button class="tab on" data-pane="pane-game">Game</button><button class="tab" data-pane="pane-video">Video</button><button class="tab" data-pane="pane-audio">Audio</button><button class="tab" data-pane="pane-input">Input</button><button class="tab" data-pane="pane-netplay">Netplay</button></div>
+      <div class="panes"><div class="pane" id="pane-game"><div class="pane-grid"><label class="setting parent" id="ctl-MELEE_20XX"><input type="checkbox" disabled><span class="setting-label">20XX conveniences</span></label>
+        <label class="setting child" id="ctl-MELEE_BOOT_CSS"><input type="checkbox" disabled><span class="setting-label">Boot to character select</span></label>
+        <label class="setting child" id="ctl-MELEE_20XX_RULES"><input type="checkbox" disabled><span class="setting-label">Tournament rules</span><span class="setting-hint">4 stock, 8 minutes, items off.</span></label>
+        <label class="setting child" id="ctl-unlock-all"><input type="checkbox" disabled><span class="setting-label">Unlock everything</span></label>
+        <label class="setting" id="ctl-MELEE_UCF"><input type="checkbox" disabled checked><span class="setting-label">Universal controller fix</span></label>
+        <label class="setting" id="ctl-frozen-stadium"><select disabled><option>Normal</option><option>Hazardless</option></select><span class="setting-label">Pokémon Stadium</span></label>
+        <label class="setting" id="ctl-MELEE_PAUSE"><input type="checkbox" disabled checked><span class="setting-label">Allow pausing</span><span class="setting-hint">Tournament rules turn pausing off.</span></label></div></div>
+      <div class="pane off" id="pane-video"><div class="pane-grid"><label class="setting" id="ctl-aspect"><select disabled><option>Original (73:60)</option><option>Widescreen 16:9</option></select><span class="setting-label">Aspect</span></label>
+        <label class="setting" id="ctl-hud-mode"><select disabled><option>Classic (4:3)</option><option>Wide (16:9)</option></select><span class="setting-label">HUD</span></label>
+        <label class="setting" id="ctl-MELEE_SCALE"><select disabled><option>1.0 · 960x720</option><option>0.667 · 640x480</option><option>0.5 · 480x360</option></select><span class="setting-label">Render scale</span><span class="setting-hint">Lower renders fewer pixels, to test whether pixel count is the limit.</span></label>
+        <label class="setting" id="ctl-filter"><select disabled><option>1x</option><option>4x</option><option>16x</option></select><span class="setting-label">Texture filter</span></label>
+        <label class="setting" id="ctl-custom-textures"><input type="checkbox" disabled><span class="setting-label">Custom textures</span></label>
+        <label class="setting" id="ctl-free-camera"><select disabled><option>Normal</option><option>Free</option></select><span class="setting-label">Camera</span></label>
+        <label class="setting" id="ctl-MELEE_HITBOXES"><input type="checkbox" disabled><span class="setting-label">Show hitboxes</span></label></div></div>
+      <div class="pane off" id="pane-audio"><div class="pane-grid"><label class="setting" id="ctl-volume"><input type="range" disabled value="80"><span class="setting-label">Master</span></label>
+        <label class="setting" id="ctl-music-volume"><input type="range" disabled value="70"><span class="setting-label">Music</span></label>
+        <label class="setting" id="ctl-sfx-volume"><input type="range" disabled value="90"><span class="setting-label">Effects</span></label>
+        <label class="setting" id="ctl-reverb"><input type="checkbox" disabled checked><span class="setting-label">Reverb</span></label>
+        <label class="setting" id="ctl-mute"><input type="checkbox" disabled><span class="setting-label">Mute when unfocused</span></label>
+        <label class="setting" id="ctl-MELEE_PAUSE_ON_BLUR"><input type="checkbox" disabled><span class="setting-label">Pause when unfocused</span><span class="setting-hint">A hidden tab always pauses. This covers a visible but unfocused page.</span></label></div></div>
+      <div class="pane off" id="pane-input"><div class="pane-grid"><label class="setting" id="ctl-tap-jump"><input type="checkbox" disabled><span class="setting-label">Tap to jump</span><span class="setting-hint">Off by default: a tap meant for an attack reads as a jump.</span></label>
+        <label class="setting" id="ctl-deadzone"><select disabled><option>Default</option><option>Wide</option></select><span class="setting-label">Stick deadzone</span></label>
+        <label class="setting" id="ctl-curve"><select disabled><option>Linear</option><option>Eased</option></select><span class="setting-label">Stick curve</span></label>
+        <label class="setting" id="ctl-cstick"><select disabled><option>Stick</option><option>Buttons</option></select><span class="setting-label">C-stick</span></label></div></div>
+      <div class="pane off" id="pane-netplay"><div class="pane-grid"><label class="setting" id="ctl-net-name"><input type="text" disabled value="kiri" size="10"><span class="setting-label">Display name</span></label>
+        <label class="setting" id="ctl-MELEE_NET_DELAY"><select disabled><option>Auto</option><option>1</option><option>2</option><option>3</option></select><span class="setting-label">Input delay</span></label>
+        <label class="setting" id="ctl-net-relay"><select disabled><option>Direct, relay if needed</option><option>Relay always</option></select><span class="setting-label">Connection</span><span class="setting-hint">A direct connection fails behind a symmetric NAT.</span></label></div></div></div>
     </div>
     <div class="apply-row">
-      <input id="settings-link" readonly value="https://melee.example/?MELEE_BOOT_SCENE=vs">
+      <input id="settings-link" readonly value="https://melee.example/?room=FIG-7K2&amp;MELEE_20XX=1">
       <button id="settings-apply" class="primary">Apply &amp; reload</button>
     </div>
   </section>
@@ -235,24 +287,31 @@ engine: 60.0 fps</pre></details>
 
   </div>
   <div id="pin-left"><a class="pin open left" data-anchor="#menu-panel" href="http://noel:4530/cybermelon/melee-pc/issues/21" target="_blank" rel="noopener"><span class="pin-n">21</span><span class="pin-t">Redesign the launcher UI</span><span class="pin-p">This panel is the target. Today the same controls are one flat column with no grouping and no first step.</span></a>
-  <a class="pin closed left" data-anchor="#disc" href="http://noel:4530/cybermelon/melee-pc/issues/1" target="_blank" rel="noopener"><span class="pin-n">1</span><span class="pin-t">Verify the port runs on iOS Safari</span><span class="pin-p">Step 1 of the walk-up path: pick a disc. Measured working on iOS Safari.</span></a>
-  <a class="pin open left" data-anchor="#start" href="http://noel:4530/cybermelon/melee-pc/issues/12" target="_blank" rel="noopener"><span class="pin-n">12</span><span class="pin-t">Drop-in join</span><span class="pin-p">Start is all-or-nothing today. The target lets a second player join a match already running.</span></a>
-  <a class="pin open left" data-anchor="#new-room" href="http://noel:4530/cybermelon/melee-pc/issues/6" target="_blank" rel="noopener"><span class="pin-n">6</span><span class="pin-t">Shared lobby URL with port claiming</span><span class="pin-p">This button makes the room link. Signalling, claims and the data channel all measured working. Last gap: a browser on a second network.</span></a>
-  <a class="pin open left" data-anchor="#room-relay" href="http://noel:4530/cybermelon/melee-pc/issues/17" target="_blank" rel="noopener"><span class="pin-n">17</span><span class="pin-t">TURN relay for symmetric NAT</span><span class="pin-p">The room needs a relay line of its own. Blocked: this network is cone, so it cannot produce the failing case.</span></a>
-  <a class="pin closed left" data-anchor="#mode-vs" href="http://noel:4530/cybermelon/melee-pc/issues/2" target="_blank" rel="noopener"><span class="pin-n">2</span><span class="pin-t">Touch input layer</span><span class="pin-p">The shared state object every touch control writes to. Built before any layout.</span></a>
-  <a class="pin closed left" data-anchor="#adapter" href="http://noel:4530/cybermelon/melee-pc/issues/5" target="_blank" rel="noopener"><span class="pin-n">5</span><span class="pin-t">Gamepad API for Bluetooth pads</span><span class="pin-p">A real pad works on a phone, which sidesteps the overlay for anybody who owns one.</span></a>
-  <a class="pin closed left" data-anchor="#modes" href="http://noel:4530/cybermelon/melee-pc/issues/15" target="_blank" rel="noopener"><span class="pin-n">15</span><span class="pin-t">Mobile CSS: pre-Start controls reachable</span><span class="pin-p">A test now fails if these mode controls move out of thumb reach on a phone.</span></a></div>
-  <div id="pin-right"><a class="pin open right" data-anchor="#mode-training" href="http://noel:4530/cybermelon/melee-pc/issues/8" target="_blank" rel="noopener"><span class="pin-n">8</span><span class="pin-t">Training scenarios from a URL</span><span class="pin-p">Training should offer the scenarios, not just the mode. Remaining: objective checks, one link per scenario, custom scenarios.</span></a>
-  <a class="pin open right" data-anchor="#touch-layout" href="http://noel:4530/cybermelon/melee-pc/issues/3" target="_blank" rel="noopener"><span class="pin-n">3</span><span class="pin-t">On-screen control layout</span><span class="pin-p">The target shows the pad layout here instead of a keyboard legend. Needs a device in hand: no code decides where a thumb reaches.</span></a>
-  <a class="pin open right" data-anchor="#access" href="http://noel:4530/cybermelon/melee-pc/issues/4" target="_blank" rel="noopener"><span class="pin-n">4</span><span class="pin-t">Accessibility defaults for touch</span><span class="pin-p">Tap-jump, deadzone, curve, C-stick. Defaults chosen; the issue text still argues with itself. Wording only.</span></a>
-  <a class="pin open right" data-anchor="#phone-note" href="http://noel:4530/cybermelon/melee-pc/issues/10" target="_blank" rel="noopener"><span class="pin-n">10</span><span class="pin-t">Mobile layout: full-viewport canvas</span><span class="pin-p">On a phone this whole panel folds behind the menu button. Code complete, waits on one iPhone screenshot.</span></a>
+  <a class="pin open left" data-anchor="#room-code" href="http://noel:4530/cybermelon/melee-pc/issues/6" target="_blank" rel="noopener"><span class="pin-n">6</span><span class="pin-t">Shared lobby URL with port claiming</span><span class="pin-p">The room code is the lobby, top right, and clicking it copies the link. Signalling, claims and the data channel all measured working. Last gap: a browser on a second network.</span></a>
+  <a class="pin open left" data-anchor="#ports" href="http://noel:4530/cybermelon/melee-pc/issues/22" target="_blank" rel="noopener"><span class="pin-n">22</span><span class="pin-t">Lobby replaces the mode list</span><span class="pin-p">One persistent room per URL. A visitor is in it on arrival and gets a port assigned, rather than picking a mode to enter.</span></a>
+  <a class="pin open left" data-anchor="#port-4" href="http://noel:4530/cybermelon/melee-pc/issues/12" target="_blank" rel="noopener"><span class="pin-n">12</span><span class="pin-t">Drop-in join</span><span class="pin-p">Taking a free port has to reach a match already running. The lobby depends on this, so it is not optional any more.</span></a>
+  <a class="pin open left" data-anchor="#queue" href="http://noel:4530/cybermelon/melee-pc/issues/23" target="_blank" rel="noopener"><span class="pin-n">23</span><span class="pin-t">Spectators and the port queue</span><span class="pin-p">Past four players everybody watches and queues. The next in line takes the first port that frees.</span></a>
+  <a class="pin open left" data-anchor="#ctl-net-relay" href="http://noel:4530/cybermelon/melee-pc/issues/17" target="_blank" rel="noopener"><span class="pin-n">17</span><span class="pin-t">TURN relay for symmetric NAT</span><span class="pin-p">The fallback this control names. Blocked: this network is cone, so it cannot produce the failing case.</span></a>
+  <a class="pin open left" data-anchor="#states" href="http://noel:4530/cybermelon/melee-pc/issues/24" target="_blank" rel="noopener"><span class="pin-n">24</span><span class="pin-t">Modes become save states</span><span class="pin-p">Versus and Training stop being places to go. They load into the lobby that already exists, so nobody changes rooms.</span></a>
+  <a class="pin closed left" data-anchor="#disc-state" href="http://noel:4530/cybermelon/melee-pc/issues/1" target="_blank" rel="noopener"><span class="pin-n">1</span><span class="pin-t">Verify the port runs on iOS Safari</span><span class="pin-p">The disc loads and boots. Measured working on iOS Safari.</span></a>
+  <a class="pin open left" data-anchor="#join-btn" href="http://noel:4530/cybermelon/melee-pc/issues/25" target="_blank" rel="noopener"><span class="pin-n">25</span><span class="pin-t">Disable Start while the disc loads</span><span class="pin-p">Nothing stops a press during the autoload today, and an early press starts the engine with no disc.</span></a>
+  <a class="pin closed left" data-anchor="#port-1" href="http://noel:4530/cybermelon/melee-pc/issues/2" target="_blank" rel="noopener"><span class="pin-n">2</span><span class="pin-t">Touch input layer</span><span class="pin-p">The shared state object every touch control writes to. One per port.</span></a>
+  <a class="pin closed left" data-anchor="#port-2" href="http://noel:4530/cybermelon/melee-pc/issues/5" target="_blank" rel="noopener"><span class="pin-n">5</span><span class="pin-t">Gamepad API for Bluetooth pads</span><span class="pin-p">A real pad claims a port like any other controller.</span></a>
+  <a class="pin closed left" data-anchor="#lobby-bar" href="http://noel:4530/cybermelon/melee-pc/issues/15" target="_blank" rel="noopener"><span class="pin-n">15</span><span class="pin-t">Mobile CSS: pre-Start controls reachable</span><span class="pin-p">A test now fails if this bar moves out of thumb reach on a phone.</span></a>
+  <a class="pin open left" data-anchor="#settings-link" href="http://noel:4530/cybermelon/melee-pc/issues/18" target="_blank" rel="noopener"><span class="pin-n">18</span><span class="pin-t">Allow a CPU adapter behind a switch</span><span class="pin-p">A flag with no control, because it is for the test harness. aurora refuses a CPU adapter, so no browser check can boot the game.</span></a>
+  <a class="pin open left" data-anchor="#log-tab" href="http://noel:4530/cybermelon/melee-pc/issues/19" target="_blank" rel="noopener"><span class="pin-n">19</span><span class="pin-t">Headless runs can draw on the desktop</span><span class="pin-p">Fixed in melee-pc: the display variables are removed inside cage. melee-web still needs the same line.</span></a></div>
+  <div id="pin-right"><a class="pin open right" data-anchor="#setting-tabs" href="http://noel:4530/cybermelon/melee-pc/issues/26" target="_blank" rel="noopener"><span class="pin-n">26</span><span class="pin-t">Settings into tabs</span><span class="pin-p">96 MELEE_* flags exist and the page showed 7 in one column. Tabs use the width and keep the list short.</span></a>
+  <a class="pin open right" data-anchor="#ctl-MELEE_20XX" href="http://noel:4530/cybermelon/melee-pc/issues/27" target="_blank" rel="noopener"><span class="pin-n">27</span><span class="pin-t">20XX as a select-all</span><span class="pin-p">env_flag_or_20xx turns a sub-flag on when 20XX is on or when it is set alone, so the parent checkbox is what the code already does.</span></a>
+  <a class="pin open right" data-anchor="#ctl-MELEE_UCF" href="http://noel:4530/cybermelon/melee-pc/issues/28" target="_blank" rel="noopener"><span class="pin-n">28</span><span class="pin-t">Port the native launcher settings</span><span class="pin-p">UCF, aspect, HUD, textures, camera, stadium, volumes and the netplay name all exist in src/pc/launcher.cpp and on no web control.</span></a>
+  <a class="pin open right" data-anchor="#state-training" href="http://noel:4530/cybermelon/melee-pc/issues/8" target="_blank" rel="noopener"><span class="pin-n">8</span><span class="pin-t">Training scenarios from a URL</span><span class="pin-p">Training is a state loaded into the lobby. Its tools run outside the player ports, so a scenario needs no seat.</span></a>
+  <a class="pin open right" data-anchor="#ctl-cstick" href="http://noel:4530/cybermelon/melee-pc/issues/3" target="_blank" rel="noopener"><span class="pin-n">3</span><span class="pin-t">On-screen control layout</span><span class="pin-p">Where the pad layout is chosen. Needs a device in hand: no code decides where a thumb reaches.</span></a>
+  <a class="pin open right" data-anchor="#ctl-tap-jump" href="http://noel:4530/cybermelon/melee-pc/issues/4" target="_blank" rel="noopener"><span class="pin-n">4</span><span class="pin-t">Accessibility defaults for touch</span><span class="pin-p">Tap-jump off, deadzone, curve, C-stick. Defaults chosen; the issue text still argues with itself. Wording only.</span></a>
+  <a class="pin open right" data-anchor="#states-note" href="http://noel:4530/cybermelon/melee-pc/issues/10" target="_blank" rel="noopener"><span class="pin-n">10</span><span class="pin-t">Mobile layout: full-viewport canvas</span><span class="pin-p">On a phone this whole panel folds behind the menu button. Code complete, waits on one iPhone screenshot.</span></a>
   <a class="pin open right" data-anchor="#ctl-MELEE_SCALE" href="http://noel:4530/cybermelon/melee-pc/issues/9" target="_blank" rel="noopener"><span class="pin-n">9</span><span class="pin-t">Optimize the browser build</span><span class="pin-p">This control exists because of this issue: 18 fps on iOS against an -O1 build. Lowering the scale says whether pixels are the limit.</span></a>
   <a class="pin open right" data-anchor="#ctl-MELEE_PAUSE_ON_BLUR" href="http://noel:4530/cybermelon/melee-pc/issues/7" target="_blank" rel="noopener"><span class="pin-n">7</span><span class="pin-t">Browser QoL: resume, pause, settings</span><span class="pin-p">Pause-on-blur landed. Resume after refresh and pause on crash did not. Parked.</span></a>
   <a class="pin closed right" data-anchor="#ctl-MELEE_HITBOXES" href="http://noel:4530/cybermelon/melee-pc/issues/13" target="_blank" rel="noopener"><span class="pin-n">13</span><span class="pin-t">GC adapter called two missing C functions</span><span class="pin-p">Two calls into functions that were never defined. Removed.</span></a>
-  <a class="pin closed right" data-anchor="#ctl-MELEE_20XX" href="http://noel:4530/cybermelon/melee-pc/issues/14" target="_blank" rel="noopener"><span class="pin-n">14</span><span class="pin-t">_malloc survived only by accident</span><span class="pin-p">Not in EXPORTED_FUNCTIONS. It worked until something else changed.</span></a>
-  <a class="pin open right" data-anchor="#settings-apply" href="http://noel:4530/cybermelon/melee-pc/issues/20" target="_blank" rel="noopener"><span class="pin-n">20</span><span class="pin-t">launcher-close-repeat loses the GPU device</span><span class="pin-p">Apply reloads the page. Doing that repeatedly under the test harness destroys the GPU device on pass 1, so pass 2 finds none.</span></a>
-  <a class="pin open right" data-anchor="#status" href="http://noel:4530/cybermelon/melee-pc/issues/18" target="_blank" rel="noopener"><span class="pin-n">18</span><span class="pin-t">Allow a CPU adapter behind a switch</span><span class="pin-p">Where the WebGPU refusal is reported. aurora refuses a CPU adapter, so no browser check can boot the game.</span></a>
-  <a class="pin open right" data-anchor="#log-tab" href="http://noel:4530/cybermelon/melee-pc/issues/19" target="_blank" rel="noopener"><span class="pin-n">19</span><span class="pin-t">Headless runs can draw on the desktop</span><span class="pin-p">Fixed in melee-pc: the display variables are removed inside cage. melee-web still needs the same line.</span></a></div>
+  <a class="pin closed right" data-anchor="#ctl-custom-textures" href="http://noel:4530/cybermelon/melee-pc/issues/14" target="_blank" rel="noopener"><span class="pin-n">14</span><span class="pin-t">_malloc survived only by accident</span><span class="pin-p">Not in EXPORTED_FUNCTIONS. It worked until something else changed.</span></a>
+  <a class="pin open right" data-anchor="#settings-apply" href="http://noel:4530/cybermelon/melee-pc/issues/20" target="_blank" rel="noopener"><span class="pin-n">20</span><span class="pin-t">launcher-close-repeat loses the GPU device</span><span class="pin-p">Apply reloads the page. Doing that repeatedly under the test harness destroys the GPU device on pass 1, so pass 2 finds none.</span></a></div>
 </div>
 <footer>The board draws the launcher as issue 21 proposes it, not as it is today, and pins each issue to the control that has to exist for that design to be true. A pin whose anchor is not in the mockup fails the build, so the target and the issue list cannot drift apart silently. · <a href="http://noel:4530/cybermelon/melee-pc/issues/">All issues</a></footer>
 
@@ -334,6 +393,22 @@ place();
 // height depends on the labels. Re-measure on resize and once the fonts land.
 addEventListener('resize', place);
 if (document.fonts) document.fonts.ready.then(place);
+
+// The tabs are the one live control on the mockup, because a tab that does
+// not switch cannot show that the settings fit in the width. An off pane keeps
+// its box (visibility:hidden, not display:none), so a pin anchored to a
+// control behind another tab still measures and still points at it.
+for (const tab of document.querySelectorAll('.tab')) {
+  tab.style.cursor = 'pointer';
+  tab.addEventListener('click', () => {
+    const want = tab.dataset.pane;
+    for (const t of document.querySelectorAll('.tab')) t.classList.toggle('on', t === tab);
+    for (const pane of document.querySelectorAll('.pane')) {
+      pane.classList.toggle('off', pane.id !== want);
+    }
+    place();
+  });
+}
 </script>
 </body>
 </html>

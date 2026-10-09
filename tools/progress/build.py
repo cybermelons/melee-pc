@@ -109,17 +109,14 @@ TEMPLATE = """<!DOCTYPE html>
      Centring the launcher and hanging the labels off it with a negative
      offset instead pushed the left column off the left edge of the page,
      where it was unreachable and showed up only as a sideways scrollbar. */
-  .board {{ display:grid; grid-template-columns:300px minmax(0,620px) 300px;
-            justify-content:center; gap:0 40px;
-            max-width:1420px; margin:0 auto; padding:1rem 1rem 4rem; }}
+  .board {{ display:grid; grid-template-columns:340px minmax(0,640px) 340px;
+            justify-content:center; gap:0 36px;
+            max-width:1500px; margin:0 auto; padding:1rem 1rem 4rem; }}
   #stage {{ position:relative; grid-column:2; }}
   /* Each column is its own positioning context, so a label cannot escape
      the page however long it grows. */
   #pin-left {{ position:relative; grid-column:1; }}
   #pin-right {{ position:relative; grid-column:3; }}
-  .board {{ position:relative; max-width:1540px; margin:0 auto;
-            padding:1rem 1rem 4rem; }}
-  #stage {{ position:relative; width:min(640px,100%); margin:0 auto; }}
 
   /* ---- the proposed launcher ---- */
   #menu-panel {{
@@ -133,52 +130,88 @@ TEMPLATE = """<!DOCTYPE html>
             color:#6f7280; }}
   .sub {{ margin:0; color:var(--dim); font-size:.82rem; }}
 
-  .mode-row {{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }}
-  .mode {{ text-align:left; display:grid; gap:2px; padding:10px 12px;
-           background:#191b24; color:var(--fg);
-           border:1px solid var(--line); border-radius:9px; font:inherit; }}
-  .mode b {{ font-size:.95rem; }}
-  .mode i {{ font-style:normal; color:var(--dim); font-size:.76rem; }}
-  .mode.wide {{ width:100%; }}
-  #mode-vs {{ border-color:#3c4252; background:#1d2130; }}
-  .room {{ display:grid; gap:6px; }}
+  /* ---- lobby bar: the room code lives top right ---- */
+  #lobby-bar {{ display:flex; align-items:center; justify-content:space-between;
+                gap:12px; flex-wrap:wrap;
+                border-bottom:1px solid var(--line); padding-bottom:14px; }}
+  .lb-left, .lb-right {{ display:flex; align-items:center; gap:8px; }}
+  .lb-title {{ font-weight:600; font-size:.98rem; white-space:nowrap; }}
+  .chip {{ font-size:.74rem; color:var(--dim); background:#191b24;
+           border:1px solid var(--line); border-radius:99px; padding:3px 9px; }}
+  #room-code {{ display:flex; align-items:baseline; gap:7px; padding:7px 12px;
+                border-radius:8px; background:#1d2130; color:var(--fg);
+                border:1px solid #3c4252; }}
+  #room-code b {{ font:600 .95rem/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+                  letter-spacing:.06em; }}
+  #room-code i {{ font-style:normal; font-size:.7rem; color:var(--dim); }}
+  #join-btn {{ padding:7px 12px; border-radius:8px; background:#191b24;
+               color:var(--fg); border:1px solid var(--line);
+               font-size:.82rem; }}
 
-  #bar {{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }}
-  .file {{ padding:9px 12px; border:1px dashed #3a3d4a; border-radius:8px;
-           color:var(--dim); font-size:.84rem; }}
-  .file input {{ display:none; }}
-  #menu-panel button {{ font:inherit; }}
-  #bar button, .apply-row button {{ padding:9px 14px; border-radius:8px;
-           border:1px solid var(--line); background:#191b24; color:var(--fg); }}
-  .primary {{ background:var(--accent) !important; color:#1a1405 !important;
-              border-color:var(--accent) !important; font-weight:600; }}
+  /* ---- ports: one row, because the lobby is one couch ---- */
+  .ports {{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }}
+  .port {{ display:grid; gap:3px; padding:9px 10px; border-radius:9px;
+           background:#15171f; border:1px solid var(--line); }}
+  .port b {{ font-size:.72rem; letter-spacing:.08em; color:var(--dim); }}
+  .port i {{ font-style:normal; font-size:.84rem; }}
+  .port.taken {{ background:#1d2130; border-color:#3c4252; }}
+  .port.cpu i {{ color:var(--dim); }}
+  .port.free {{ border-style:dashed; }}
+  .port.free i {{ color:#6f7280; }}
+  .pbtn {{ margin-top:2px; padding:4px 8px; border-radius:6px; font-size:.74rem;
+           background:#191b24; color:var(--fg); border:1px solid var(--line); }}
+  .port.free .pbtn {{ background:var(--accent); color:#1a1405;
+                      border-color:var(--accent); font-weight:600; }}
+  #queue {{ margin:0; color:var(--dim); font-size:.78rem; }}
+  #queue b {{ color:var(--fg); font-weight:600; }}
 
-  .setting-grid {{ display:grid; gap:7px; }}
+  /* ---- save states, not places to go ---- */
+  .states {{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }}
+  .state {{ text-align:left; display:grid; gap:2px; padding:9px 10px;
+            background:#191b24; color:var(--fg);
+            border:1px solid var(--line); border-radius:9px; }}
+  .state b {{ font-size:.86rem; }}
+  .state i {{ font-style:normal; color:var(--dim); font-size:.72rem; }}
+  #state-vs {{ border-color:#3c4252; background:#1d2130; }}
+  #states-note {{ margin:0; color:#6f7280; font-size:.76rem; }}
+
+  /* ---- settings tabs: horizontal space instead of one long column ----
+     Every pane stays in the markup so a pin can anchor to a control on a tab
+     that is not in front; the hidden panes are moved off-screen rather than
+     display:none, because a display:none element measures 0x0 and the pin
+     placer would stack its label at the top of the column. */
+  .tab-heads {{ display:flex; gap:4px; flex-wrap:wrap;
+                border-bottom:1px solid var(--line); }}
+  .tab {{ padding:7px 12px; font-size:.82rem; background:none; color:var(--dim);
+          border:1px solid transparent; border-bottom:none;
+          border-radius:7px 7px 0 0; }}
+  .tab.on {{ color:var(--fg); background:#191b24; border-color:var(--line);
+             margin-bottom:-1px; }}
+  .panes {{ position:relative; }}
+  .pane {{ padding:12px 2px 0; }}
+  /* An off pane is hidden but still measurable, so a pin can anchor to a
+     control behind another tab. opacity:0 keeps the box; z-index keeps it
+     under the pane in front, which is what paints. */
+  .pane.off {{ position:absolute; top:0; left:0; right:0; z-index:-1;
+               opacity:0; pointer-events:none; }}
+  .pane-grid {{ display:grid; grid-template-columns:1fr 1fr; gap:7px 18px; }}
+
+  .setting.parent {{ font-weight:600; grid-column:1/-1; }}
+  .setting.child {{ padding-left:18px;
+                    border-left:2px solid #2a2d38; margin-left:4px; }}
+  .setting input[type=range] {{ width:92px; accent-color:var(--accent); }}
+
   .setting {{ display:flex; align-items:center; gap:7px; flex-wrap:wrap;
-              font-size:.86rem; }}
+              font-size:.84rem; }}
   .setting-label {{ color:var(--fg); }}
   .setting select {{ background:#191b24; color:var(--fg); font:inherit;
                      border:1px solid var(--line); border-radius:6px;
-                     padding:3px 6px; }}
-  .setting-hint {{ flex-basis:100%; color:#6f7280; font-size:.75rem; }}
-
-  .pad-preview {{ display:grid; gap:6px; padding:10px;
-                  border:1px solid var(--line); border-radius:9px;
-                  background:#15171f; }}
-  .pad-h {{ font-size:.82rem; color:var(--dim); }}
-  .pad-map {{ position:relative; height:84px; }}
-  .pm {{ position:absolute; display:grid; place-items:center;
-         border:1px solid #ffffff2e; border-radius:50%;
-         background:#ffffff12; color:#9a9db0; font-style:normal;
-         font-size:.62rem; }}
-  .pm.stick {{ left:4px; bottom:2px; width:58px; height:58px; }}
-  .pm.l {{ left:14px; top:0; width:30px; height:30px; }}
-  .pm.z {{ left:52px; top:0; width:30px; height:30px; }}
-  .pm.a {{ right:18px; bottom:14px; width:34px; height:34px;
-           border-color:#ffffff55; }}
-  .pm.b {{ right:58px; bottom:6px; width:30px; height:30px; }}
-  .pm.y {{ right:12px; top:4px; width:30px; height:30px; }}
-
+                     padding:3px 6px; max-width:11rem; }}
+  .setting-hint {{ flex-basis:100%; color:#6f7280; font-size:.73rem; }}
+  .primary {{ background:var(--accent) !important; color:#1a1405 !important;
+              border-color:var(--accent) !important; font-weight:600; }}
+  .apply-row button {{ padding:9px 14px; border-radius:8px;
+           border:1px solid var(--line); background:#191b24; color:var(--fg); }}
   .apply-row {{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }}
   #settings-link {{ flex:1; min-width:14rem; background:#0c0d12;
                     color:var(--dim); border:1px solid var(--line);
@@ -332,6 +365,22 @@ place();
 // height depends on the labels. Re-measure on resize and once the fonts land.
 addEventListener('resize', place);
 if (document.fonts) document.fonts.ready.then(place);
+
+// The tabs are the one live control on the mockup, because a tab that does
+// not switch cannot show that the settings fit in the width. An off pane keeps
+// its box (visibility:hidden, not display:none), so a pin anchored to a
+// control behind another tab still measures and still points at it.
+for (const tab of document.querySelectorAll('.tab')) {{
+  tab.style.cursor = 'pointer';
+  tab.addEventListener('click', () => {{
+    const want = tab.dataset.pane;
+    for (const t of document.querySelectorAll('.tab')) t.classList.toggle('on', t === tab);
+    for (const pane of document.querySelectorAll('.pane')) {{
+      pane.classList.toggle('off', pane.id !== want);
+    }}
+    place();
+  }});
+}}
 </script>
 </body>
 </html>
