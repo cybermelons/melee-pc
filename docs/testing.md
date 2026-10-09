@@ -206,3 +206,31 @@ Mach-O and ARM64 COFF relabeling must preserve all relocation/symbol ordinals
 and zero-fill characteristics. Unknown writable sections and common symbols
 fail the build rather than escaping snapshots. Verification runs before
 packaging strips symbols.
+
+## Browser tests: never put a window on this host's screen
+
+`tsunomaki` is the user's gaming desktop. A browser test window steals focus
+and interrupts them. COSMIC cannot prevent it: `cosmic-comp` activates every
+new toplevel unconditionally, and `CosmicComp/v1/` has no focus key, so there
+is no setting to turn off. Fix this in the test, never in the compositor.
+
+`tools/display.sh` exists for this. Use it for every headful browser check:
+
+```sh
+. tools/display.sh
+run_headless node tools/boot-test.mjs
+```
+
+The page renders on the real GPU at 60 fps and nothing appears on screen. This
+is required rather than optional, because the browser target has no WebGL
+fallback and aurora refuses a CPU adapter, so a GPU test cannot run plain
+headless and must not run on the desktop.
+
+`run_headless` is a shell function, so a wrapper cannot find it by name: write
+`run_headless timeout 500 node x.mjs`, not `timeout 500 run_headless ...`.
+
+Do NOT use `DISPLAY=:N` or `--ozone-platform=x11`. Both were measured and
+rejected; `tools/display.sh` records the results.
+
+The live gameplay tests above are different. They need the user's own disc and
+display, and the user runs them. Never start a game window on their screen.
