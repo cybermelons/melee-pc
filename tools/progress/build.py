@@ -268,7 +268,7 @@ TEMPLATE = """<!DOCTYPE html>
     .tab-heads {{ display:grid; grid-template-columns:repeat(5,1fr); gap:2px; }}
     .tab {{ padding:7px 2px; font-size:.72rem; text-align:center; }}
     .pane {{ padding:10px 0 0; }}
-    .pane-grid {{ gap:6px 10px; }}
+    .pane-grid {{ grid-template-columns:1fr; gap:4px; }}
     .setting {{ font-size:.78rem; gap:6px; }}
     .setting-hint {{ display:none; }}
     .setting select {{ max-width:8.5rem; padding:2px 5px; }}

@@ -199,7 +199,7 @@ LAUNCHER = """
   <header id="lobby-bar">
     <div class="lb-left">
       <span class="lb-title">Melee</span>
-      <span id="disc-state" class="chip">Loading disc… 62%</span>
+      <span id="disc-state" class="chip">Disc 62%</span>
     </div>
     <div class="lb-right">
       <button id="room-code" title="Copy the link to this lobby"><b>FIG-7K2</b><i>copy link</i></button>
