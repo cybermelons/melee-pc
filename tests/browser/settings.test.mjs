@@ -102,7 +102,10 @@ function stubDom(search) {
           // createTextNode returns a bare {text}, which has no children.
           for (const kid of node.children ?? []) {
             if (name && kid.name === name[1]) out.push(kid);
-            else if (cls && kid.className === cls[1]) out.push(kid);
+            // A class selector matches any class in the list, the way a real
+            // document does. An exact string match would miss "setting child"
+            // for ".setting" and silently undercount the rows.
+            else if (cls && (kid.className ?? '').split(' ').includes(cls[1])) out.push(kid);
             else if (!name && !cls && kid.tagName === sel) out.push(kid);
             walk(kid);
           }
@@ -180,12 +183,14 @@ test('exactly one pane is in front, and a head switches it', async () => {
   const host = stubDom('');
   const { addSettings } = await import('../../platforms/browser/settings.mjs');
   const form = addSettings(host, { reload: () => {} });
-  const front = () => form.querySelectorAll('.pane').length;
+  const panes = () => form.querySelectorAll('.pane');
+  const front = () => panes().filter((p) => !p.className.split(' ').includes('off')).length;
   assert.equal(front(), 1, 'one pane in front at the start');
   const heads = form.querySelector('.tab-heads');
   // Press the second head. The first pane must leave the front, and the
   // count must stay at one: two panes in front is the bug a stacked layout
   // hides, because both are drawn in the same grid cell.
+  assert.equal(panes().length, TABS.length, 'one pane per tab');
   heads.children[1].handlers.get('click')();
   assert.equal(front(), 1, 'still exactly one pane in front after a switch');
   assert.equal(heads.children[1].className, 'tab on');
@@ -211,4 +216,99 @@ test('a setting that names no tab still gets a control', async () => {
   } finally {
     SETTINGS.pop();
   }
+});
+
+test('a child that agrees with its parent stays out of the URL', () => {
+  // env_flag_or_20xx reads an absent child as "follow the parent", so writing
+  // the agreement would add noise to a shared link without changing anything.
+  const search = buildSearch({ MELEE_20XX: '1', MELEE_BOOT_CSS: '1', MELEE_20XX_RULES: '1' });
+  const params = new URLSearchParams(search);
+  assert.equal(params.get('MELEE_20XX'), '1');
+  assert.equal(params.has('MELEE_BOOT_CSS'), false);
+  assert.equal(params.has('MELEE_20XX_RULES'), false);
+});
+
+test('a child that disagrees is written, including when it is off', () => {
+  // This is the one case an omitted key cannot express: off while the parent
+  // is on. env_flag_or_20xx checks presence, so "0" is a real answer.
+  const off = new URLSearchParams(
+    buildSearch({ MELEE_20XX: '1', MELEE_BOOT_CSS: '', MELEE_20XX_RULES: '1' }));
+  assert.equal(off.get('MELEE_BOOT_CSS'), '0');
+  assert.equal(off.has('MELEE_20XX_RULES'), false);
+  // And on while the parent is off.
+  const on = new URLSearchParams(
+    buildSearch({ MELEE_20XX: '', MELEE_BOOT_CSS: '1' }));
+  assert.equal(on.get('MELEE_BOOT_CSS'), '1');
+  assert.equal(on.has('MELEE_20XX'), false);
+});
+
+test('a child the URL does not name displays its parent state', async () => {
+  const host = stubDom('?MELEE_20XX=1');
+  const { addSettings } = await import('../../platforms/browser/settings.mjs');
+  const form = addSettings(host, { reload: () => {} });
+  assert.equal(form.querySelector('[name=MELEE_20XX]').checked, true);
+  assert.equal(form.querySelector('[name=MELEE_BOOT_CSS]').checked, true,
+    'an unnamed child must show the parent, not an unchecked box');
+  // An explicit 0 overrides the parent, which is what the C side reads.
+  const host2 = stubDom('?MELEE_20XX=1&MELEE_BOOT_CSS=0');
+  const form2 = addSettings(host2, { reload: () => {} });
+  assert.equal(form2.querySelector('[name=MELEE_BOOT_CSS]').checked, false);
+});
+
+test('the parent re-displays an untouched child, and leaves a touched one', async () => {
+  const host = stubDom('');
+  const { addSettings } = await import('../../platforms/browser/settings.mjs');
+  const form = addSettings(host, { reload: () => {} });
+  const parent = form.querySelector('[name=MELEE_20XX]');
+  const css = form.querySelector('[name=MELEE_BOOT_CSS]');
+  const rules = form.querySelector('[name=MELEE_20XX_RULES]');
+  // The player sets one child by hand, then ticks the parent.
+  rules.checked = true;
+  rules.handlers.get('change')();
+  parent.checked = true;
+  parent.handlers.get('change')();
+  assert.equal(css.checked, true, 'the untouched child follows the parent');
+  assert.equal(rules.checked, true, 'the touched child keeps its own value');
+  // Untick the parent: the untouched child follows back down.
+  parent.checked = false;
+  parent.handlers.get('change')();
+  assert.equal(css.checked, false);
+  assert.equal(rules.checked, true);
+});
+
+test('a child row is marked as one, and its parent as a parent', async () => {
+  const host = stubDom('');
+  const { addSettings } = await import('../../platforms/browser/settings.mjs');
+  const form = addSettings(host, { reload: () => {} });
+  const row = (key) => form.querySelector(`[name=${key}]`).parent;
+  assert.ok(row('MELEE_BOOT_CSS').className.split(' ').includes('child'));
+  assert.ok(row('MELEE_20XX').className.split(' ').includes('parent'));
+  assert.equal(row('MELEE_HITBOXES').className, 'setting');
+});
+
+test('every child names a parent that is a flag in SETTINGS', () => {
+  const byKey = new Map(SETTINGS.map((s) => [s.key, s]));
+  for (const setting of SETTINGS) {
+    if (!setting.parent) continue;
+    const parent = byKey.get(setting.parent);
+    assert.ok(parent, `${setting.key} names a parent that is not a setting`);
+    assert.equal(parent.kind, 'flag', `${setting.parent} is not a flag`);
+    assert.equal(setting.kind, 'flag', `${setting.key} is a child but not a flag`);
+    assert.equal(setting.tab, parent.tab, `${setting.key} is on another tab than its parent`);
+  }
+});
+
+test('the children sit in one fold under the parent, not as loose rows', async () => {
+  const host = stubDom('');
+  const { addSettings } = await import('../../platforms/browser/settings.mjs');
+  const form = addSettings(host, { reload: () => {} });
+  const folds = form.querySelectorAll('.kids');
+  assert.equal(folds.length, 1, 'one fold per parent');
+  // Every child is inside it, so the pane costs one row for the group rather
+  // than one per child.
+  for (const setting of SETTINGS.filter((s) => s.parent)) {
+    const row = form.querySelector(`[name=${setting.key}]`).parent;
+    assert.equal(row.parent, folds[0], `${setting.key} is not in the fold`);
+  }
+  assert.equal(folds[0].parent.className.split(' ').includes('pane'), true);
 });

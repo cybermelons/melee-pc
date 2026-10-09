@@ -18,6 +18,12 @@
 // `scene` entries are radio-like (one boot scene), `flag` entries are
 // independent switches, and `choice` takes one of several values.
 //
+// `parent` names a flag that implies this one. env_flag_or_20xx in
+// src/pc/input_poll.c reads such a flag as: present means its own value wins,
+// including an explicit 0; absent means follow the parent. So a child control
+// is written to the URL only when it disagrees with its parent, and an
+// untouched child displays whatever the parent is set to.
+//
 // `tab` groups the row. The panel is one viewport on a phone, and a flat list
 // does not fit one: the full flag set is 96 MELEE_* names in the C source, of
 // which this is the curated subset. Tabs use the width instead of the height.
@@ -34,6 +40,11 @@ export const SETTINGS = [
     options: [['', 'Human'], ['cpu', 'CPU']] },
   { key: 'MELEE_20XX', tab: 'Game', kind: 'flag', label: '20XX conveniences',
     hint: 'Unlocks the cast and boots to character select.' },
+  { key: 'MELEE_BOOT_CSS', tab: 'Game', kind: 'flag', parent: 'MELEE_20XX',
+    label: 'Boot to character select' },
+  { key: 'MELEE_20XX_RULES', tab: 'Game', kind: 'flag', parent: 'MELEE_20XX',
+    label: 'Tournament rules',
+    hint: '4 stock, 8 minutes, items off. Turns pausing off unless Allow pausing is on.' },
   { key: 'MELEE_HITBOXES', tab: 'Video', kind: 'flag', label: 'Show hitboxes' },
   { key: 'MELEE_PAUSE', tab: 'Game', kind: 'flag', label: 'Allow pausing',
     hint: 'Tournament rules turn pausing off.' },
@@ -55,10 +66,23 @@ export function isOn(value) {
 // are left out entirely, so a shared link carries only what was changed and
 // stays readable. Parameters the page does not own (room, signal, and any
 // MELEE_* without a control) are preserved.
+//
+// A child whose value agrees with its parent is left out, which is how the
+// engine reads an absent child: env_flag_or_20xx falls through to the parent.
+// A child that disagrees must be written even when it is off, because only a
+// present value can say "off while the parent is on", and "0" is how
+// env_flag_or_20xx hears that.
 export function buildSearch(values, existing = '') {
   const params = new URLSearchParams(existing);
+  const parentOf = new Map(SETTINGS.filter((s) => s.parent).map((s) => [s.key, s.parent]));
   for (const { key } of SETTINGS) params.delete(key);
   for (const [key, value] of Object.entries(values)) {
+    const parent = parentOf.get(key);
+    if (parent) {
+      if (isOn(value) === isOn(values[parent])) continue;
+      params.set(key, isOn(value) ? '1' : '0');
+      continue;
+    }
     if (value !== '' && value != null) params.set(key, value);
   }
   const search = params.toString();
@@ -101,14 +125,30 @@ export function addSettings(host, { reload = (search) => location.assign(search 
     }
     return found;
   };
+  // A child the URL does not name follows its parent, so it shows the parent's
+  // state rather than a bare unchecked box that would misreport the engine.
+  const shownValue = (setting) => (
+    setting.parent && values[setting.key] == null
+      ? values[setting.parent] : values[setting.key]);
+  // Children that the player has not touched keep following the parent, so
+  // ticking the parent must re-display them. A child the player set stays put.
+  const touched = new Set();
+  const kids = new Map();
+  const folds = new Map();
   for (const setting of SETTINGS) {
     const row = document.createElement('label');
-    row.className = 'setting';
+    row.className = setting.parent ? 'setting child'
+      : (SETTINGS.some((s) => s.parent === setting.key) ? 'setting parent' : 'setting');
     let input;
     if (setting.kind === 'flag') {
       input = document.createElement('input');
       input.type = 'checkbox';
-      input.checked = isOn(values[setting.key]);
+      input.checked = isOn(shownValue(setting));
+      if (setting.parent) {
+        input.addEventListener('change', () => touched.add(setting.key));
+        if (!kids.has(setting.parent)) kids.set(setting.parent, []);
+        kids.get(setting.parent).push({ key: setting.key, input });
+      }
       row.append(input, document.createTextNode(` ${setting.label}`));
     } else {
       input = document.createElement('select');
@@ -129,7 +169,36 @@ export function addSettings(host, { reload = (search) => location.assign(search 
       hint.textContent = setting.hint;
       row.append(hint);
     }
-    pane(setting.tab ?? TABS[0]).append(row);
+    if (setting.parent) {
+      // A run of children folded under one summary. Always-open children cost
+      // a row each for an exception most players never take, and the panel has
+      // one phone viewport to spend. The parent carries the common case.
+      let fold = folds.get(setting.parent);
+      if (!fold) {
+        fold = document.createElement('details');
+        fold.className = 'kids';
+        const summary = document.createElement('summary');
+        summary.textContent = 'Individual settings';
+        fold.append(summary);
+        folds.set(setting.parent, fold);
+        pane(setting.tab ?? TABS[0]).append(fold);
+      }
+      fold.append(row);
+    } else {
+      pane(setting.tab ?? TABS[0]).append(row);
+    }
+  }
+
+  // The select-all. Only an untouched child follows, which is what
+  // env_flag_or_20xx does: a child with its own value keeps it.
+  for (const [parentKey, children] of kids) {
+    const box = inputs.get(parentKey);
+    if (!box) continue;
+    box.addEventListener('change', () => {
+      for (const kid of children) {
+        if (!touched.has(kid.key)) kid.input.checked = box.checked;
+      }
+    });
   }
 
   // One head per pane. The heads come before the panes so a screen reader

@@ -327,6 +327,16 @@
   /* An off pane keeps its box so it still measures, and takes no clicks. */
   #settings .pane.off { opacity: 0; z-index: -1; pointer-events: none; }
   #settings .setting { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  /* A child is indented under its parent and shares its rule, so the group
+     reads as one decision with exceptions rather than three equal rows. */
+  #settings .setting.child { margin-left: 14px; border-left: 2px solid #333; padding-left: 10px; }
+  #settings .kids { margin-left: 14px; }
+  /* A closed details hides its content with content-visibility on the slot,
+     which an explicit display on the child defeats: .setting is display:flex,
+     so both children stayed visible and 44px tall. Hide them here instead. */
+  #settings .kids:not([open]) > .setting { display: none; }
+  #settings .kids > summary { min-height: 44px; display: flex; align-items: center; color: #999; font-size: 13px; }
+  #settings .kids[open] > summary { color: #ccc; }
   #settings .setting-hint { color: #999; font-size: 12px; flex-basis: 100%; }
   /* 44px targets and 16px text: the same minimums the rest of the panel uses,
      so a tap lands and iOS does not zoom the page on focus. */
