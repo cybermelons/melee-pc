@@ -18,10 +18,24 @@
 
 #include <emscripten.h>
 
+/* Every game translation unit gets src/pc/disc.h force-included (see
+ * CMakeLists.txt, src/pc/compat.h); this file is in the browser target, which
+ * does not, so the melee headers below need it named explicitly. */
+#include "pc/disc.h"
+
+#include <melee/ft/inlines.h>
+#include <melee/ft/types.h>
+#include <melee/pl/player.h>
+#include <sysdolphin/baselib/gobj.h>
+
 #include "pc/file_cache.h"
 #include "pc/pc.h"
 #include "pc/slp.h"
 #include "pc/slp_format.h"
+
+/* Float count pc_drill_state writes. The page allocates this many and reads
+ * the same window every frame, so the two must agree. */
+#define PC_DRILL_FLOATS 9
 
 /* Desktop launcher preferences; defaults match launcher_data.hpp. The hosting
  * page has no launcher to read them from, so the ones a training setup needs
@@ -119,4 +133,56 @@ EMSCRIPTEN_KEEPALIVE void pc_slp_web_checkpoint(void) {
  * pc_keyboard_apply folds it into the one-frame latch. */
 EMSCRIPTEN_KEEPALIVE void pc_input_tas_set(const uint8_t* keys, int count) {
     pc_keyboard_tas_set(keys, count);
+}
+
+/* Drill state for the hosting page: the numbers a repetition counter needs,
+ * for one player, as a flat float array.
+ *
+ * A drill judges a repetition from the fighter's action state and position, so
+ * the page needs to read both every frame. Scanning the heap for the Fighter
+ * does not work -- the struct has no signature that chance does not reproduce,
+ * and a zero-filled region satisfies the obvious arithmetic ones -- so the read
+ * belongs here, where the fighter list is already reachable.
+ *
+ * The fighter is found by walking the FIGHTER plink list the way
+ * ftLib_FindLowestPercentOpponent does, rather than through player_slots[]:
+ * Player_GetPtrForSlot asserts on a bad slot, and StaticPlayer holds setup
+ * metadata rather than the live action state.
+ *
+ * `out` must have room for PC_DRILL_FLOATS floats. Returns true when a fighter
+ * for `port` is present, false otherwise, which is the state between scenes and
+ * during a load. The caller must not read `out` when this returns false.
+ *
+ * Every value is a float, including the ones that are logically integers, so
+ * the page reads one HEAPF32 subarray rather than tracking a mixed layout. A
+ * motion id and a player index are both far below float's 24-bit exact integer
+ * range, so neither loses precision. */
+EMSCRIPTEN_KEEPALIVE bool pc_drill_state(int port, float* out) {
+    HSD_GObj* cur;
+
+    if (out == NULL || port < 0 || port >= Gm_Player_NumMax) {
+        return false;
+    }
+    for (cur = HSD_GObjPLinkHead[HSD_GOBJ_PLINK_FIGHTER]; cur != NULL;
+         cur = cur->next)
+    {
+        Fighter* fp = GET_FIGHTER(cur);
+        if (fp == NULL || fp->player_idx != port) {
+            continue;
+        }
+        out[0] = (float) fp->motion_id;
+        out[1] = (float) fp->player_idx;
+        out[2] = fp->cur_pos.x;
+        out[3] = fp->cur_pos.y;
+        out[4] = fp->self_vel.x;
+        out[5] = fp->self_vel.y;
+        out[6] = fp->facing_dir;
+        out[7] = fp->dmg.x1830_percent;
+        /* Ground or air decides which drills can score at all: a wavedash
+         * repetition is only valid from the ground, an L-cancel only from a
+         * landing. */
+        out[8] = (float) fp->ground_or_air;
+        return true;
+    }
+    return false;
 }

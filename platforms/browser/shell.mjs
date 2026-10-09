@@ -240,7 +240,12 @@ if (remoteDisc) {
 const roomId = new URLSearchParams(location.search).get('room');
 async function pairIfRoom() {
   if (!roomId) return;
-  const signal = new URLSearchParams(location.search).get('signal') || `http://${location.hostname}:8101`;
+  // Default to the signaling mounted on this origin by the page server. A
+  // second port cannot be the default: a visitor who was sent a link has no
+  // reason to have 8101 reachable, and a cross-origin http:// request from an
+  // https:// page is blocked as mixed content. ?signal= still points at a
+  // standalone `node tools/browser/signal.mjs` for local development.
+  const signal = new URLSearchParams(location.search).get('signal') || '/signal';
   const me = crypto.randomUUID();
   const base = `${signal}/r/${encodeURIComponent(roomId)}`;
   const post = (msg) => fetch(base, { method: 'POST', body: JSON.stringify({ ...msg, from: me }) });
