@@ -237,8 +237,8 @@
   /* The menu button is a direct child of <body>, not of the touch overlay, so
      it positions itself rather than inheriting the overlay's fixed box, and it
      needs a z-index above both the overlay (2) and the panel it opens (4) so it
-     stays tappable while the panel is open. Beside the fullscreen button, top
-     left. */
+     stays tappable while the panel is open. Beside the fullscreen button when
+     that exists, top left. */
   #pad-menu {
     position: fixed; z-index: 5;
     top: calc(2vh + env(safe-area-inset-top));
