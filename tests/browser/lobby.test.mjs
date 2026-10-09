@@ -104,3 +104,22 @@ test('holding a port makes the engine wait; holding none boots it', () => {
   assert.equal(spectating(['a', 'b'], 'me'), true,
     'and that visitor is a spectator, which is why it must not wait');
 });
+
+test('two players with the same name do not both read as you (#31)', () => {
+  // The case the marker exists for. Claims hold the server-assigned id, not
+  // the display name, so two players called "kiri" are still two ids. A
+  // marker that matched on the name would mark both tiles.
+  const states = portStates(['kiri-a', 'kiri-b'], 'kiri-b');
+  assert.equal(states[0].mine, false, 'the other player is not you');
+  assert.equal(states[1].mine, true);
+  assert.equal(states.filter((s) => s.mine).length, 1,
+    'exactly one tile can be yours');
+});
+
+test('the marker moves on release, and nothing is yours after it', () => {
+  // #31 asks for the marker to follow a claim and a release with no reload.
+  // Release is the server dropping the id from the array, so the only thing
+  // that has to hold is that no tile claims to be yours afterwards.
+  assert.equal(portStates(['me', 'b'], 'me').filter((s) => s.mine).length, 1);
+  assert.equal(portStates([null, 'b'], 'me').filter((s) => s.mine).length, 0);
+});

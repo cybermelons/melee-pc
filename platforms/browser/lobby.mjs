@@ -137,6 +137,13 @@ export function addLobby(host, { room, onClaim, onRelease, onCopy } = {}) {
     const tile = el('div', 'port');
     tile.id = `port-${i + 1}`;
     const name = el('b', null, `P${i + 1}`);
+    // The "you" tag (#31). A word, because the inset bar that marks your tile
+    // is a colour, and colour alone fails for a colour-blind player and fails
+    // in a screenshot. Only one tile can carry the id, so render clears it
+    // from the others rather than leaving two tiles claiming to be yours.
+    const tag = el('span', 'mine-tag', 'you');
+    tag.hidden = true;
+    name.append(' ', tag);
     const who = el('i', null, 'free');
     const act = el('button', 'pbtn', 'Take');
     act.addEventListener('click', () => {
@@ -145,7 +152,7 @@ export function addLobby(host, { room, onClaim, onRelease, onCopy } = {}) {
     });
     tile.append(name, who, act);
     ports.append(tile);
-    tiles.push({ tile, name, who, act });
+    tiles.push({ tile, name, who, act, tag });
   }
 
   const seat = el('p', 'sub seat-none');
@@ -158,7 +165,7 @@ export function addLobby(host, { room, onClaim, onRelease, onCopy } = {}) {
     /** Paint the claims array onto the tiles. */
     render(claims, me) {
       for (const s of portStates(claims, me)) {
-        const { tile, who, act } = tiles[s.port];
+        const { tile, who, act, tag } = tiles[s.port];
         const cls = ['port'];
         if (s.mine) cls.push('taken', 'mine');
         else if (s.taken) cls.push('taken');
@@ -167,6 +174,12 @@ export function addLobby(host, { room, onClaim, onRelease, onCopy } = {}) {
         who.textContent = s.mine ? 'you' : s.taken ? 'taken' : s.reachable ? 'free' : 'needs #6';
         act.textContent = s.mine ? 'Release' : 'Take';
         act.disabled = !s.reachable || s.taken;
+        tag.hidden = !s.mine;
+        // The board pins #31 to #port-mine, so the id has to be on the tile
+        // that is actually yours. It moves with a claim and a release, which
+        // is why it is set here and not in the markup.
+        if (s.mine) tag.id = 'port-mine';
+        else tag.removeAttribute('id');
       }
       const alone = spectating(claims, me);
       seat.hidden = !alone;

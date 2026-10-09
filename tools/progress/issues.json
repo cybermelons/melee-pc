@@ -243,7 +243,7 @@
       "side": "left",
       "state": "open",
       "title": "Signify which port is you",
-      "pin": "Everyone is at the same URL, so the first question is which seat is yours. A bar and a word, not colour alone. The other half is the spectator line below."
+      "pin": "Shipped: the tile you hold carries a left bar and the word 'you', because colour alone fails a colour-blind reader and a screenshot. The id moves with a claim and a release, and matching is on the server id, so two players with one display name still mark one tile. The spectator line below is the other half."
     },
     {
       "n": 32,
