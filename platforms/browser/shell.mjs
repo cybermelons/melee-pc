@@ -11,6 +11,7 @@ import { addMenuButton } from './menu-button.mjs';
 import { addTierToggle } from './tier.mjs';
 import { showCrash } from './crash.mjs';
 import { addSettings } from './settings.mjs';
+import { addLobby, ensureRoom, mySlot, roomLink } from './lobby.mjs';
 
 const $ = (id) => document.getElementById(id);
 const lines = [];
@@ -267,12 +268,42 @@ if (remoteDisc) {
   updateStart();
 }
 
-// Room mode (?room=<id>): claim a controller port and open a WebRTC data channel
-// to the other tab. This must finish before melee_browser.js is injected,
-// because preRun copies ENV into the engine only once that script loads.
-const roomId = new URLSearchParams(location.search).get('room');
-async function pairIfRoom() {
-  if (!roomId) return;
+// Every page is in a room (#22). A visitor who arrived with no ?room= gets one
+// minted into the URL, so the mode list no longer decides anything and the
+// link in the address bar is always the link to share.
+//
+// Being in a room is not the same as being in a match, and before #22 the code
+// could not tell them apart: any ?room= URL blocked the module on the data
+// channel, so a visitor sent a link who only wanted to watch sat at a page
+// that never booted and never said why. Holding a port is the real condition,
+// and the signal server is the only thing that knows it, so the wait is
+// published from the `state` event rather than decided here.
+const { room: roomId } = ensureRoom(location, history);
+const lobby = addLobby($('lobby'), {
+  room: roomId,
+  onClaim: (i) => claim?.(i),
+  onRelease: () => status('Releasing a port needs the server to forget the claim: not wired yet.'),
+  onCopy: () => navigator.clipboard?.writeText(roomLink(location))
+    .then(() => status('Link copied.'), () => status('Could not copy the link.')),
+});
+// Set by joinLobby once the signal channel is open; before that a tile press
+// has nothing to post to.
+let claim = null;
+// True once melee_browser.js has been added to the page, which is the moment
+// preRun copies ENV into the engine. After that a new MELEE_NET_PLAYER cannot
+// reach the engine, so a port claimed later has to reload the page.
+let injected = false;
+// Resolves when the claimed port has paired. joinLobby sets it to its own
+// `done` promise; it stays null when there is no room to join at all.
+let pairing = null;
+
+// Joining the lobby must not block the engine. Before #22 the page waited on
+// `await done` only when the URL named a room, so a visitor with a bare URL
+// booted solo. Now every URL names a room, so waiting here would hang every
+// solo player at "Take a port" for ever. The lobby is therefore ambient: it
+// connects, renders and lets a port be claimed, and only a claim makes this
+// page wait for the other side to pair.
+async function joinLobby() {
   // Default to the signaling mounted on this origin by the page server. A
   // second port cannot be the default: a visitor who was sent a link has no
   // reason to have 8101 reachable, and a cross-origin http:// request from an
@@ -282,9 +313,7 @@ async function pairIfRoom() {
   const me = crypto.randomUUID();
   const base = `${signal}/r/${encodeURIComponent(roomId)}`;
   const post = (msg) => fetch(base, { method: 'POST', body: JSON.stringify({ ...msg, from: me }) });
-  const buttons = [$('p1'), $('p2')];
-  for (const b of buttons) b.hidden = false;
-  status('Pick P1 or P2.');
+  status('Take a port.');
   const events = new EventSource(`${base}/events?me=${me}`);
   // Send the offer once gathering has produced something usable, not once it
   // is complete. A STUN server that resolves to an address with no route --
@@ -350,8 +379,15 @@ async function pairIfRoom() {
   };
   events.addEventListener('state', (e) => {
     const { claims } = JSON.parse(e.data);
-    slot = claims[0] === me ? 0 : claims[1] === me ? 1 : -1;
-    buttons.forEach((b, i) => { b.disabled = claims[i] !== null && claims[i] !== me; });
+    slot = mySlot(claims, me);
+    lobby.render(claims, me);
+    // Holding a port is what makes this page half of a match, so this is where
+    // the engine starts waiting. A visitor who holds none is a spectator (#23)
+    // and must not wait: before #22 any ?room= URL blocked the module, so a
+    // player sent a link and reading the lobby sat at a dead page with no
+    // message. The wait is published here, not at arrival, because the server
+    // is the only thing that knows which port is ours.
+    if (slot >= 0) pairing ??= done;
     if (slot >= 0 && claims[0] && claims[1] && !pc) start();
   });
   events.addEventListener('offer', async (e) => {
@@ -368,13 +404,30 @@ async function pairIfRoom() {
   });
   events.addEventListener('answer', (e) =>
     pc.setRemoteDescription({ type: 'answer', sdp: JSON.parse(e.data).sdp }));
-  buttons.forEach((b, i) => b.addEventListener('click', async () => {
+  claim = async (i) => {
     const r = await post({ type: 'claim', player: i });
-    if (!r.ok) status(`P${i + 1} is taken.`);
-  }));
-  await done;
+    if (!r.ok) return status(`P${i + 1} is taken.`);
+    // A claim before the engine is injected is picked up by the state event,
+    // which publishes the wait and lets ENV be filled in time. Once the engine
+    // is running there is no second chance: preRun copied ENV when
+    // melee_browser.js loaded, so MELEE_NET_PLAYER can no longer reach it.
+    // Reload into the same room, where ?room= is already in the URL. Same
+    // cost as Apply in settings.mjs, and said out loud for the same reason:
+    // a locally picked disc is a File handle and does not survive a reload.
+    if (!injected) return;
+    status('Port taken. Reloading to join the match…');
+    location.reload();
+  };
 }
-await pairIfRoom();
+
+await joinLobby();
+// Give the first `state` event a turn to land, so a visitor who arrived on a
+// shared link and already holds a port blocks here rather than booting solo
+// and then reloading. One microtask is not enough: the event is network I/O.
+if (roomId) await new Promise((r) => setTimeout(r, 250));
+// Null unless a port is held, which is the solo and spectator case. Both boot
+// the engine now; a port claimed later reloads the page.
+if (pairing) await pairing;
 
 // Fail with a readable message before the wasm is fetched; otherwise a browser
 // without WebGPU only shows a bare Emscripten abort.
@@ -391,6 +444,7 @@ try {
 // from reloading for ever.
 if (crossOriginIsolated) {
   sessionStorage.removeItem('melee-coi-reload');
+  injected = true;
   const script = document.createElement('script');
   script.src = './melee_browser.js';
   script.onerror = () => status('melee_browser.js is missing: run tools/browser/build.py first.');

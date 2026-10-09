@@ -25,7 +25,7 @@
       "side": "left",
       "state": "open",
       "title": "Lobby replaces the mode list",
-      "pin": "One persistent room per URL. A visitor is in it on arrival and gets a port assigned, rather than picking a mode to enter."
+      "pin": "One persistent room per URL, shipped: platforms/browser/lobby.mjs mints the room with replaceState and draws four port tiles. The mode links are gone. Being in a room is not being in a match, so holding a port, not the URL, decides whether the engine waits for the data channel."
     },
     {
       "n": 12,

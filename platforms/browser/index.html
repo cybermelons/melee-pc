@@ -12,8 +12,44 @@
   #stats { margin-left: auto; font-variant-numeric: tabular-nums; color: #9c9; }
   #status { color: #fc6; }
   pre { white-space: pre-wrap; color: #999; font-size: 12px; max-height: 14em; overflow: auto; }
-  #launch a { color: #9cf; margin-right: 12px; }
   #launch-hint { color: #999; }
+  /* The lobby (#22): the room code top right, four ports as tiles. Ids and
+     class names match tools/progress/mockup.py, which is the target the issue
+     board measures against. */
+  #lobby-bar { display: flex; align-items: center; justify-content: space-between;
+               gap: 12px; flex-wrap: wrap; border-bottom: 1px solid #333;
+               padding-bottom: 12px; margin-bottom: 12px; }
+  .lb-left, .lb-right { display: flex; align-items: center; gap: 8px; }
+  .lb-title { font-weight: 600; }
+  #room-code { display: flex; align-items: baseline; gap: 7px; min-height: 44px;
+               padding: 7px 12px; border-radius: 8px; background: #1d2130;
+               color: #eee; border: 1px solid #3c4252; }
+  #room-code b { font: 600 15px/1 ui-monospace, monospace; letter-spacing: .06em; }
+  #room-code i { font-style: normal; font-size: 11px; color: #999; }
+  #join-btn { min-height: 44px; padding: 7px 12px; border-radius: 8px;
+              background: #222; color: #eee; border: 1px solid #333; }
+  .ports { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .port { display: grid; gap: 3px; padding: 9px 10px; border-radius: 9px;
+          background: #15171f; border: 1px solid #333; }
+  .port b { font-size: 11px; letter-spacing: .08em; color: #999; }
+  .port i { font-style: normal; font-size: 13px; }
+  .port.taken { background: #1d2130; border-color: #3c4252; }
+  .port.free { border-style: dashed; }
+  .port.free i { color: #6f7280; }
+  /* The port you hold (#31): a left bar and a word, not colour alone, so the
+     marker survives a colour-blind reader. */
+  .port.mine { border-color: #e8c349; box-shadow: inset 3px 0 0 #e8c349; }
+  .pbtn { min-height: 36px; margin-top: 2px; padding: 4px 8px; border-radius: 6px;
+          font-size: 12px; background: #222; color: #eee; border: 1px solid #333; }
+  .port.free .pbtn { background: #e8c349; color: #1a1405; border-color: #e8c349;
+                     font-weight: 600; }
+  .pbtn:disabled { opacity: .45; }
+  .seat-none { margin: 8px 0 0; padding: 5px 9px; border-radius: 7px;
+               border: 1px dashed #333; color: #999; font-size: 12px; }
+  /* Four tiles in a row do not fit a phone; two rows of two do. */
+  @media (max-width: 560px) {
+    .ports { grid-template-columns: 1fr 1fr; }
+  }
   #perf { color: #999; font-size: 13px; }
   #perf a { color: #9cf; margin-right: 10px; }
   kbd { background: #333; border-radius: 3px; padding: 0 4px; }
@@ -42,7 +78,7 @@
        a phone with no way to change mode, pick a disc or read an error without
        a reload, because every one of those controls lives on this page rather
        than in the game. */
-    body:not(.playing) #launch, body:not(.playing) #bar, body:not(.playing) #log {
+    body:not(.playing) #lobby, body:not(.playing) #bar, body:not(.playing) #log {
       padding: 0 12px;
     }
     body:not(.playing) h1 { display: revert; padding: 0 12px; }
@@ -53,7 +89,7 @@
        A class on <body>, toggled by the overlay's menu button. The panel wraps
        the page's existing controls rather than copying them, so the markup
        stays the single definition of what a mode link is. */
-    body.playing #launch, body.playing #perf, body.playing #bar, body.playing #log {
+    body.playing #lobby, body.playing #perf, body.playing #bar, body.playing #log {
       display: none;
     }
     /* Only while the game runs. #menu-panel wraps the mode links and Start,
@@ -78,7 +114,7 @@
     }
     /* Last, so it wins on order and not only on specificity. */
     body.playing.menu #menu-panel { display: block; }
-    body.playing #menu-panel #launch,
+    body.playing #menu-panel #lobby,
     body.playing #menu-panel #perf,
     body.playing #menu-panel #bar,
     body.playing #menu-panel #log {
@@ -86,7 +122,7 @@
     }
     /* Bigger tap targets than the desktop page: these are links in a row and
        a thumb needs the spacing. */
-    #menu-panel #launch a, #menu-panel #perf a {
+    #menu-panel #perf a {
       display: inline-block; padding: 8px 10px; margin: 0 6px 6px 0;
       border: 1px solid #ffffff33; border-radius: 8px;
     }
@@ -345,7 +381,7 @@
   #settings-note { margin: 0; color: #999; font-size: 12px; }
 </style>
 <h1>Melee Web</h1>
-<div id="menu-panel"><p id="launch"><a href="?MELEE_BOOT_SCENE=vs">Versus</a><a href="?MELEE_BOOT_SCENE=vs&amp;MELEE_DEBUG_VS=cpu">1P vs CPU</a><a href="?MELEE_BOOT_SCENE=training">Training</a><a href="?MELEE_20XX=1">20XX</a><a href="" id="new-room">New room</a><span id="launch-hint">Pick a mode, then choose a disc image and click Start.</span></p>
+<div id="menu-panel"><div id="lobby"></div><p id="launch-hint">Choose a disc image and click Start.</p>
 <p id="perf">Render scale, to measure whether a slow frame is the pixel count:
 <a href="?MELEE_BOOT_SCENE=vs&amp;MELEE_SCALE=1">1.0 · 960x720</a>
 <a href="?MELEE_BOOT_SCENE=vs&amp;MELEE_SCALE=0.667">0.667 · 640x480</a>
@@ -355,7 +391,6 @@
   <input id="disc" type="file" accept=".iso,.gcm">
   <button id="start" disabled>Start</button>
   <button id="adapter">Connect GC adapter</button>
-  <button id="p1" hidden>P1</button><button id="p2" hidden>P2</button>
   <span id="status">Loading engine…</span>
   <span id="stats"></span>
 </div>
@@ -367,6 +402,5 @@
 <div id="touch" hidden></div></div>
 <p id="keys">A WUP-028 GameCube adapter works through WebHID, with raw 8-bit values. Keyboard fallback:<br><kbd>Arrows</kbd> stick · <kbd>X</kbd> A · <kbd>Z</kbd> B · <kbd>C</kbd> X · <kbd>V</kbd> Y · <kbd>Q</kbd> L · <kbd>E</kbd> R · <kbd>Tab</kbd> Z · <kbd>Enter</kbd> Start · <kbd>I</kbd><kbd>J</kbd><kbd>K</kbd><kbd>L</kbd> C-stick</p>
 <pre id="log"></pre>
-<script>document.getElementById("new-room").href = "?room=" + crypto.randomUUID().slice(0, 8);</script>
 <script type="module" src="./shell.mjs"></script>
 </html>
