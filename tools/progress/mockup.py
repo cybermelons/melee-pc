@@ -231,7 +231,7 @@ LAUNCHER = """
       %TABS%
     </div>
     <div class="apply-row">
-      <input id="settings-link" readonly value="https://melee.example/?room=FIG-7K2&amp;MELEE_20XX=1">
+      <input id="settings-link" readonly value="http://melee.example/?room=FIG-7K2&amp;MELEE_20XX=1">
       <button id="settings-apply" class="primary">Apply &amp; reload</button>
     </div>
   </section>

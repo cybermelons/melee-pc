@@ -119,7 +119,9 @@ function stubDom(search) {
   const host = make('div');
   host.id = 'menu-panel';
   globalThis.document = { createElement: make, createTextNode: (t) => ({ text: t }) };
-  globalThis.location = { search, href: `https://example.test/${search}`, pathname: '/' };
+  // http, not https: the page is served over http on the tailnet, and a stub
+  // that disagrees with the deployment can hide a scheme-dependent fault.
+  globalThis.location = { search, href: `http://example.test/${search}`, pathname: '/' };
   return host;
 }
 
