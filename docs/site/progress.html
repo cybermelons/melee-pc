@@ -109,13 +109,16 @@
           border-radius:7px 7px 0 0; }
   .tab.on { color:var(--fg); background:#191b24; border-color:var(--line);
              margin-bottom:-1px; }
-  .panes { position:relative; }
+  /* All panes share one grid cell, so the stack is as tall as the tallest
+     pane and a tab switch moves nothing below it. Measured before this:
+     the pane went 244px to 100px and the Apply button jumped 144px. */
+  .panes { display:grid; }
+  .panes > .pane { grid-area:1/1; }
   .pane { padding:12px 2px 0; }
   /* An off pane is hidden but still measurable, so a pin can anchor to a
      control behind another tab. opacity:0 keeps the box; z-index keeps it
      under the pane in front, which is what paints. */
-  .pane.off { position:absolute; top:0; left:0; right:0; z-index:-1;
-               opacity:0; pointer-events:none; }
+  .pane.off { z-index:-1; opacity:0; pointer-events:none; }
   .pane-grid { display:grid; grid-template-columns:1fr 1fr; gap:7px 18px; }
 
   /* A run of children folds under its select-all. The fold is open on the
@@ -154,6 +157,46 @@
   /* Nothing on the mockup does anything. A control that looks live and is not
      is worse than one that is visibly inert. */
   #menu-panel button, #menu-panel summary { cursor:default; }
+
+  /* ---- narrow: the game screen, not a squeezed desktop ---- */
+  @media (max-width:560px) {
+    #menu-panel { padding:12px; gap:12px; }
+    /* The bar wrapped onto two rows at 390px because the title, the disc
+       chip and two buttons do not fit. The room code is the one thing that
+       has to stay reachable, so it keeps the right and the chip gives way. */
+    #lobby-bar { gap:8px; padding-bottom:10px; flex-wrap:nowrap; }
+    .lb-left { min-width:0; gap:6px; }
+    .lb-right { flex:none; gap:6px; }
+    .lb-title { font-size:.88rem; }
+    #disc-state { min-width:0; overflow:hidden; text-overflow:ellipsis;
+                   white-space:nowrap; font-size:.68rem; padding:3px 7px; }
+    #room-code { padding:6px 10px; }
+    #room-code i { display:none; }
+    #join-btn { padding:6px 10px; }
+
+    .group-h { font-size:.74rem; }
+    .sub-h { display:none; }
+    .port { padding:7px 8px; }
+    .port i { font-size:.78rem; }
+    .pbtn { padding:3px 6px; }
+    .states { gap:6px; }
+    .state { padding:7px 9px; }
+    .state b { font-size:.8rem; }
+    .state i { font-size:.68rem; }
+
+    /* Five tab heads wrapped to a second row. They share the width evenly
+       instead, which is what a tab bar on a phone does. */
+    .tab-heads { display:grid; grid-template-columns:repeat(5,1fr); gap:2px; }
+    .tab { padding:7px 2px; font-size:.72rem; text-align:center; }
+    .pane { padding:10px 0 0; }
+    .pane-grid { gap:6px 10px; }
+    .setting { font-size:.78rem; gap:6px; }
+    .setting-hint { display:none; }
+    .setting select { max-width:8.5rem; padding:2px 5px; }
+    .setting.child { padding-left:12px; }
+    .apply-row { gap:6px; }
+    #settings-link { min-width:0; font-size:11px; padding:6px 8px; }
+  }
 
   /* ---- the phone: the viewport is the budget ----
      The launcher is a game screen. Every option has to be reachable inside

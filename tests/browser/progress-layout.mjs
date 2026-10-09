@@ -69,6 +69,20 @@ const measure = () => {
   };
 };
 
+// Switching a tab must not move anything. Every pane shares one grid cell,
+// so the stack is as tall as the tallest pane. Before that, the pane went
+// 244px to 100px and the Apply button jumped 144px between two tabs.
+const tabShift = () => {
+  const seen = [];
+  for (const tab of document.querySelectorAll('.tab')) {
+    tab.click();
+    const apply = document.getElementById('settings-apply').getBoundingClientRect();
+    seen.push({ t: tab.textContent.trim(), y: Math.round(apply.top) });
+  }
+  const ys = [...new Set(seen.map((s) => s.y))];
+  return ys.length > 1 ? seen.map((s) => `${s.t}:${s.y}`).join(' ') : '';
+};
+
 const browser = await pw.chromium.launch();
 let bad = 0;
 for (const [width, height, tag] of SIZES) {
@@ -88,7 +102,9 @@ for (const [width, height, tag] of SIZES) {
         .filter((a) => a.getBoundingClientRect().height > 0).length;
     });
   }
+  const shift = await p.evaluate(tabShift);
   const problems = [
+    shift ? `a tab switch moves the panel: ${shift}` : '',
     m.count === 0 ? 'no pins rendered' : '',
     m.orphans.length ? `pins anchored to nothing: ${m.orphans.join(', ')}` : '',
     m.wide && m.lines !== m.count ? `${m.count} pins but ${m.lines} leader lines` : '',
