@@ -70,7 +70,13 @@ function onFrame() {
     if (frames.samples.length > 7200) frames.samples.shift(); // two minutes
   }
   frames.last = now;
-  if (++frames.count % 30 === 0 && frames.samples.length > 60) {
+  // The pipelines the boot built are in /cache by now, but only in memory.
+  // The flushes on pagehide and visibilitychange start an IndexedDB write the
+  // closing page does not wait for, so a visit closed before the 30 s save
+  // interval left the next visit nothing to prewarm. Measured: a repeat visit
+  // queued 0 known pipeline configs; with this flush it prepares them.
+  if (++frames.count === 120) syncfs(false).catch(log);
+  if (frames.count % 30 === 0 && frames.samples.length > 60) {
     const recent = frames.samples.slice(-120);
     const sorted = [...recent].sort((a, b) => a - b);
     const fps = 1000 * recent.length / recent.reduce((a, b) => a + b, 0);
@@ -112,11 +118,27 @@ window.Module = {
   printErr: log,
   onFrame,
   onAbort: (reason) => { crashed = true; showCrash(reason, { log, status }); },
+  // Runs before Start now (browser_prewarm below), so done returns to the
+  // launch row's own status; the click clears it.
   onGraphicsPreparation: (done, total) =>
-    status(done === total ? 'Starting…' : `Preparing graphics… ${Math.floor(done * 100 / total)}%`),
+    status(done === total ? idleStatus() : `Preparing graphics… ${Math.floor(done * 100 / total)}%`),
   onRuntimeInitialized: () => {
+    // Neither depends on the disc, so pull IDBFS in while the visitor is still
+    // on the launch row rather than after Start. The click awaits this.
+    storage = (async () => {
+      for (const dir of ['/saves', '/cache']) {
+        Module.FS.mkdirTree(dir);
+        Module.FS.mount(Module.FS.filesystems.IDBFS, { autoPersist: dir === '/saves' }, dir);
+      }
+      await syncfs(true);
+    })();
+    // The window, the device and the cached pipelines need /cache but not the
+    // disc, so build them now rather than after Start (main.c). callMain must
+    // wait for it; the click does.
+    graphics = storage.then(() => Module.ccall('browser_prewarm', null, [], [], { async: true }));
+    graphics.catch(log);
     ready = true;
-    status(remoteDisc ? 'Ready.' : 'Choose a GALE01 disc image (.iso or .gcm).');
+    status(idleStatus());
     updateStart();
     adapter = createGCAdapter(Module, log);
     // An adapter authorised in an earlier visit reopens without a gesture.
@@ -133,6 +155,20 @@ window.Module = {
 // the wasm is still compiling, and a disc picked by then started a dead runtime.
 let ready = false;
 let adapter = null;
+// Mounting and populating /saves and /cache; started once the runtime is up.
+let storage = null;
+// browser_prewarm, started once storage is in.
+let graphics = null;
+const idleStatus = () => remoteDisc ? 'Ready.' : 'Choose a GALE01 disc image (.iso or .gcm).';
+// SDL listens for keys on window and cancels the ones it takes, Space and
+// Enter included. Its window exists from browser_prewarm, before Start, so
+// until the game runs keep key events on the page: the Start button, the
+// settings form and the room field still need them.
+for (const type of ['keydown', 'keyup', 'keypress']) {
+  document.addEventListener(type, (event) => {
+    if (!document.body.classList.contains('playing')) event.stopPropagation();
+  });
+}
 // A disc served alongside the page, so a visitor does not supply their own.
 // Probed once at load; null means this server has none.
 let remoteDisc = null;
@@ -172,11 +208,7 @@ $('start').addEventListener('click', async () => {
   try {
     Module.discFile = remoteDisc || $('disc').files[0];
     Module.readDisc = createDiscCache(Module.discFile).read;
-    for (const dir of ['/saves', '/cache']) {
-      Module.FS.mkdirTree(dir);
-      Module.FS.mount(Module.FS.filesystems.IDBFS, { autoPersist: dir === '/saves' }, dir);
-    }
-    await syncfs(true);
+    await graphics;
     // The pipeline cache is written by a background thread; flush it when the
     // page is hidden rather than on every write.
     document.addEventListener('visibilitychange', () => {
