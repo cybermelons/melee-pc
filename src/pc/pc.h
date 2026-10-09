@@ -97,6 +97,12 @@ bool pc_is_pause_on_blur_enabled(void);
  * those named on its own overrides this, including to 0. */
 bool pc_is_20xx_enabled(void);
 
+/* An integer MELEE_* setting, clamped to [lo, hi]. An unset, empty, or
+ * non-numeric value gives `def`. Used by the boot-time drill setup, which has
+ * to reject a value that would select a character or stage that does not
+ * exist. */
+int pc_env_int(const char* name, int def, int lo, int hi);
+
 /* Set once the window is closed; the game loop is expected to exit. */
 extern bool pc_exit_requested;
 

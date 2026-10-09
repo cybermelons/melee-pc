@@ -20,6 +20,9 @@
 #include <melee/lb/types.h>
 #include <melee/mn/inlines.h>
 #include <melee/mn/types.h>
+#ifdef TARGET_PC
+#include <pc/pc.h>
+#endif
 
 /* 1B1B74 */ static void gm_801B1B74(GameModeState*);
 /* 1B1C24 */ static void gm_801B1C24(GameModeState*);
@@ -300,12 +303,21 @@ void gm_Mode_Training_OnLoad(void)
         int i;
 
         gm_SetupRulesDefaults(&vs->start.rules);
-        vs->start.rules.stkind = St_Kind_Battle;
+        /* MELEE_DRILL_STAGE / _CHAR / _CPU pick the setup a drill needs. A
+         * drill for one character cannot practise on another, so without these
+         * every drill link reached the same Mario against Link match. Each
+         * falls back to the value it replaced, so MELEE_BOOT_SCENE=training on
+         * its own behaves exactly as before. */
+        vs->start.rules.stkind =
+            pc_env_int("MELEE_DRILL_STAGE", St_Kind_Battle, 0,
+                       St_Kind_Last - 1);
         gm_SetupAllPlayerDefaults(vs->start.players);
-        vs->start.players[0].ckind = CKind_Mario;
+        vs->start.players[0].ckind = pc_env_int("MELEE_DRILL_CHAR", CKind_Mario,
+                                               0, CKind_Playable_Count - 1);
         vs->start.players[0].color = 0;
         vs->start.players[0].slot = gm_804D68C0 + 1;
-        vs->start.players[1].ckind = CKind_Link;
+        vs->start.players[1].ckind = pc_env_int("MELEE_DRILL_CPU", CKind_Link,
+                                               0, CKind_Playable_Count - 1);
         vs->start.players[1].color = 1;
         vs->start.players[1].cpu_kind = 0;
         vs->start.players[1].slot = 2;

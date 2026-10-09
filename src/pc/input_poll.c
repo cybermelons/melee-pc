@@ -131,6 +131,34 @@ static bool env_is_set(const char* name) {
     return e != NULL && e[0] != '\0' && e[0] != '0';
 }
 
+/* An integer MELEE_* setting, clamped to [lo, hi].
+ *
+ * Unlike every flag in this file the result is NOT cached: the callers are
+ * one-shot boot setup (gmtrainingmode.c), so a static latch would only hide a
+ * misread. An unset, empty, or non-numeric value gives `def`, and a numeric
+ * value outside the range is clamped rather than rejected, so a bad query
+ * parameter cannot boot the game into an undefined character or stage. */
+int pc_env_int(const char* name, int def, int lo, int hi) {
+    const char* e = getenv(name);
+    char* end;
+    long v;
+
+    if (e == NULL || e[0] == '\0') {
+        return def;
+    }
+    v = strtol(e, &end, 10);
+    if (end == e) {
+        return def;
+    }
+    if (v < lo) {
+        return lo;
+    }
+    if (v > hi) {
+        return hi;
+    }
+    return (int) v;
+}
+
 /* MELEE_20XX=1 turns on the boot-time conveniences a 20XX disc gives, so a
  * hosted page needs one flag rather than four. A flag named on its own still
  * wins, which is what lets MELEE_20XX=1&MELEE_BOOT_CSS=0 reach the title
