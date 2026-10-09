@@ -89,6 +89,16 @@ def main():
         sys.exit(f'\n{len(problems)} rule(s) would leave a phone with nothing to tap')
     print(f'mobile css: {checked} hiding/covering rule(s) checked, all scoped to body.playing')
 
+    # The rules that reveal #menu-panel live only in the coarse block, so the
+    # button that toggles them must not show anywhere else: on a desktop it
+    # was a click that changed nothing.
+    text = PAGE.read_text()
+    if 'body.playing.menu #menu-panel' not in mobile_block(text):
+        sys.exit('menu panel reveal moved out of @media (pointer: coarse)')
+    if not re.search(r'@media not all and \(pointer: coarse\)\s*\{\s*#pad-menu\s*\{\s*display:\s*none;', text):
+        sys.exit('#pad-menu shows outside @media (pointer: coarse), where it opens nothing')
+    print('mobile css: #pad-menu hidden wherever the menu panel cannot open')
+
 
 if __name__ == '__main__':
     main()
