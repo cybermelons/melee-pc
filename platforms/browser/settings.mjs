@@ -17,21 +17,27 @@
 // this is the set a visitor should not have to know the spelling of.
 // `scene` entries are radio-like (one boot scene), `flag` entries are
 // independent switches, and `choice` takes one of several values.
+//
+// `tab` groups the row. The panel is one viewport on a phone, and a flat list
+// does not fit one: the full flag set is 96 MELEE_* names in the C source, of
+// which this is the curated subset. Tabs use the width instead of the height.
+// A setting with no tab lands in the first one, so adding a flag cannot drop
+// its control off the page.
 export const SETTINGS = [
-  { key: 'MELEE_BOOT_SCENE', kind: 'choice', label: 'Boot to',
+  { key: 'MELEE_BOOT_SCENE', tab: 'Game', kind: 'choice', label: 'Boot to',
     hint: 'Event starts on event match 1. Add &MELEE_EVENT=<0-50> to pick another.',
     options: [['', 'Title screen'], ['vs', 'Versus'], ['training', 'Training'],
               ['event', 'Event match']] },
-  { key: 'MELEE_DEBUG_VS', kind: 'choice', label: 'Versus opponent',
+  { key: 'MELEE_DEBUG_VS', tab: 'Game', kind: 'choice', label: 'Versus opponent',
     options: [['', 'Human'], ['cpu', 'CPU']] },
-  { key: 'MELEE_20XX', kind: 'flag', label: '20XX conveniences',
+  { key: 'MELEE_20XX', tab: 'Game', kind: 'flag', label: '20XX conveniences',
     hint: 'Unlocks the cast and boots to character select.' },
-  { key: 'MELEE_HITBOXES', kind: 'flag', label: 'Show hitboxes' },
-  { key: 'MELEE_PAUSE', kind: 'flag', label: 'Allow pausing',
+  { key: 'MELEE_HITBOXES', tab: 'Video', kind: 'flag', label: 'Show hitboxes' },
+  { key: 'MELEE_PAUSE', tab: 'Game', kind: 'flag', label: 'Allow pausing',
     hint: 'Tournament rules turn pausing off.' },
-  { key: 'MELEE_PAUSE_ON_BLUR', kind: 'flag', label: 'Pause when unfocused',
+  { key: 'MELEE_PAUSE_ON_BLUR', tab: 'Audio', kind: 'flag', label: 'Pause when unfocused',
     hint: 'A hidden tab always pauses. This covers a visible but unfocused page.' },
-  { key: 'MELEE_SCALE', kind: 'choice', label: 'Render scale',
+  { key: 'MELEE_SCALE', tab: 'Video', kind: 'choice', label: 'Render scale',
     hint: 'Lower renders fewer pixels, to test whether pixel count is the limit.',
     options: [['', '1.0 · 960x720'], ['0.667', '0.667 · 640x480'], ['0.5', '0.5 · 480x360']] },
 ];
