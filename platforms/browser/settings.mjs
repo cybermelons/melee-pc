@@ -23,6 +23,8 @@
 // which this is the curated subset. Tabs use the width instead of the height.
 // A setting with no tab lands in the first one, so adding a flag cannot drop
 // its control off the page.
+export const TABS = ['Game', 'Video', 'Audio'];
+
 export const SETTINGS = [
   { key: 'MELEE_BOOT_SCENE', tab: 'Game', kind: 'choice', label: 'Boot to',
     hint: 'Event starts on event match 1. Add &MELEE_EVENT=<0-50> to pick another.',
@@ -89,6 +91,16 @@ export function addSettings(host, { reload = (search) => location.assign(search 
   form.addEventListener('submit', (event) => event.preventDefault());
 
   const inputs = new Map();
+  const panes = new Map();
+  const pane = (name) => {
+    let found = panes.get(name);
+    if (!found) {
+      found = document.createElement('div');
+      found.className = panes.size ? 'pane off' : 'pane';
+      panes.set(name, found);
+    }
+    return found;
+  };
   for (const setting of SETTINGS) {
     const row = document.createElement('label');
     row.className = 'setting';
@@ -117,8 +129,37 @@ export function addSettings(host, { reload = (search) => location.assign(search 
       hint.textContent = setting.hint;
       row.append(hint);
     }
-    form.append(row);
+    pane(setting.tab ?? TABS[0]).append(row);
   }
+
+  // One head per pane. The heads come before the panes so a screen reader
+  // reaches the control that switches a pane before the pane itself.
+  const heads = document.createElement('div');
+  heads.className = 'tab-heads';
+  heads.id = 'setting-tabs';
+  for (const [name, body] of panes) {
+    const head = document.createElement('button');
+    head.type = 'button';
+    head.className = body.className === 'pane' ? 'tab on' : 'tab';
+    head.textContent = name;
+    head.addEventListener('click', () => {
+      for (const [other, otherBody] of panes) {
+        const front = other === name;
+        otherBody.className = front ? 'pane' : 'pane off';
+      }
+      for (const other of heads.children) {
+        other.className = other.textContent === name ? 'tab on' : 'tab';
+      }
+    });
+    heads.append(head);
+  }
+  form.append(heads);
+  // The panes share one grid cell, so the stack keeps the height of the
+  // tallest and a switch does not move the Apply button below it.
+  const stack = document.createElement('div');
+  stack.className = 'panes';
+  for (const body of panes.values()) stack.append(body);
+  form.append(stack);
 
   const current = () => {
     const out = {};

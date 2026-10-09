@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import test from 'node:test';
 import assert from 'assert/strict';
-import { SETTINGS, isOn, buildSearch, readSearch } from '../../platforms/browser/settings.mjs';
+import { SETTINGS, TABS, isOn, buildSearch, readSearch } from '../../platforms/browser/settings.mjs';
 
 test('a default-valued setting stays out of the URL', () => {
   assert.equal(buildSearch({ MELEE_20XX: '', MELEE_BOOT_SCENE: '' }), '');
@@ -163,4 +163,52 @@ test('a page without the panel degrades instead of throwing', async () => {
   stubDom('');
   const { addSettings } = await import('../../platforms/browser/settings.mjs');
   assert.equal(addSettings(null), null);
+});
+
+test('the rows are grouped into tabs, one head per pane', async () => {
+  const host = stubDom('');
+  const { addSettings } = await import('../../platforms/browser/settings.mjs');
+  const form = addSettings(host, { reload: () => {} });
+  const heads = form.querySelectorAll('.tab').concat(form.querySelectorAll('.tab on'));
+  const used = new Set(SETTINGS.map((s) => s.tab ?? TABS[0]));
+  assert.equal(heads.length, used.size, 'one head per tab that has a row');
+  // Every row still reaches the form, so no setting is lost in a pane.
+  assert.equal(form.querySelectorAll('.setting').length, SETTINGS.length);
+});
+
+test('exactly one pane is in front, and a head switches it', async () => {
+  const host = stubDom('');
+  const { addSettings } = await import('../../platforms/browser/settings.mjs');
+  const form = addSettings(host, { reload: () => {} });
+  const front = () => form.querySelectorAll('.pane').length;
+  assert.equal(front(), 1, 'one pane in front at the start');
+  const heads = form.querySelector('.tab-heads');
+  // Press the second head. The first pane must leave the front, and the
+  // count must stay at one: two panes in front is the bug a stacked layout
+  // hides, because both are drawn in the same grid cell.
+  heads.children[1].handlers.get('click')();
+  assert.equal(front(), 1, 'still exactly one pane in front after a switch');
+  assert.equal(heads.children[1].className, 'tab on');
+  assert.equal(heads.children[0].className, 'tab');
+});
+
+test('a setting that names no tab still gets a control', async () => {
+  for (const setting of SETTINGS) {
+    assert.ok(setting.tab == null || TABS.includes(setting.tab),
+      `${setting.key} names a tab that is not in TABS`);
+  }
+  // Every shipped setting names a tab, so SETTINGS alone cannot exercise the
+  // fallback. A flag added without one must still get a control rather than
+  // vanish, so the case is supplied here.
+  const host = stubDom('');
+  const mod = await import('../../platforms/browser/settings.mjs');
+  const loose = { key: 'MELEE_NO_TAB', kind: 'flag', label: 'No tab' };
+  SETTINGS.push(loose);
+  try {
+    const form = mod.addSettings(host, { reload: () => {} });
+    assert.equal(form.querySelectorAll('.setting').length, SETTINGS.length);
+    assert.ok(form.querySelector('[name=MELEE_NO_TAB]'), 'the untabbed row is missing');
+  } finally {
+    SETTINGS.pop();
+  }
 });
