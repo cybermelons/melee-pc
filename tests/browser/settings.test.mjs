@@ -341,3 +341,87 @@ test('the 20XX family stays condensed, and keeps the pausing fact', () => {
   assert.match(`${rules.hint} ${pause.hint}`, /paus/i,
     'nothing tells the player that tournament rules and pausing interact');
 });
+
+test('only the settings with a real env reader got a control (#28)', () => {
+  // The web launcher writes a query string that becomes Module.ENV and is read
+  // by std::getenv. The other twelve settings #28 names are `prefs` fields
+  // with no getenv anywhere in src/, so a control for one would do nothing.
+  // Precedent: asked about unlock_all, the owner condensed the UI rather than
+  // add a MELEE_UNLOCK_ALL read in C.
+  const keys = new Set(SETTINGS.map((s) => s.key));
+  for (const reachable of ['MELEE_UCF', 'MELEE_FROZEN_STADIUM', 'MELEE_NET_DELAY']) {
+    assert.ok(keys.has(reachable), `${reachable} has an env reader and needs a control`);
+  }
+  for (const unreachable of ['MELEE_WIDESCREEN', 'MELEE_HUD_MODE', 'MELEE_CUSTOM_TEXTURES',
+    'MELEE_FREE_CAMERA', 'MELEE_FILTER_MODE', 'MELEE_ANISOTROPY', 'MELEE_VOLUME',
+    'MELEE_MUSIC_VOLUME', 'MELEE_SFX_VOLUME', 'MELEE_REVERB', 'MELEE_MUTE',
+    'MELEE_NET_NAME', 'MELEE_UNLOCK_ALL']) {
+    assert.equal(keys.has(unreachable), false,
+      `${unreachable} has no getenv in src/, so a control cannot reach it`);
+  }
+});
+
+test('the new flags reach the URL, and stay out of it when off', () => {
+  const on = new URLSearchParams(
+    buildSearch({ MELEE_UCF: '1', MELEE_FROZEN_STADIUM: '1' }));
+  assert.equal(on.get('MELEE_UCF'), '1');
+  assert.equal(on.get('MELEE_FROZEN_STADIUM'), '1');
+  // Neither is a child, so off means "leave the launcher preference alone"
+  // and the key must be omitted rather than written as 0.
+  const off = new URLSearchParams(
+    buildSearch({ MELEE_UCF: '', MELEE_FROZEN_STADIUM: '' }));
+  assert.equal(off.has('MELEE_UCF'), false);
+  assert.equal(off.has('MELEE_FROZEN_STADIUM'), false);
+});
+
+test('a non-default net delay round-trips through readSearch', () => {
+  for (const value of ['auto', '0', '3']) {
+    assert.equal(readSearch(`MELEE_NET_DELAY=${value}`).MELEE_NET_DELAY, value,
+      `${value} must survive the read unchanged, not be squashed to a flag`);
+    assert.equal(
+      new URLSearchParams(buildSearch(readSearch(`MELEE_NET_DELAY=${value}`)))
+        .get('MELEE_NET_DELAY'), value);
+  }
+  // "Saved" is the default and carries no key.
+  assert.equal(new URLSearchParams(buildSearch({ MELEE_NET_DELAY: '' }))
+    .has('MELEE_NET_DELAY'), false);
+});
+
+test('every net delay option is a value src/pc/net.c accepts', () => {
+  // net.c:2171 -- "auto", else atoi() and rejected unless 0 <= n < RING/2.
+  const delay = SETTINGS.find((s) => s.key === 'MELEE_NET_DELAY');
+  for (const [value] of delay.options) {
+    if (value === '' || value === 'auto') continue;
+    const n = Number(value);
+    assert.ok(Number.isInteger(n) && n >= 0 && n < 32, `${value} is out of net.c's range`);
+  }
+});
+
+test('the Netplay tab exists and holds the net delay row', async () => {
+  assert.ok(TABS.includes('Netplay'), 'MELEE_NET_DELAY needs a tab to live on');
+  const host = stubDom('');
+  const { addSettings } = await import('../../platforms/browser/settings.mjs');
+  const form = addSettings(host, { reload: () => {} });
+  const row = form.querySelector('[name=MELEE_NET_DELAY]').parent;
+  assert.equal(row.parent.className.split(' ').includes('pane'), true,
+    'the row must be a loose row in a pane, not folded under a parent');
+  const heads = form.querySelector('.tab-heads');
+  assert.ok(heads.children.some((h) => h.textContent === 'Netplay'));
+});
+
+test('the new rows stay condensed: short labels, no hints (#29)', () => {
+  for (const key of ['MELEE_UCF', 'MELEE_FROZEN_STADIUM', 'MELEE_NET_DELAY']) {
+    const s = SETTINGS.find((x) => x.key === key);
+    assert.equal(s.hint, undefined, `${key} must carry no hint`);
+    assert.ok(s.label.split(/\s+/).length <= 2, `${key} label too long`);
+  }
+});
+
+test('the new settings are not children, so the parent logic is untouched', () => {
+  const parents = new Set(SETTINGS.filter((s) => s.parent).map((s) => s.key));
+  for (const key of ['MELEE_UCF', 'MELEE_FROZEN_STADIUM', 'MELEE_NET_DELAY']) {
+    assert.equal(parents.has(key), false, `${key} must not be a child`);
+  }
+  // Still exactly one fold's worth of children: the 20XX family.
+  assert.equal(parents.size, 2);
+});

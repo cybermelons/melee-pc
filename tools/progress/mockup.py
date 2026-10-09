@@ -49,8 +49,8 @@ TABS = {
         # with no env var, so #29 has to add the env read in C before a web
         # control can follow MELEE_20XX.
         ('ctl-unlock-all', 'Unlock everything', 'child', ''),
-        ('ctl-MELEE_UCF', 'Universal controller fix', _chk(True), ''),
-        ('ctl-frozen-stadium', 'Pokémon Stadium', _sel('Normal', 'Hazardless'), ''),
+        ('ctl-MELEE_UCF', 'Controller fix', _chk(True), ''),
+        ('ctl-MELEE_FROZEN_STADIUM', 'Hazardless stadium', _chk(), ''),
         ('ctl-MELEE_PAUSE', 'Allow pausing', _chk(True),
          'Tournament rules turn pausing off.'),
     ],
@@ -83,7 +83,8 @@ TABS = {
     'Netplay': [
         ('ctl-net-name', 'Display name',
          '<input type="text" disabled value="kiri" size="10">', ''),
-        ('ctl-MELEE_NET_DELAY', 'Input delay', _sel('Auto', '1', '2', '3'), ''),
+        ('ctl-MELEE_NET_DELAY', 'Input delay',
+         _sel('Saved', 'Auto', '0', '1', '2', '3', '4'), ''),
         ('ctl-net-relay', 'Connection', _sel('Direct, relay if needed', 'Relay always'),
          'A direct connection fails behind a symmetric NAT.'),
     ],

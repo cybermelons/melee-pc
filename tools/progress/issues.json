@@ -147,7 +147,7 @@
       "side": "right",
       "state": "open",
       "title": "Port the native launcher settings",
-      "pin": "UCF, aspect, HUD, textures, camera, stadium, volumes and the netplay name all exist in src/pc/launcher.cpp and on no web control."
+      "pin": "Measured: only 3 of the 16 have a std::getenv the query string can reach -- MELEE_UCF (launcher.cpp:1870), MELEE_FROZEN_STADIUM (:1842), MELEE_NET_DELAY (net.c:2171). Those 3 shipped, with a Netplay tab. The other 12 (widescreen, HUD, textures, camera, filter, anisotropy, 3 volumes, reverb, mute, net name) are prefs fields with no env reader, so no web control can reach them without a native prefs path. Same shape as unlock_all in #29, where the owner condensed the UI rather than add the C read."
     },
     {
       "n": 8,

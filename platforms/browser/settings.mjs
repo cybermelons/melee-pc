@@ -29,7 +29,14 @@
 // which this is the curated subset. Tabs use the width instead of the height.
 // A setting with no tab lands in the first one, so adding a flag cannot drop
 // its control off the page.
-export const TABS = ['Game', 'Video', 'Audio'];
+// Most of what the native launcher (src/pc/launcher.cpp) offers cannot be
+// reached from here at all. Twelve of its settings -- widescreen, hud_mode,
+// custom_textures, free_camera, filter_mode, anisotropy, volume,
+// music_volume, sfx_volume, reverb, mute, net_name -- are `prefs` fields with
+// no std::getenv anywhere, so the query string has nothing to write into.
+// Only UCF, frozen stadium and net delay have a real env reader, and those
+// are the three controls below. See issue #28.
+export const TABS = ['Game', 'Video', 'Audio', 'Netplay'];
 
 export const SETTINGS = [
   { key: 'MELEE_BOOT_SCENE', tab: 'Game', kind: 'choice', label: 'Boot to',
@@ -52,6 +59,18 @@ export const SETTINGS = [
     hint: 'A hidden tab always pauses. This covers a visible but unfocused page.' },
   { key: 'MELEE_SCALE', tab: 'Video', kind: 'choice', label: 'Render scale',
     options: [['', '1.0 · 960x720'], ['0.667', '0.667 · 640x480'], ['0.5', '0.5 · 480x360']] },
+  // src/pc/launcher.cpp:1870. Off writes nothing, which leaves the launcher
+  // preference in charge; a netplay session forces it on regardless.
+  { key: 'MELEE_UCF', tab: 'Game', kind: 'flag', label: 'Controller fix' },
+  // src/pc/launcher.cpp:1842, read as env[0] != '0'.
+  { key: 'MELEE_FROZEN_STADIUM', tab: 'Game', kind: 'flag', label: 'Hazardless stadium' },
+  // src/pc/net.c:2171: "auto" derives the delay from ping and jitter, any
+  // other value is atoi'd and must land under RING/2 (32) or it falls back
+  // to 2. The native launcher cycles 0..4 then auto, so those are the honest
+  // choices. Empty follows the saved preference.
+  { key: 'MELEE_NET_DELAY', tab: 'Netplay', kind: 'choice', label: 'Input delay',
+    options: [['', 'Saved'], ['auto', 'Auto'], ['0', '0'], ['1', '1'], ['2', '2'],
+              ['3', '3'], ['4', '4']] },
 ];
 
 // A flag is on for any value other than "0" or the empty string, matching
