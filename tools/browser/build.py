@@ -30,6 +30,7 @@ def main():
     run([sys.executable, ROOT / 'tests/browser/test_no_fpcast_emu.py'])
     run([sys.executable, ROOT / 'tests/browser/test_tier_layout.py'])
     run([sys.executable, ROOT / 'tests/browser/test_event_boot.py'])
+    run([sys.executable, ROOT / 'tests/browser/test_asset_copy.py'])
     run([sys.executable, tools / 'build_lower.py'])
     run([sys.executable, tools / 'test_disc_lower.py'])
     run([sys.executable, tools / 'compile_game.py', '--jobs', args.jobs])
