@@ -36,15 +36,19 @@ void pc_menu_event(const SDL_Event* e) {
 bool pc_menu_is_open(void) {
     return false;
 }
-int main(int argc, char** argv) {
+/* Creates the window and the device and builds the cached pipelines, without
+ * the disc and without touching game state. The page calls it (async ccall)
+ * once /cache is populated and before Start, so the pipeline cache warms while
+ * the visitor is still on the launch row; main() calls it too and does
+ * nothing the second time. Each call must finish before the next starts: it
+ * yields to the browser while it builds. */
+static bool graphics_ready;
+EMSCRIPTEN_KEEPALIVE void browser_prewarm(void) {
+    if (graphics_ready)
+        return;
+    graphics_ready = true;
     mkdir("/saves", 0777);
     mkdir("/cache", 0777);
-    if (!aurora_dvd_open("disc")) {
-        fprintf(stderr, "Unsupported or unreadable disc\n");
-        return 1;
-    }
-    if (!pc_load_disc_fonts("disc"))
-        return 2;
     AuroraConfig c = {.appName = "Melee",
         .userPath = "/saves",
         .cachePath = "/cache",
@@ -70,10 +74,22 @@ int main(int argc, char** argv) {
     /* The page owns the canvas, so it owns the render size too. */
     c.windowWidth = EM_ASM_INT({ return Module.canvas.width; });
     c.windowHeight = EM_ASM_INT({ return Module.canvas.height; });
-    AuroraInfo info = aurora_initialize(argc, argv, &c);
+    static char* argv[] = {"melee", NULL};
+    AuroraInfo info = aurora_initialize(1, argv, &c);
     (void)info;
     extern void browser_prepare_graphics(void);
     browser_prepare_graphics();
+}
+int main(int argc, char** argv) {
+    (void)argc;
+    (void)argv;
+    browser_prewarm();
+    if (!aurora_dvd_open("disc")) {
+        fprintf(stderr, "Unsupported or unreadable disc\n");
+        return 1;
+    }
+    if (!pc_load_disc_fonts("disc"))
+        return 2;
     pc_platform_init();
     aurora_card_set_present(true);
     return melee_main();
