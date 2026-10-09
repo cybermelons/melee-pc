@@ -11,7 +11,7 @@ import { addMenuButton } from './menu-button.mjs';
 import { addTierToggle } from './tier.mjs';
 import { showCrash } from './crash.mjs';
 import { addSettings } from './settings.mjs';
-import { addLobby, ensureRoom, mySlot, roomLink } from './lobby.mjs';
+import { addLobby, ensureRoom, mySlot, roomLink, sessionId } from './lobby.mjs';
 import { addStates } from './states.mjs';
 
 const $ = (id) => document.getElementById(id);
@@ -362,7 +362,9 @@ async function joinLobby() {
   // https:// page is blocked as mixed content. ?signal= still points at a
   // standalone `node tools/browser/signal.mjs` for local development.
   const signal = new URLSearchParams(location.search).get('signal') || '/signal';
-  const me = crypto.randomUUID();
+  // Stable across a reload, so loading a save state keeps this page's port
+  // (#24). See sessionId in lobby.mjs for why a fresh UUID lost it.
+  const me = sessionId();
   const base = `${signal}/r/${encodeURIComponent(roomId)}`;
   const post = (msg) => fetch(base, { method: 'POST', body: JSON.stringify({ ...msg, from: me }) });
   status('Take a port.');

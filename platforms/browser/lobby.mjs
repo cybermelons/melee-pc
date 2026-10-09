@@ -35,6 +35,41 @@ export const PAIRABLE = 2;
 export const mintRoom = () => crypto.randomUUID().slice(0, 8);
 
 /**
+ * This page's signaling identity, stable across a reload (#24).
+ *
+ * Loading a save state is a reload (states.mjs:16-21): there is no snapshot
+ * path in the browser build, so a preset press is a MELEE_* query string plus
+ * a navigation. That drops the event stream, which fires the close handler in
+ * signal.mjs:59.
+ *
+ * That handler has a guard for exactly this -- "a refresh reuses the same id,
+ * and its new stream can subscribe before this close fires" (signal.mjs:66)
+ * -- but the guard is keyed on `me`, and a freshly minted UUID can never match
+ * it. So every state load released the loader's port, which contradicts #24's
+ * own second paragraph: a training scenario "does not cost anybody a port".
+ *
+ * sessionStorage is the right scope rather than localStorage: a tab is a seat.
+ * It survives the reload and dies with the tab, so two tabs are two players
+ * and a closed tab frees its port the way the close handler intends.
+ *
+ * Same try/catch as tier.mjs: private mode and blocked site data throw on both
+ * read and write. Falling back to a fresh id costs the port on load, which is
+ * the old behaviour -- worse, but not fatal, and better than no identity.
+ */
+export const ME_KEY = 'melee.me';
+export function sessionId(store = globalThis.sessionStorage, mint = () => crypto.randomUUID()) {
+  try {
+    const held = store?.getItem(ME_KEY);
+    if (held) return held;
+    const me = mint();
+    store?.setItem(ME_KEY, me);
+    return me;
+  } catch {
+    return mint();
+  }
+}
+
+/**
  * The input sources a browser can actually offer (#30).
  *
  * `navigator` is a parameter rather than a global read, because the whole

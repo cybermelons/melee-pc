@@ -286,3 +286,69 @@ test('a fresh subscriber is told the queue, not just the claims', { timeout: 100
     assert.deepEqual(h.latest.get('late').queue, ['carol']);
   } finally { await h.close(); }
 });
+
+// Loading a save state is a reload (#24, states.mjs:16-21): no snapshot path
+// exists in the browser build, so a preset press is a query string plus a
+// navigation. That drops the event stream and fires the close handler, and
+// the issue's second paragraph says it must not cost a port --
+// "a training scenario needs no seat of its own and does not cost anybody a
+// port". A reload is simulated the way the browser does it: the new stream
+// subscribes under the same id, then the old one closes.
+test('loading a state keeps the port it was loaded from', { timeout: 10000 }, async () => {
+  const h = harness('s1', 8210);
+  try {
+    await h.sub('keeper');
+    const before = await h.sub('alice');
+    await wait(100);
+    assert.equal(await h.post({ type: 'claim', player: 0, from: 'alice' }), 204);
+    await wait(100);
+    assert.equal(h.latest.get('keeper').claims[0], 'alice', 'alice holds P1');
+
+    // The state load: ?MELEE_BOOT_SCENE=training&MELEE_HITBOXES=1 with the same
+    // ?room=, so the same page comes back under the same identity.
+    await h.sub('alice');
+    before.abort();
+    await wait(300);
+    assert.equal(h.latest.get('keeper').claims[0], 'alice',
+      'the port survived the reload a state load performs');
+  } finally { await h.close(); }
+});
+
+test('a state load costs no other player their port', { timeout: 10000 }, async () => {
+  // The other half of the same paragraph. Reloading one page must not disturb
+  // anybody else's claim, nor the line behind it.
+  const h = harness('s2', 8211);
+  try {
+    const alice = await h.sub('alice');
+    await h.sub('bob');
+    await h.sub('carol');
+    await wait(100);
+    await h.post({ type: 'claim', player: 0, from: 'alice' });
+    await h.post({ type: 'claim', player: 1, from: 'bob' });
+    await h.post({ type: 'claim', player: 0, from: 'carol' }); // refused, queued
+    await wait(100);
+    await h.sub('alice');
+    alice.abort();
+    await wait(300);
+    const s = h.latest.get('bob');
+    assert.equal(s.claims[1], 'bob', 'bob kept P2 through someone else’s state load');
+    assert.equal(s.claims[0], 'alice', 'and alice kept P1');
+    assert.deepEqual(s.queue, ['carol'], 'carol was not promoted onto a held port');
+  } finally { await h.close(); }
+});
+
+test('a tab that closes for real still frees its port', { timeout: 10000 }, async () => {
+  // The guard must not become a leak: keeping a claim across a reload is only
+  // correct because a page that does not come back has no stream under its id.
+  const h = harness('s3', 8212);
+  try {
+    await h.sub('keeper');
+    const alice = await h.sub('alice');
+    await wait(100);
+    await h.post({ type: 'claim', player: 0, from: 'alice' });
+    await wait(100);
+    alice.abort(); // no replacement stream: the tab is gone
+    await wait(300);
+    assert.equal(h.latest.get('keeper').claims[0], null, 'a closed tab frees its port');
+  } finally { await h.close(); }
+});

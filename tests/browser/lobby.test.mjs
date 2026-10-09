@@ -8,6 +8,7 @@ import { readFileSync } from 'fs';
 import {
   PORTS, PAIRABLE, SOURCES, ensureRoom, portStates, mySlot, spectating, roomLink,
   addLobby, detectSources, newPortSources, setPortSource, sourceLabel,
+  sessionId, ME_KEY,
 } from '../../platforms/browser/lobby.mjs';
 
 const loc = (search, pathname = '/', origin = 'http://melee.test') =>
@@ -414,4 +415,60 @@ test('neither the page nor the mockup still says "copy link" (#6)', () => {
     assert.ok(!/>copy link</.test(src), `${rel} still renders "copy link"`);
     assert.ok(!/wait for one to free up/.test(src), `${rel} still has the old #23 tail`);
   }
+});
+
+// A seat has to survive a reload (#24). Loading a save state is a reload, so
+// an identity minted per page load hands the port back to the room every time
+// -- which is exactly what the issue's second paragraph says must not happen.
+const memStore = (init = {}) => {
+  const m = new Map(Object.entries(init));
+  return { getItem: (k) => m.get(k) ?? null, setItem: (k, v) => m.set(k, String(v)), map: m };
+};
+
+test('sessionId is stable across reloads in the same tab', () => {
+  const store = memStore();
+  let n = 0;
+  const mint = () => `uuid-${n += 1}`;
+  const first = sessionId(store, mint);
+  // A reload re-runs the module against the same sessionStorage.
+  const second = sessionId(store, mint);
+  assert.equal(second, first, 'a reload keeps the identity the port is held under');
+  assert.equal(n, 1, 'and does not mint a second id');
+  assert.equal(store.getItem(ME_KEY), first, 'the id is what was stored');
+});
+
+test('sessionId is different in a different tab', () => {
+  // Two tabs are two players: sessionStorage is per-tab, so each gets its own
+  // seat. localStorage would make a second tab steal the first one's port.
+  let n = 0;
+  const mint = () => `uuid-${n += 1}`;
+  assert.notEqual(sessionId(memStore(), mint), sessionId(memStore(), mint));
+});
+
+test('sessionId defaults to the per-tab store, not the shared one', () => {
+  // The scope is the whole point and the default is what ships: localStorage
+  // is shared across every tab on the origin, so two tabs would send the same
+  // `me` and the second would take over the first one's port.
+  const src = readFileSync(new URL('../../platforms/browser/lobby.mjs', import.meta.url), 'utf8');
+  const sig = /export function sessionId\(store = globalThis\.(\w+)/.exec(src);
+  assert.ok(sig, 'sessionId still takes an injectable store');
+  assert.equal(sig[1], 'sessionStorage', 'the default store must be per-tab');
+});
+
+test('sessionId still yields an id when the store throws', () => {
+  // Private mode and blocked site data throw on read and on write. Losing the
+  // port on load is the old behaviour; having no identity at all is worse.
+  const boom = { getItem() { throw new Error('denied'); }, setItem() { throw new Error('denied'); } };
+  assert.match(sessionId(boom, () => 'fallback'), /fallback/);
+  const writeOnly = { getItem: () => null, setItem() { throw new Error('denied'); } };
+  assert.equal(sessionId(writeOnly, () => 'fresh'), 'fresh');
+});
+
+test('the lobby identity is not minted fresh per page load', () => {
+  // The regression guard. signal.mjs:66 only keeps a claim across a refresh
+  // when the id matches, so shell.mjs must not call randomUUID for `me`.
+  const src = readFileSync(new URL('../../platforms/browser/shell.mjs', import.meta.url), 'utf8');
+  assert.ok(/const me = sessionId\(\)/.test(src), 'shell.mjs takes `me` from sessionId');
+  assert.ok(!/const me = crypto\.randomUUID\(\)/.test(src),
+    'shell.mjs must not mint a fresh id for `me`; a state load would drop the port');
 });
