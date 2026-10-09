@@ -3,12 +3,40 @@
 // for WebRTC offer/answer. State is in memory; a room lives while a stream does.
 import http from 'node:http';
 
-const rooms = new Map(); // room -> { claims: [id|null, id|null], subs: Map<id, res> }
+const rooms = new Map(); // room -> { claims: [id|null, id|null], queue: id[], subs: Map<id, res> }
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Cross-Origin-Resource-Policy': 'cross-origin' };
 const send = (room, event, data, except) => {
   for (const [id, res] of room.subs) if (id !== except) res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
 };
-const state = (room) => ({ claims: { 0: room.claims[0], 1: room.claims[1] } });
+const state = (room) => ({ claims: { 0: room.claims[0], 1: room.claims[1] }, queue: [...room.queue] });
+
+// Hand a freed slot to the first in line (#23). The queue is not a waiting
+// room -- under the no-wait ruling on #12 there is no pre-match state to wait
+// in -- it is a claim-order arbiter: without it, two people racing for the
+// same freed port means one of them gets a bare 409 with no recourse.
+//
+// Only a waiter still subscribed may be given the port. A page that left is
+// dropped from the queue by the close handler, but a close that fires in the
+// same tick as a release would otherwise hand the port to a ghost and put the
+// room straight back into the state the close handler exists to prevent.
+const promote = (room, slot) => {
+  while (room.queue.length) {
+    const next = room.queue.shift();
+    if (!room.subs.has(next) || room.claims.includes(next)) continue;
+    room.claims[slot] = next;
+    return;
+  }
+};
+
+// Free whatever slot this id holds and pass it on. Shared by the explicit
+// `release` message and the stream-close path, so both orders agree.
+const releaseFor = (room, id) => {
+  const slot = room.claims.indexOf(id);
+  if (slot === -1) return false;
+  room.claims[slot] = null;
+  promote(room, slot);
+  return true;
+};
 
 // The handler is exported so a host page server can mount it under a path
 // instead of running a second process on its own port. `prefix` is stripped
@@ -23,7 +51,7 @@ export function signalHandler(req, res, prefix = '') {
   if (req.method === 'GET' && m[2]) {
     const me = url.searchParams.get('me');
     if (!me) { res.writeHead(400, CORS); return res.end(); }
-    if (!rooms.has(name)) rooms.set(name, { claims: [null, null], subs: new Map() });
+    if (!rooms.has(name)) rooms.set(name, { claims: [null, null], queue: [], subs: new Map() });
     const room = rooms.get(name);
     res.writeHead(200, { ...CORS, 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' });
     room.subs.set(me, res);
@@ -38,11 +66,12 @@ export function signalHandler(req, res, prefix = '') {
       // this close fires. Releasing then would drop the claim the new page just
       // retook, so only release when no stream for this id remains.
       if (room.subs.has(me)) return;
-      const slot = room.claims.indexOf(me);
-      if (slot !== -1) {
-        room.claims[slot] = null;
-        send(room, 'state', state(room));
-      }
+      // Leaving the room also leaves the queue, for the same reason: a waiter
+      // who has gone would otherwise be handed the next freed port and hold
+      // it as a ghost.
+      const waiting = room.queue.indexOf(me);
+      if (waiting !== -1) room.queue.splice(waiting, 1);
+      if (releaseFor(room, me) || waiting !== -1) send(room, 'state', state(room));
     });
     return;
   }
@@ -57,9 +86,28 @@ export function signalHandler(req, res, prefix = '') {
     if (msg.type === 'claim') {
       const slot = msg.player;
       if (slot !== 0 && slot !== 1) { res.writeHead(400, CORS); return res.end(); }
-      if (room.claims[slot] && room.claims[slot] !== msg.from) { res.writeHead(409, CORS); return res.end(); }
-      room.claims = room.claims.map((id) => (id === msg.from ? null : id));
+      if (room.claims[slot] && room.claims[slot] !== msg.from) {
+        // Still a 409: the claim did not take. But the claimant now holds a
+        // place in line, so the state event tells them where, and the next
+        // port to free comes to them in the order they asked.
+        if (!room.queue.includes(msg.from)) {
+          room.queue.push(msg.from);
+          send(room, 'state', state(room));
+        }
+        res.writeHead(409, CORS);
+        return res.end();
+      }
+      // Taking a port gives up the place in line; the wait is over.
+      const waiting = room.queue.indexOf(msg.from);
+      if (waiting !== -1) room.queue.splice(waiting, 1);
+      // Dropping the claimant's previous slot frees it, so it goes to the
+      // first in line rather than sitting empty while somebody waits.
+      const prev = room.claims.indexOf(msg.from);
+      if (prev !== -1 && prev !== slot) { room.claims[prev] = null; promote(room, prev); }
       room.claims[slot] = msg.from;
+      send(room, 'state', state(room));
+    } else if (msg.type === 'release') {
+      if (!releaseFor(room, msg.from)) { res.writeHead(409, CORS); return res.end(); }
       send(room, 'state', state(room));
     } else if (msg.type === 'offer' || msg.type === 'answer') {
       send(room, msg.type, { sdp: msg.sdp }, msg.from);

@@ -282,13 +282,14 @@ const { room: roomId } = ensureRoom(location, history);
 const lobby = addLobby($('lobby'), {
   room: roomId,
   onClaim: (i) => claim?.(i),
-  onRelease: () => status('Releasing a port needs the server to forget the claim: not wired yet.'),
+  onRelease: () => release?.(),
   onCopy: () => navigator.clipboard?.writeText(roomLink(location))
     .then(() => status('Link copied.'), () => status('Could not copy the link.')),
 });
 // Set by joinLobby once the signal channel is open; before that a tile press
 // has nothing to post to.
 let claim = null;
+let release = null;
 // True once melee_browser.js has been added to the page, which is the moment
 // preRun copies ENV into the engine. After that a new MELEE_NET_PLAYER cannot
 // reach the engine, so a port claimed later has to reload the page.
@@ -325,6 +326,9 @@ async function joinLobby() {
     pc.addEventListener('icegatheringstatechange', () => pc.iceGatheringState === 'complete' && done());
   });
   let slot = -1;
+  // Place in the port queue, or -1. Read from the same `state` event as the
+  // claims, so it cannot disagree with what the server thinks.
+  let place = -1;
   const open = (dc) => {
     dc.binaryType = 'arraybuffer';
     dc.onopen = () => {
@@ -374,7 +378,8 @@ async function joinLobby() {
     }
   };
   events.addEventListener('state', (e) => {
-    const { claims } = JSON.parse(e.data);
+    const { claims, queue } = JSON.parse(e.data);
+    place = (queue ?? []).indexOf(me);
     slot = mySlot(claims, me);
     lobby.render(claims, me);
     // Holding a port and having a peer is what opens the channel. Neither
@@ -396,9 +401,26 @@ async function joinLobby() {
   });
   events.addEventListener('answer', (e) =>
     pc.setRemoteDescription({ type: 'answer', sdp: JSON.parse(e.data).sdp }));
+  // Giving up a port (#23). The tiles are not repainted here: the server
+  // answers with a `state` event, and that one path is what the whole lobby
+  // already renders from, so a release that the server refused never shows as
+  // one that worked. The engine keeps running -- it is not gated on a port --
+  // but this page is no longer paired, so say so rather than implying a match
+  // continues.
+  release = async () => {
+    const r = await post({ type: 'release' });
+    status(r.ok ? 'Port released. Take one again to rejoin.' : 'You hold no port.');
+  };
   claim = async (i) => {
     const r = await post({ type: 'claim', player: i });
-    if (!r.ok) return status(`P${i + 1} is taken.`);
+    // A refused claim is not a dead end any more: the server put this page in
+    // line, so report the place rather than only the rejection. The state
+    // event carrying it may not have arrived yet, hence the fallback.
+    if (!r.ok) {
+      return status(place >= 0
+        ? `P${i + 1} is taken. You are ${place + 1} in line for the next free port.`
+        : `P${i + 1} is taken. You are in line for the next free port.`);
+    }
     // Before the engine is injected a claim needs nothing: preRun has not run,
     // so the state handler's ENV writes still reach it.
     if (!injected) return;
