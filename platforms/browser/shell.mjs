@@ -6,6 +6,7 @@ import { openRemoteDisc } from './remote-disc.mjs';
 import { createGCAdapter } from './gcadapter.mjs';
 import { checkGraphics } from './gpu-preflight.mjs';
 import { createTouchOverlay } from './touch.mjs';
+import { iceServers, natKind } from './nat.mjs';
 import { addMenuButton } from './menu-button.mjs';
 import { addTierToggle } from './tier.mjs';
 import { showCrash } from './crash.mjs';
@@ -274,18 +275,29 @@ async function pairIfRoom() {
     };
   };
   let pc = null;
+  const candidates = [];
   const start = async () => {
     // A host candidate is a LAN address, so with no STUN server two peers on
     // different networks never learn an address the other can reach. STUN
     // gets each side its public address, which is enough for hole punching.
-    // Symmetric NAT still fails and needs a TURN relay: see the ICE failure
-    // message below, which is what tells the players that is what happened.
-    pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+    // Two STUN servers rather than one: a symmetric NAT assigns a different
+    // external port per destination, so disagreement between the two is how
+    // natKind() below recognises the one NAT that hole punching cannot beat.
+    // Symmetric NAT needs a TURN relay, which ?ice= supplies without a
+    // rebuild: a JSON array of RTCIceServer, as in
+    // ?ice=[{"urls":"turn:host:3478","username":"u","credential":"p"}].
+    pc = new RTCPeerConnection({ iceServers: iceServers() });
     status('Pairing…');
+    pc.addEventListener('icecandidate', (e) => e.candidate && candidates.push(e.candidate.candidate));
     pc.addEventListener('connectionstatechange', () => {
-      if (pc.connectionState === 'failed') {
-        status('Could not connect to the other player. One of your networks blocks direct play.');
-      }
+      if (pc.connectionState !== 'failed') return;
+      // Name the cause, because the two cases need different things from the
+      // players: a symmetric NAT on this side needs a relay and no amount of
+      // retrying helps, whereas anything else may be the other side's network.
+      const kind = natKind(candidates);
+      status(kind === 'symmetric'
+        ? 'Could not connect. Your router uses symmetric NAT, so direct play is impossible without a relay.'
+        : 'Could not connect to the other player. One of your networks blocks direct play.');
     });
     if (slot === 0) {
       open(pc.createDataChannel('melee', { ordered: false, maxRetransmits: 0 }));
