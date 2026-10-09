@@ -243,7 +243,7 @@
       "side": "right",
       "state": "open",
       "title": "Condense the 20XX children into a closed grid",
-      "pin": "This fold, closed and two across. Unlock everything is drawn here as the target, but prefs.unlock_all has no env var, so it needs one line of C before a web control can follow 20XX."
+      "pin": "Measured at 390px: the fold is already closed on load and now holds 2 children, not the 5 this was written against. The issue calls one-per-row the right shape for 2, so the grid would save one 50px row and break the Tournament rules hint, which spans full width. Unlock everything stays out: the owner chose to condense the UI rather than add the C env read."
     },
     {
       "n": 30,

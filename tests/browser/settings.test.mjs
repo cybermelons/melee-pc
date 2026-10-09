@@ -315,6 +315,19 @@ test('the children sit in one fold under the parent, not as loose rows', async (
   assert.equal(folds[0].parent.className.split(' ').includes('pane'), true);
 });
 
+test('the fold is closed on load, so the group costs one row', async () => {
+  // #29 asks for it closed: "The fold currently opens on its own, which costs
+  // the rows it was added to save." A <details> with no open attribute is
+  // closed by the UA, so this guards against someone adding one back.
+  const host = stubDom('');
+  const { addSettings } = await import('../../platforms/browser/settings.mjs');
+  const form = addSettings(host, { reload: () => {} });
+  const fold = form.querySelectorAll('.kids')[0];
+  assert.ok(fold, 'no fold to check');
+  assert.ok(!fold.open, 'the fold must start closed');
+  assert.equal(fold.getAttribute?.('open') ?? null, null, 'no open attribute');
+});
+
 test('the render scale hint is gone: the option labels carry the pixel counts', () => {
   // #17: the user asked for the explanatory hint removed twice. The options
   // already read "1.0 · 960x720", which is the information the hint repeated.
