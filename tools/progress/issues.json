@@ -28,6 +28,14 @@
       "pin": "One persistent room per URL, shipped: platforms/browser/lobby.mjs mints the room with replaceState and draws four port tiles. The mode links are gone. Nothing waits for a partner: the engine boots whatever the ports say, and a claim connects you into the game already running."
     },
     {
+      "n": 35,
+      "anchor": "#settings-apply",
+      "side": "right",
+      "state": "open",
+      "title": "Boot flags are bound to the room code, not to the URL",
+      "pin": "Blocks #22. Owner ruling: the options belong to the room, so Apply with a different flag set mints a new room code instead of editing the query string. The ?room=X&MELEE_20XX=1 form is a transient input the page consumes and resolves to a code."
+    },
+    {
       "n": 12,
       "anchor": "#port-4",
       "side": "left",
