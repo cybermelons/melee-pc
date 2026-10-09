@@ -169,9 +169,9 @@
       "n": 9,
       "anchor": "#ctl-MELEE_SCALE",
       "side": "right",
-      "state": "open",
+      "state": "closed",
       "title": "Optimize the browser build",
-      "pin": "This control exists because of this issue: 18 fps on iOS against an -O1 build. Lowering the scale says whether pixels are the limit."
+      "pin": "Measured on the phone: 960x720 holds 60 fps. The 17 fps reading was a cold shader cache, not the render size, so this control is headroom rather than a fix."
     },
     {
       "n": 7,
