@@ -22,6 +22,11 @@ import { signalHandler } from './signal.mjs';
 const ROOT = path.resolve(process.argv[2]
   || 'build/browser/runtime/platforms/browser');
 const PORT = Number(process.env.PORT || 8099);
+// Loopback by default, because a listener on every interface is a surprise.
+// Set MELEE_BIND to serve another machine, for example a tailnet address so a
+// phone can open the page and claim the second player slot. A netplay test
+// needs two machines, and two tabs on one host cannot stand in for them.
+const BIND = process.env.MELEE_BIND || '127.0.0.1';
 const PASSWORD = process.env.MELEE_PASSWORD || '';
 const USER = process.env.MELEE_USER || 'melee';
 const DISC = process.env.MELEE_DISC ? path.resolve(process.env.MELEE_DISC) : '';
@@ -113,5 +118,5 @@ http.createServer((req, res) => {
   headers['Content-Length'] = st.size;
   res.writeHead(200, headers);
   fs.createReadStream(file).pipe(res);
-}).listen(PORT, '127.0.0.1', () =>
-  console.log(`serving ${ROOT} on 127.0.0.1:${PORT}${PASSWORD ? ` (basic auth, user ${USER})` : ' (no password)'}${DISC ? `, disc ${DISC} at /disc` : ''}`));
+}).listen(PORT, BIND, () =>
+  console.log(`serving ${ROOT} on ${BIND}:${PORT}${PASSWORD ? ` (basic auth, user ${USER})` : ' (no password)'}${DISC ? `, disc ${DISC} at /disc` : ''}`));
