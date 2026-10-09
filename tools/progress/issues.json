@@ -1,0 +1,33 @@
+{
+  "repo": "cybermelon/melee-pc",
+  "base": "http://noel:4530/cybermelon/melee-pc/issues/",
+  "areas": [
+    {"id": "mobile",  "name": "Mobile + touch",  "blurb": "Run on a phone, then make it playable with fingers."},
+    {"id": "netplay", "name": "Netplay",         "blurb": "Two strangers open one link and play."},
+    {"id": "harness", "name": "Test harness",    "blurb": "Automated checks that do not need a person at the keyboard."},
+    {"id": "quality", "name": "Engine + QoL",    "blurb": "Correctness and comfort once the game runs."}
+  ],
+  "issues": [
+    {"n": 1,  "area": "mobile",  "state": "closed", "title": "Verify the port runs on iOS Safari", "pin": "Gate passed: the port boots on a phone, so the overlay work was worth starting."},
+    {"n": 2,  "area": "mobile",  "state": "closed", "title": "Touch input layer", "pin": "The shared state object every touch control writes to. Built before any layout."},
+    {"n": 5,  "area": "mobile",  "state": "closed", "title": "Gamepad API for Bluetooth pads", "pin": "A real controller works on a phone, which sidesteps the overlay for anybody who owns one."},
+    {"n": 3,  "area": "mobile",  "state": "open",   "title": "On-screen control layout", "pin": "Needs a device in hand. No amount of code decides where a thumb reaches."},
+    {"n": 4,  "area": "mobile",  "state": "open",   "title": "Accessibility defaults for touch", "pin": "Wording only. The defaults are chosen; the issue text still argues with itself."},
+    {"n": 10, "area": "mobile",  "state": "open",   "title": "Mobile layout: full-viewport canvas", "pin": "Code complete. Waits on one iPhone screenshot to close."},
+    {"n": 15, "area": "mobile",  "state": "closed", "title": "Mobile CSS: pre-Start controls reachable", "pin": "A check now fails if the Start controls move out of reach."},
+
+    {"n": 6,  "area": "netplay", "state": "open",   "title": "Shared lobby URL with port claiming", "pin": "The main thread. Signalling, room claims and the data channel all measured working. Last gap: a browser on a second network."},
+    {"n": 17, "area": "netplay", "state": "open",   "title": "TURN relay for symmetric NAT", "pin": "Blocked on a NAT reading from two real endpoints. This network is cone, so it cannot produce the failing case."},
+    {"n": 12, "area": "netplay", "state": "open",   "title": "Drop-in join: send the whole sim state", "pin": "A second player joins a match already running. Not started."},
+
+    {"n": 18, "area": "harness", "state": "open",   "title": "Allow a CPU adapter behind a switch", "pin": "aurora refuses a CPU adapter, so no browser check runs headless. Filed, not started."},
+    {"n": 19, "area": "harness", "state": "open",   "title": "Headless runs can draw on the desktop", "pin": "Fixed in melee-pc: the display variables are removed inside cage. melee-web still needs the same line."},
+    {"n": 20, "area": "harness", "state": "open",   "title": "launcher-close-repeat loses the GPU device", "pin": "Pass 1 destroys the device at teardown, so pass 2 finds no video device. Pre-existing."},
+
+    {"n": 9,  "area": "quality", "state": "open",   "title": "Optimize the browser build", "pin": "18 fps on iOS against an -O1 build. Keep open until the boot trap stays absent across a clean rebuild."},
+    {"n": 8,  "area": "quality", "state": "open",   "title": "Training scenarios from a URL", "pin": "Partly done. Remaining: objective checks, one link per scenario, custom scenarios."},
+    {"n": 7,  "area": "quality", "state": "open",   "title": "Browser QoL: resume, pause, settings", "pin": "Parked."},
+    {"n": 13, "area": "quality", "state": "closed", "title": "GC adapter called two missing C functions", "pin": "Two calls into functions that were never defined. Removed."},
+    {"n": 14, "area": "quality", "state": "closed", "title": "_malloc survived only by accident", "pin": "Not in EXPORTED_FUNCTIONS. It worked until something else changed."}
+  ]
+}

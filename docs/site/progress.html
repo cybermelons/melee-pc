@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>melee-pc — issue board</title>
+<meta name="description" content="Where every open and closed issue in the melee-pc port stands, grouped by area, with a one-line note on each.">
+<style>
+  :root {
+    --bg:#0e0f13; --fg:#e8e8ec; --dim:#a4a6b3; --line:#2a2c36;
+    --accent:#e4b04a; --card:#171922;
+    --open:#e4b04a; --closed:#5b8f6a;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+         background:var(--bg); color:var(--fg); }
+  a { color:var(--accent); }
+  header { padding:3rem 1rem 1.6rem; text-align:center; border-bottom:1px solid var(--line); }
+  header h1 { margin:0; font-size:2.1rem; letter-spacing:.02em; }
+  header .sub { color:var(--dim); margin:.6rem 0 1.4rem; }
+  .bar { max-width:30rem; margin:0 auto; height:9px; background:#22242e;
+          border-radius:99px; overflow:hidden; }
+  .bar i { display:block; height:100%; background:var(--closed); }
+  .counts { color:var(--dim); font-size:.9rem; margin-top:.6rem; }
+  main { max-width:70rem; margin:0 auto; padding:0 1rem 4rem; }
+
+  .area { margin-top:2.2rem; }
+  .board { position:relative; border:1px solid var(--line); border-radius:10px;
+            background:var(--card); }
+  .areahead { position:absolute; left:0; right:0; top:0; padding:1.1rem 1.2rem .6rem; }
+  .areahead h2 { margin:0; font-size:1.15rem; }
+  .areahead p { margin:.25rem 0 0; color:var(--dim); font-size:.9rem; }
+  .areahead .tally { position:absolute; right:1.2rem; top:1.15rem;
+                      color:var(--dim); font-size:.82rem; }
+
+  /* A pin is the head plus its label. The head marks the spot; the label
+     carries the annotation, because a pin you have to hover to read is
+     useless on a phone and in a printout. */
+  .pin { position:absolute; width:calc(48% - 1rem); display:flex; gap:.6rem;
+          text-decoration:none; color:inherit; align-items:flex-start; }
+  .pin .head { flex:0 0 auto; width:13px; height:13px; margin-top:.35rem;
+                border-radius:50%; background:var(--open);
+                box-shadow:0 0 0 4px rgba(228,176,74,.16); }
+  .pin.closed .head { background:var(--closed);
+                       box-shadow:0 0 0 4px rgba(91,143,106,.16); }
+  .pin .label { min-width:0; }
+  .pin .num { font:600 .78rem/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+               color:var(--dim); display:inline-block; margin-right:.4rem; }
+  .pin .title { font-weight:600; }
+  .pin.closed .title { color:var(--dim); text-decoration:line-through;
+                        text-decoration-color:var(--line); }
+  .pin .note { display:block; color:var(--dim); font-size:.86rem; margin-top:.2rem; }
+  .pin:hover .title { color:var(--accent); }
+
+  .legend { display:flex; gap:1.2rem; justify-content:center; color:var(--dim);
+             font-size:.85rem; margin-top:1.2rem; flex-wrap:wrap; }
+  .legend span { display:flex; align-items:center; gap:.4rem; }
+  .legend i { width:11px; height:11px; border-radius:50%; display:inline-block; }
+  footer { color:var(--dim); font-size:.85rem; text-align:center;
+            padding:0 1rem 3rem; }
+
+  /* One column on a narrow screen. The pins are positioned absolutely, so
+     static flow replaces the board rather than fighting it. */
+  @media (max-width:46rem) {
+    .board { height:auto !important; padding:1.2rem; background:var(--card); }
+    .areahead { position:static; padding:0 0 .9rem; }
+    .areahead .tally { position:static; display:block; margin-top:.3rem; }
+    .pin { position:static !important; width:auto;
+            padding:.7rem 0; border-top:1px solid var(--line); }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>melee-pc — issue board</h1>
+  <p class="sub">Every issue in cybermelon/melee-pc, grouped by area. Each pin carries one line on where that piece stands.</p>
+  <div class="bar"><i style="width:33%"></i></div>
+  <p class="counts">6 closed · 12 open · 33% of 18</p>
+  <div class="legend">
+    <span><i style="background:var(--open)"></i> open</span>
+    <span><i style="background:var(--closed)"></i> closed</span>
+  </div>
+</header>
+<main>
+<section class="area" id="mobile">
+  <div class="board" style="height:508px">
+    <div class="areahead"><h2>Mobile + touch</h2><p>Run on a phone, then make it playable with fingers.</p><span class="tally">4 of 7 closed</span></div>
+    <a class="pin open" href="http://noel:4530/cybermelon/melee-pc/issues/3" style="left:2.00%;top:92px"><span class="head" aria-hidden="true"></span><span class="label"><span class="num">#3</span><span class="title">On-screen control layout</span><span class="note">Needs a device in hand. No amount of code decides where a thumb reaches.</span></span></a>
+    <a class="pin open" href="http://noel:4530/cybermelon/melee-pc/issues/4" style="left:50.00%;top:92px"><span class="head" aria-hidden="true"></span><span class="label"><span class="num">#4</span><span class="title">Accessibility defaults for touch</span><span class="note">Wording only. The defaults are chosen; the issue text still argues with itself.</span></span></a>
+    <a class="pin open" href="http://noel:4530/cybermelon/melee-pc/issues/10" style="left:2.00%;top:200px"><span class="head" aria-hidden="true"></span><span class="label"><span class="num">#10</span><span class="title">Mobile layout: full-viewport canvas</span><span class="note">Code complete. Waits on one iPhone screenshot to close.</span></span></a>
+    <a class="pin closed" href="http://noel:4530/cybermelon/melee-pc/issues/1" style="left:50.00%;top:200px"><span class="head" aria-hidden="true"></span><span class="label"><span class="num">#1</span><span class="title">Verify the port runs on iOS Safari</span><span class="note">Gate passed: the port boots on a phone, so the overlay work was worth starting.</span></span></a>
+    <a class="pin closed" href="http://noel:4530/cybermelon/melee-pc/issues/2" style="left:2.00%;top:308px"><span class="head" aria-hidden="true"></span><span class="label"><span class="num">#2</span><span class="title">Touch input layer</span><span class="note">The shared state object every touch control writes to. Built before any layout.</span></span></a>
+    <a class="pin closed" href="http://noel:4530/cybermelon/melee-pc/issues/5" style="left:50.00%;top:308px"><span class="head" aria-hidden="true"></span><span class="label"><span class="num">#5</span><span class="title">Gamepad API for Bluetooth pads</span><span class="note">A real controller works on a phone, which sidesteps the overlay for anybody who owns one.</span></span></a>
+    <a class="pin closed" href="http://noel:4530/cybermelon/melee-pc/issues/15" style="left:2.00%;top:416px"><span class="head" aria-hidden="true"></span><span class="label"><span class="num">#15</span><span class="title">Mobile CSS: pre-Start controls reachable</span><span class="note">A check now fails if the Start controls move out of reach.</span></span></a>
+  </div>
+</section>
+<section class="area" id="netplay">
+  <div class="board" style="height:292px">
+    <div class="areahead"><h2>Netplay</h2><p>Two strangers open one link and play.</p><span class="tally">0 of 3 closed</span></div>
+    <a class="pin open" href="http://noel:4530/cybermelon/melee-pc/issues/6" style="left:2.00%;top:92px"><span class="head" aria-hidden="true"></span><span class="label"><span class="num">#6</span><span class="title">Shared lobby URL with port claiming</span><span class="note">The main thread. Signalling, room claims and the data channel all measured working. Last gap: a browser on a second network.</span></span></a>
+    <a class="pin open" href="http://noel:4530/cybermelon/melee-pc/issues/12" style="left:50.00%;top:92px"><span class="head" aria-hidden="true"></span><span class="label"><span class="num">#12</span><span class="title">Drop-in join: send the whole sim state</span><span class="note">A second player joins a match already running. Not started.</span></span></a>
+    <a class="pin open" href="http://noel:4530/cybermelon/melee-pc/issues/17" style="left:2.00%;top:200px"><span class="head" aria-hidden="true"></span><span class="label"><span class="num">#17</span><span class="title">TURN relay for symmetric NAT</span><span class="note">Blocked on a NAT reading from two real endpoints. This network is cone, so it cannot produce the failing case.</span></span></a>
+  </div>
+</section>
+<section class="area" id="harness">
+  <div class="board" style="height:292px">
+    <div class="areahead"><h2>Test harness</h2><p>Automated checks that do not need a person at the keyboard.</p><span class="tally">0 of 3 closed</span></div>
+    <a class="pin open" href="http://noel:4530/cybermelon/melee-pc/issues/18" style="left:2.00%;top:92px"><span class="head" aria-hidden="true"></span><span class="label"><span class="num">#18</span><span class="title">Allow a CPU adapter behind a switch</span><span class="note">aurora refuses a CPU adapter, so no browser check runs headless. Filed, not started.</span></span></a>
+    <a class="pin open" href="http://noel:4530/cybermelon/melee-pc/issues/19" style="left:50.00%;top:92px"><span class="head" aria-hidden="true"></span><span class="label"><span class="num">#19</span><span class="title">Headless runs can draw on the desktop</span><span class="note">Fixed in melee-pc: the display variables are removed inside cage. melee-web still needs the same line.</span></span></a>
+    <a class="pin open" href="http://noel:4530/cybermelon/melee-pc/issues/20" style="left:2.00%;top:200px"><span class="head" aria-hidden="true"></span><span class="label"><span class="num">#20</span><span class="title">launcher-close-repeat loses the GPU device</span><span class="note">Pass 1 destroys the device at teardown, so pass 2 finds no video device. Pre-existing.</span></span></a>
+  </div>
+</section>
+<section class="area" id="quality">
+  <div class="board" style="height:400px">
+    <div class="areahead"><h2>Engine + QoL</h2><p>Correctness and comfort once the game runs.</p><span class="tally">2 of 5 closed</span></div>
+    <a class="pin open" href="http://noel:4530/cybermelon/melee-pc/issues/7" style="left:2.00%;top:92px"><span class="head" aria-hidden="true"></span><span class="label"><span class="num">#7</span><span class="title">Browser QoL: resume, pause, settings</span><span class="note">Parked.</span></span></a>
+    <a class="pin open" href="http://noel:4530/cybermelon/melee-pc/issues/8" style="left:50.00%;top:92px"><span class="head" aria-hidden="true"></span><span class="label"><span class="num">#8</span><span class="title">Training scenarios from a URL</span><span class="note">Partly done. Remaining: objective checks, one link per scenario, custom scenarios.</span></span></a>
+    <a class="pin open" href="http://noel:4530/cybermelon/melee-pc/issues/9" style="left:2.00%;top:200px"><span class="head" aria-hidden="true"></span><span class="label"><span class="num">#9</span><span class="title">Optimize the browser build</span><span class="note">18 fps on iOS against an -O1 build. Keep open until the boot trap stays absent across a clean rebuild.</span></span></a>
+    <a class="pin closed" href="http://noel:4530/cybermelon/melee-pc/issues/13" style="left:50.00%;top:200px"><span class="head" aria-hidden="true"></span><span class="label"><span class="num">#13</span><span class="title">GC adapter called two missing C functions</span><span class="note">Two calls into functions that were never defined. Removed.</span></span></a>
+    <a class="pin closed" href="http://noel:4530/cybermelon/melee-pc/issues/14" style="left:2.00%;top:308px"><span class="head" aria-hidden="true"></span><span class="label"><span class="num">#14</span><span class="title">_malloc survived only by accident</span><span class="note">Not in EXPORTED_FUNCTIONS. It worked until something else changed.</span></span></a>
+  </div>
+</section>
+</main>
+<footer>
+  Generated by <code>tools/progress/build.py</code> from <code>tools/progress/issues.json</code>.
+  The notes are written by hand; the tracker holds no field for them.
+</footer>
+</body>
+</html>
