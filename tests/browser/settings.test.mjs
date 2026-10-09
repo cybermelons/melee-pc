@@ -314,3 +314,30 @@ test('the children sit in one fold under the parent, not as loose rows', async (
   }
   assert.equal(folds[0].parent.className.split(' ').includes('pane'), true);
 });
+
+test('the render scale hint is gone: the option labels carry the pixel counts', () => {
+  // #17: the user asked for the explanatory hint removed twice. The options
+  // already read "1.0 · 960x720", which is the information the hint repeated.
+  const scale = SETTINGS.find((s) => s.key === 'MELEE_SCALE');
+  assert.equal(scale.hint, undefined, 'MELEE_SCALE must carry no hint');
+  for (const [, text] of scale.options) assert.match(text, /\d+x\d+/, text);
+});
+
+test('the 20XX family stays condensed, and keeps the pausing fact', () => {
+  // #29: fewer words, less vertical space. A hint that grows back past a
+  // short phrase is the bloat the user asked to be rid of.
+  const family = SETTINGS.filter(
+    (s) => s.key === 'MELEE_20XX' || s.parent === 'MELEE_20XX');
+  assert.equal(family.length, 3, '20XX plus its two children');
+  for (const s of family) {
+    const words = (s.hint ?? '').split(/\s+/).filter(Boolean).length;
+    assert.ok(words <= 8, `${s.key} hint is ${words} words, budget is 8`);
+    assert.ok(s.label.split(/\s+/).length <= 2, `${s.key} label too long`);
+  }
+  // The rules/pause interaction is real -- src/pc/input_poll.c:202, MELEE_PAUSE
+  // opts back in -- so it must be stated on one side or the other.
+  const rules = SETTINGS.find((s) => s.key === 'MELEE_20XX_RULES');
+  const pause = SETTINGS.find((s) => s.key === 'MELEE_PAUSE');
+  assert.match(`${rules.hint} ${pause.hint}`, /paus/i,
+    'nothing tells the player that tournament rules and pausing interact');
+});

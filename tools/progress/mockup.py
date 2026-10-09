@@ -40,10 +40,10 @@ def _chk(on=False):
 
 TABS = {
     'Game': [
-        ('ctl-MELEE_20XX', '20XX conveniences', 'parent', ''),
-        ('ctl-MELEE_BOOT_CSS', 'Boot to character select', 'child', ''),
+        ('ctl-MELEE_20XX', '20XX', 'parent', ''),
+        ('ctl-MELEE_BOOT_CSS', 'Character select', 'child', ''),
         ('ctl-MELEE_20XX_RULES', 'Tournament rules', 'child',
-         '4 stock, 8 minutes, items off.'),
+         '4 stock, 8 min, no items, no pause.'),
         # Drawn as a child because that is the target (#29). It is not one
         # yet: pc_is_unlock_all_enabled reads prefs.unlock_all, a native field
         # with no env var, so #29 has to add the env read in C before a web
@@ -58,8 +58,7 @@ TABS = {
         ('ctl-aspect', 'Aspect', _sel('Original (73:60)', 'Widescreen 16:9'), ''),
         ('ctl-hud-mode', 'HUD', _sel('Classic (4:3)', 'Wide (16:9)'), ''),
         ('ctl-MELEE_SCALE', 'Render scale',
-         _sel('1.0 · 960x720', '0.667 · 640x480', '0.5 · 480x360'),
-         'Lower renders fewer pixels, to test whether pixel count is the limit.'),
+         _sel('1.0 · 960x720', '0.667 · 640x480', '0.5 · 480x360'), ''),
         ('ctl-filter', 'Texture filter', _sel('1x', '4x', '16x'), ''),
         ('ctl-custom-textures', 'Custom textures', _chk(), ''),
         ('ctl-free-camera', 'Camera', _sel('Normal', 'Free'), ''),
