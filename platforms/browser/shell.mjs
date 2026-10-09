@@ -399,21 +399,24 @@ async function joinLobby() {
   claim = async (i) => {
     const r = await post({ type: 'claim', player: i });
     if (!r.ok) return status(`P${i + 1} is taken.`);
-    // A claim before the engine is injected is picked up by the state event,
-    // which publishes the wait and lets ENV be filled in time. Once the engine
-    // is running there is no second chance: preRun copied ENV when
-    // melee_browser.js loaded, so MELEE_NET_PLAYER can no longer reach it.
-    // Reload into the same room, where ?room= is already in the URL. Same
-    // cost as Apply in settings.mjs, and said out loud for the same reason:
-    // a locally picked disc is a File handle and does not survive a reload.
+    // Before the engine is injected a claim needs nothing: preRun has not run,
+    // so the state handler's ENV writes still reach it.
     if (!injected) return;
-    // The engine has already booted, and preRun copied ENV when
-    // melee_browser.js loaded, so MELEE_NET_PLAYER cannot reach it any more.
-    // A reload is the only way in from JS; #12 carries the runtime path that
-    // would remove the need for one. A locally picked disc is a File handle
-    // and does not survive a reload, so ask first rather than throwing the
-    // player's disc selection away without telling them. A disc served by
-    // this room survives, so that case reloads straight away.
+    // After the boot, ENV is closed: preRun copied it when melee_browser.js
+    // loaded, and pc_net_init (net.c:2276) reads MELEE_NET once and returns
+    // early when it is absent. A reload is the stopgap, NOT the only door --
+    // net.h:15 says a session opens "at runtime by pc_net_connect()", and
+    // net_rtc.c:10 and :25 read Module.netChannel at call time rather than at
+    // boot, so the channel does not have to exist when the engine starts.
+    // What is missing is only an export: there is no EMSCRIPTEN_KEEPALIVE
+    // entry for it beside browser_prewarm (main.c:46). #12 carries that work.
+    // Note for whoever writes it: pass no socket. connect_impl refuses a
+    // supplied one under __EMSCRIPTEN__ (net.c:2049), so pc_net_connect_socket
+    // is the wrong seam and browser_net_attach has to find the channel itself.
+    //
+    // A locally picked disc is a File handle and does not survive a reload, so
+    // ask first rather than discarding the player's selection silently. A disc
+    // served by this room survives, so that case reloads with no question.
     if (!remoteDisc && $('disc').files.length
         && !confirm('Joining reloads the page, which clears the disc you picked. Pick it again after?')) {
       return status(`Still holding P${i + 1}. Reload when ready to join.`);
