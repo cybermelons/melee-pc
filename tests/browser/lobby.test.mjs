@@ -4,6 +4,7 @@
 // id reaches the URL without reloading the page.
 import test from 'node:test';
 import assert from 'assert/strict';
+import { readFileSync } from 'fs';
 import {
   PORTS, PAIRABLE, ensureRoom, portStates, mySlot, spectating, roomLink,
 } from '../../platforms/browser/lobby.mjs';
@@ -88,21 +89,35 @@ test('the share link carries the room', () => {
   assert.equal(roomLink(loc('?room=FIG7K2')), 'http://melee.test/?room=FIG7K2');
 });
 
-// The gate shell.mjs uses: hold a port and the engine waits for the channel,
-// hold none and it boots now. Before #22 the condition was "the URL named a
-// room", which made a visitor who was sent a link wait for a match they were
-// never in. The rule is small enough to state as a function, so state it and
-// check it rather than leaving it in a comment.
-const waitsForChannel = (claims, me) => mySlot(claims, me) >= 0;
+// Nothing waits for a partner. The engine boots whatever the ports say, and a
+// claim connects you into the game that is already running. This went through
+// two wrong rules first, so both are checked here as regressions: "the URL
+// named a room" blocked a visitor who only wanted to watch, and "you hold a
+// port" still blocked a player whose partner never arrived.
+//
+// A rule about what the page does NOT do cannot be checked by calling a pure
+// function, so this reads the module. The thing that would break it is a
+// top-level `await` on the pairing promise coming back, which is how both
+// wrong versions were written.
+test('the shell does not wait for a partner before booting', () => {
+  const shell = readFileSync(
+    new URL('../../platforms/browser/shell.mjs', import.meta.url), 'utf8');
+  // Comments are stripped first: this file explains the two wrong rules it
+  // replaced, and a test that reads prose as code fails on its own history.
+  const code = shell.replace(/\/\*[\s\S]*?\*\//g, '')
+    .split('\n').map((l) => l.replace(/\/\/.*$/, '')).join('\n');
+  assert.ok(!/\bawait\s+(pairing|done)\b/.test(code),
+    'a wait for a partner is back in shell.mjs');
+  assert.ok(/^joinLobby\(\);$/m.test(shell),
+    'joinLobby must be called without await, so signalling does not gate the boot');
+});
 
-test('holding a port makes the engine wait; holding none boots it', () => {
-  assert.equal(waitsForChannel(['me', null], 'me'), true);
-  assert.equal(waitsForChannel([null, null], 'me'), false,
-    'an empty room is the solo case and must boot');
-  assert.equal(waitsForChannel(['a', 'b'], 'me'), false,
-    'a spectator must boot, not wait for a match it is not in');
-  assert.equal(spectating(['a', 'b'], 'me'), true,
-    'and that visitor is a spectator, which is why it must not wait');
+test('holding a port with no partner is not a wait', () => {
+  // The case that made the previous rule wrong. This visitor holds P1 and has
+  // nobody to pair with, and must be looking at a running game rather than a
+  // lobby that never proceeds.
+  assert.equal(mySlot(['me', null], 'me'), 0, 'the port is held');
+  assert.equal(spectating(['me', null], 'me'), false, 'and this is not spectating');
 });
 
 test('two players with the same name do not both read as you (#31)', () => {

@@ -293,9 +293,6 @@ let claim = null;
 // preRun copies ENV into the engine. After that a new MELEE_NET_PLAYER cannot
 // reach the engine, so a port claimed later has to reload the page.
 let injected = false;
-// Resolves when the claimed port has paired. joinLobby sets it to its own
-// `done` promise; it stays null when there is no room to join at all.
-let pairing = null;
 
 // Joining the lobby must not block the engine. Before #22 the page waited on
 // `await done` only when the URL named a room, so a visitor with a bare URL
@@ -328,8 +325,6 @@ async function joinLobby() {
     pc.addEventListener('icegatheringstatechange', () => pc.iceGatheringState === 'complete' && done());
   });
   let slot = -1;
-  let paired;
-  const done = new Promise((resolve) => { paired = resolve; });
   const open = (dc) => {
     dc.binaryType = 'arraybuffer';
     dc.onopen = () => {
@@ -339,8 +334,9 @@ async function joinLobby() {
       ENV.MELEE_BOOT_SCENE ??= 'vs';
       window.meleeNet = { dc, player: slot };
       events.close();
-      status(`Paired as P${slot + 1}. Loading engine…`);
-      paired();
+      // The engine is already loading, or already running. Nothing is gated
+      // on this message, so it reports rather than promises.
+      status(`Paired as P${slot + 1}.`);
     };
   };
   let pc = null;
@@ -381,13 +377,9 @@ async function joinLobby() {
     const { claims } = JSON.parse(e.data);
     slot = mySlot(claims, me);
     lobby.render(claims, me);
-    // Holding a port is what makes this page half of a match, so this is where
-    // the engine starts waiting. A visitor who holds none is a spectator (#23)
-    // and must not wait: before #22 any ?room= URL blocked the module, so a
-    // player sent a link and reading the lobby sat at a dead page with no
-    // message. The wait is published here, not at arrival, because the server
-    // is the only thing that knows which port is ours.
-    if (slot >= 0) pairing ??= done;
+    // Holding a port and having a peer is what opens the channel. Neither
+    // this nor the engine boot waits on the other: the engine is already
+    // running, or will be, and pairing catches up.
     if (slot >= 0 && claims[0] && claims[1] && !pc) start();
   });
   events.addEventListener('offer', async (e) => {
@@ -415,19 +407,29 @@ async function joinLobby() {
     // cost as Apply in settings.mjs, and said out loud for the same reason:
     // a locally picked disc is a File handle and does not survive a reload.
     if (!injected) return;
-    status('Port taken. Reloading to join the match…');
+    // The engine has already booted, and preRun copied ENV when
+    // melee_browser.js loaded, so MELEE_NET_PLAYER cannot reach it any more.
+    // A reload is the only way in from JS; #12 carries the runtime path that
+    // would remove the need for one. A locally picked disc is a File handle
+    // and does not survive a reload, so ask first rather than throwing the
+    // player's disc selection away without telling them. A disc served by
+    // this room survives, so that case reloads straight away.
+    if (!remoteDisc && $('disc').files.length
+        && !confirm('Joining reloads the page, which clears the disc you picked. Pick it again after?')) {
+      return status(`Still holding P${i + 1}. Reload when ready to join.`);
+    }
+    status(`P${i + 1} is yours. Reloading to join the match…`);
     location.reload();
   };
 }
 
-await joinLobby();
-// Give the first `state` event a turn to land, so a visitor who arrived on a
-// shared link and already holds a port blocks here rather than booting solo
-// and then reloading. One microtask is not enough: the event is network I/O.
-if (roomId) await new Promise((r) => setTimeout(r, 250));
-// Null unless a port is held, which is the solo and spectator case. Both boot
-// the engine now; a port claimed later reloads the page.
-if (pairing) await pairing;
+// Nothing waits for a partner. joinLobby connects the signalling and returns;
+// the engine boots below either way. A player who claims a port is connected
+// into the game that is already running, rather than both sides having to
+// press Start together. See #12, which carries the mechanism and the one
+// cost that cannot be avoided from JS: preRun copies ENV exactly once, so a
+// claim that lands after the engine has booted reloads the page.
+joinLobby();
 
 // Fail with a readable message before the wasm is fetched; otherwise a browser
 // without WebGPU only shows a bare Emscripten abort.
