@@ -46,7 +46,7 @@
       "side": "right",
       "state": "open",
       "title": "Boot flags are bound to the room code, not to the URL",
-      "pin": "Blocks #22. Owner ruling: the options belong to the room, so Apply with a different flag set mints a new room code instead of editing the query string. The ?room=X&MELEE_20XX=1 form is a transient input the page consumes and resolves to a code."
+      "pin": "Owner ruling landed: a load mints a new room code. Implemented -- states.mjs withRoom now replaces ?room= instead of preserving it, with a test that fails if the old room rides along. Reason: a preset load is a reload (no snapshot path in the browser build), so the old room already saw this player leave and reassigned the port. Rejoining it would make the two sides disagree about the port map. Unblocks #22."
     },
     {
       "n": 12,
@@ -86,7 +86,7 @@
       "side": "left",
       "state": "open",
       "title": "Modes become save states",
-      "pin": "Versus and Training stop being places to go. They load into the lobby that already exists, so nobody changes rooms."
+      "pin": "Versus and Training stop being places to go. The port-loss bug is fixed: sessionId keyed on sessionStorage survives the reload, so the loader keeps its seat. Per the #35 ruling a load now opens a NEW room, so the loader re-invites rather than rejoining a room that wrote them off."
     },
     {
       "n": 1,
@@ -160,7 +160,7 @@
       "side": "right",
       "state": "open",
       "title": "Port the native launcher settings",
-      "pin": "Measured: only 3 of the 16 have a std::getenv the query string can reach -- MELEE_UCF (launcher.cpp:1870), MELEE_FROZEN_STADIUM (:1842), MELEE_NET_DELAY (net.c:2171). Those 3 shipped, with a Netplay tab. The other 12 (widescreen, HUD, textures, camera, filter, anisotropy, 3 volumes, reverb, mute, net name) are prefs fields with no env reader, so no web control can reach them without a native prefs path. Same shape as unlock_all in #29, where the owner condensed the UI rather than add the C read."
+      "pin": "Measured. Only 3 of 16 have a getenv the query string can reach -- MELEE_UCF, MELEE_FROZEN_STADIUM, MELEE_NET_DELAY. Those 3 shipped. Correction to the earlier pin: prefs does not exist in the web build at all -- launcher.cpp is not in BROWSER_PC_SOURCES (CMakeLists.txt:25 excludes the launcher), so there is no prefs to reach. But 6 of the 12 need no prefs: they have a live setter already compiled in, and want only an -sEXPORTED_FUNCTIONS entry -- pc_widescreen_set_mode (widescreen.c:45), pc_audio_set_volume/_music_volume/_sfx_volume (audio.c:101,107,111), pc_audio_set_reverb (:271), and mute via set_volume(0). The remaining 6 (hud_mode, custom_textures, free_camera, filter_mode, anisotropy, net_name) have neither setter nor getenv and stay out."
     },
     {
       "n": 8,

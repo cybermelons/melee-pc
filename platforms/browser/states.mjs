@@ -23,6 +23,8 @@
 // The player's own saves are therefore names and query strings too, kept in
 // localStorage. Same store and the same try/catch as tier.mjs: private mode
 // and blocked site data throw on read and on write, and neither is fatal here.
+import { mintRoom } from './lobby.mjs';
+
 const KEY = 'melee.states';
 
 // The four presets the issue names. Each is the query string that boots it.
@@ -104,9 +106,9 @@ export function saveSearch(search) {
  * Build the modal into `host`, returning { open, close, isOpen, refresh }.
  *
  * `load` takes the query string a tile asks for, so a test can assert what a
- * press would navigate to without navigating. Default keeps the room: the
- * lobby is the room and a state loads into it (#24), so dropping ?room= here
- * would move the player out of the lobby they are in.
+ * press would navigate to without navigating. That string carries a freshly
+ * minted ?room=, per #35: see withRoom below for why the old room cannot
+ * come along.
  *
  * `search` is where a save reads the current flags from, injected for the
  * same reason.
@@ -116,6 +118,7 @@ export function addStates(host, {
   search = () => location.search,
   store = globalThis.localStorage,
   now = () => new Date(),
+  mint = mintRoom,
 } = {}) {
   if (!host) return null;
   const doc = host.ownerDocument ?? document;
@@ -126,12 +129,21 @@ export function addStates(host, {
     return node;
   };
 
-  // The room rides along with every load, because the room is the lobby.
+  // A load mints a new room, it does not carry the old one (#35).
+  //
+  // A preset load is a reload: there is no snapshot path in the browser
+  // build, so the page navigates and the signaling stream closes. Every peer
+  // in the old room saw this player leave and take their port with them. If
+  // the new page then rejoined on the same ?room=, it would arrive as a
+  // stranger claiming a seat the others have already reassigned, and the two
+  // sides would disagree about who holds which port.
+  //
+  // So the loader gets a fresh room and invites again. The cost is one
+  // re-share; the alternative is a lobby whose port map is wrong and says
+  // nothing about it.
   const withRoom = (stateSearch) => {
-    const room = new URLSearchParams(search()).get('room');
-    if (!room) return stateSearch;
     const params = new URLSearchParams(stateSearch);
-    params.set('room', room);
+    params.set('room', mint());
     return `?${params}`;
   };
 
@@ -196,7 +208,7 @@ export function addStates(host, {
   row.append(save, close);
 
   sheet.append(
-    head('Load a save state', 'the lobby keeps its ports'), presets,
+    head('Load a save state', 'opens a new room'), presets,
     head('Your saves'), own, empty, row);
   dialog.append(sheet);
   // A click on the backdrop lands on the <dialog> itself, because the sheet

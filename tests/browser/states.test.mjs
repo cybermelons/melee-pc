@@ -2,7 +2,7 @@
 // The save-state modal (#33) decides four things a screenshot does not show:
 // that the modal is shut until Load is pressed, that it holds both groups
 // rather than only the presets, that Save current state adds to the player's
-// own group, and that a load keeps the room the player is in.
+// own group, and that a load mints a new room (#35).
 //
 // The height claims are not here. "shorter at 390px" and "fits the viewport"
 // are measurements of the real CSS, so they live in
@@ -158,15 +158,27 @@ test('Save current state adds a tile to the player\'s own group', () => {
   assert.equal(readStates(store)[0].label, 'title screen · 2026-10-09');
 });
 
-test('a preset press loads that preset, keeping the room', () => {
-  const { host, api, loads } = build();
+test('a preset press loads that preset in a new room, not the old one', () => {
+  const { host, api, loads } = build({ mint: () => 'NEWR00M' });
   api.open();
   host.byId('state-vs').click();
   assert.equal(loads.length, 1);
-  // The lobby is the room (#24), so a state loads into the room the player is
-  // already in rather than moving them out of it.
-  assert.ok(loads[0].includes('room=FIG7K2'), loads[0]);
   assert.ok(loads[0].includes('MELEE_BOOT_SCENE=vs'), loads[0]);
+  // #35: a load is a reload, so the old room has already written this player
+  // off and reassigned their port. Rejoining it would make the two sides
+  // disagree about the port map, so the loader mints a room and invites again.
+  assert.ok(loads[0].includes('room=NEWR00M'), loads[0]);
+  assert.ok(!loads[0].includes('FIG7K2'),
+    `the old room must not ride along: ${loads[0]}`);
+});
+
+test('a load mints a room even when the player was in none', () => {
+  // Opening the modal from a bare URL still produces a room, so the loaded
+  // page is a lobby someone can be invited to rather than a dead end.
+  const { host, api, loads } = build({ search: () => '', mint: () => 'FRESH1' });
+  api.open();
+  host.byId('state-20xx').click();
+  assert.ok(loads[0].includes('room=FRESH1'), loads[0]);
 });
 
 test('a save records the flags and not the room', () => {

@@ -154,6 +154,64 @@ lowering pass over the disc structs. It needs LLVM 22 with LibTooling and a
 real GCC 12+ as the oracle. Netplay compiles but is refused at connect, because
 browsers have no UDP; `net_rtc.c` is the WebRTC path.
 
+## How JS reaches the C (the two bridges)
+
+There are exactly two routes from the browser shell into the engine. Reaching
+for a third is almost always a sign of not knowing which of these applies.
+
+**1. Query string to `getenv`.** The shell writes `Module.ENV`, Emscripten
+fills the environment before `main`, and C reads it with `getenv`. Read **once
+at startup**, so it cannot change a running game. 60 `getenv` readers exist
+across `src/pc`. `settings.mjs` uses this route for all three of its controls
+(`MELEE_UCF`, `MELEE_FROZEN_STADIUM`, `MELEE_NET_DELAY`).
+
+**2. An exported function, called live.** Add the symbol to
+`-sEXPORTED_FUNCTIONS` in `platforms/browser/CMakeLists.txt:52`, then call
+`Module._name(args)` from JS. Works mid-game. The WebHID controller is the
+worked example: `gcadapter.mjs:27` calls
+`Module._pc_gcadapter_web_report(buffer, REPORT)`.
+
+Current exports: `_main` `_browser_prewarm` `_malloc` `_free`
+`_pc_touch_set_pad` `_pc_touch_set_active` `_pc_gcadapter_web_report`
+`_pc_gcadapter_web_opened` `_pc_slp_web_finish` `_pc_slp_web_checkpoint`
+`_pc_input_tas_set` `_pc_drill_state`.
+
+**`prefs` does not exist in the web build.** `launcher.cpp` is not in
+`BROWSER_PC_SOURCES` (`platforms/browser/CMakeLists.txt:25` excludes the
+launcher by design), so the 28 `prefs` fields the native launcher offers have
+no storage here at all. A web control cannot read or write one. It must call
+route 2 on whatever module owns the behaviour instead.
+
+Six of those settings do have a live setter already compiled into the web
+build, so they need an export and nothing more:
+`pc_widescreen_set_mode(int)` (`widescreen.c:45`), `pc_audio_set_volume(float)`
+(`audio.c:101`), `pc_audio_set_music_volume` (`:107`), `pc_audio_set_sfx_volume`
+(`:111`), `pc_audio_set_reverb(bool)` (`:271`), and mute via
+`pc_audio_set_volume(0)`. The other six — hud_mode, custom_textures,
+free_camera, filter_mode, anisotropy, net_name — have neither a setter nor a
+`getenv`, and are out of reach without new C.
+
+**No input setting exists anywhere in the engine.** Deadzone, stick curve,
+tap-jump and C-stick mode appear in no `getenv` reader and no `prefs` field.
+Controller *support* is complete (`gcadapter.mjs`, a full WUP-028 WebHID
+transport); controller *settings* are absent. Do not draw a control for one.
+
+## The lobby and the room
+
+`lobby.mjs` owns the room: `PORTS = 4`, `PAIRABLE = 2`, `mintRoom` (8 chars of
+a UUID), `ensureRoom`, and `sessionId`.
+
+`sessionId` keys on `sessionStorage`, not `localStorage` or a fresh UUID: a tab
+is a seat. It survives a reload and dies with the tab, so two tabs are two
+players and a closed tab frees its port. A fresh UUID per load defeated
+`signal.mjs`'s refresh guard and dropped the loader's port on every save-state
+load (#24).
+
+**A save-state load mints a new room (#35).** A preset load is a reload, since
+the browser build has no snapshot path, so the old room has already written
+this player off and reassigned the port. `states.mjs`'s `withRoom` therefore
+replaces `?room=` rather than preserving it.
+
 ## Build and test entry points
 
 | Want | Run |
