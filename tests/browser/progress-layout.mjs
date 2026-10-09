@@ -1,17 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// The issue board places its pins by absolute position, so the layout can
-// break in ways the generator cannot see.
-//
-//   node tests/browser/progress-layout.mjs
-//
-// build.py reserves PIN_H pixels for the last row of each board. A longer
-// annotation makes a pin taller than that, and it then hangs out of the
-// bottom of its board or lands on the pin below. Both look like a styling
-// quirk and neither fails the build, so only a browser catches them.
-//
-// Run it under tools/display.sh, which keeps the window off the screen:
+// The issue board positions every pin from a measurement taken in the
+// browser, so the generator cannot see its own layout failures.
 //
 //   . tools/display.sh && run_headless node tests/browser/progress-layout.mjs
+//
+// What this catches that build.py cannot:
+//  - a pin whose anchor resolves to nothing at runtime, which leaves the
+//    label stranded with no dot and no line;
+//  - two labels on top of each other, which the stacker is supposed to
+//    prevent and which looks like a styling quirk rather than a fault;
+//  - a label column pushed off the page, which shows up only as a sideways
+//    scrollbar and is invisible in a screenshot of the board itself.
 //
 // Do not pipe the run into grep to tidy the compositor's output. The exit
 // status then comes from grep, and a failure reports success. Redirect
@@ -25,42 +24,42 @@ const require = createRequire(process.env.PLAYWRIGHT_FROM || '/home/kiri/repos/m
 const pw = require('playwright');
 
 const page = `file://${path.join(root, 'docs/site/progress.html')}`;
-// Wide enough for the two-column board, and narrow enough for the one-column
-// fallback. The breakpoint is 46rem, so 400 is below it and 1280 is above.
-const SIZES = [[1280, 900, 'wide'], [400, 900, 'narrow']];
+// The three-column board, and the one-column fallback below 1320px. 390 is a
+// phone, where the board must still read as a list.
+const SIZES = [[1420, 1000, 'wide'], [1100, 900, 'narrow'], [390, 800, 'phone']];
 
 const measure = () => {
-  const pins = [...document.querySelectorAll('.pin')].map((a) => ({
-    n: a.querySelector('.num').textContent,
-    r: a.getBoundingClientRect(),
-  }));
+  const pins = [...document.querySelectorAll('.pin')];
+  const box = pins.map((a) => ({ n: a.querySelector('.pin-n').textContent, r: a.getBoundingClientRect() }));
   const overlaps = [];
-  for (let i = 0; i < pins.length; i += 1) {
-    for (let j = i + 1; j < pins.length; j += 1) {
-      const a = pins[i].r; const b = pins[j].r;
+  for (let i = 0; i < box.length; i += 1) {
+    for (let j = i + 1; j < box.length; j += 1) {
+      const a = box[i].r; const b = box[j].r;
       if (a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom) {
-        overlaps.push(`${pins[i].n} over ${pins[j].n}`);
+        overlaps.push(`${box[i].n} over ${box[j].n}`);
       }
     }
   }
-  // A pin past the bottom edge of its own board means PIN_H in build.py is
-  // now too small for the longest annotation in that area.
-  const spills = [];
-  document.querySelectorAll('.board').forEach((board) => {
-    const edge = board.getBoundingClientRect().bottom;
-    board.querySelectorAll('.pin').forEach((a) => {
-      const r = a.getBoundingClientRect();
-      if (r.bottom > edge + 1) {
-        spills.push(`${a.querySelector('.num').textContent} by ${Math.round(r.bottom - edge)}px`);
-      }
-    });
-  });
+  // Every pin names an element in the mockup. build.py rejects an anchor it
+  // cannot find in the markup, so a miss here means the page shipped with a
+  // pin that points at nothing.
+  const stage = document.getElementById('stage');
+  const orphans = pins
+    .filter((a) => !stage.querySelector(a.dataset.anchor))
+    .map((a) => a.dataset.anchor);
+  // A label that starts off the left edge is unreachable. The first layout
+  // hung both columns off a centred stage and did exactly this.
+  const offpage = box.filter((b) => b.r.left < 0 || b.r.right > window.innerWidth)
+    .map((b) => b.n);
+  const wide = getComputedStyle(document.getElementById('leads')).display !== 'none';
   return {
     count: pins.length,
+    dots: document.querySelectorAll('.dot').length,
+    lines: document.querySelectorAll('#leads line').length,
+    wide,
     overlaps,
-    spills,
-    // A horizontal scrollbar on a phone is the usual way an absolute layout
-    // fails, and it is invisible in a desktop screenshot.
+    orphans,
+    offpage,
     hscroll: document.documentElement.scrollWidth > window.innerWidth,
   };
 };
@@ -71,12 +70,20 @@ for (const [width, height, tag] of SIZES) {
   const p = await (await browser.newContext({ viewport: { width, height } })).newPage();
   const errors = [];
   p.on('pageerror', (e) => errors.push(String(e)));
+  p.on('console', (m) => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });
   await p.goto(page);
+  // The labels are text, so the stacker re-runs once the fonts settle.
+  await p.waitForTimeout(400);
   const m = await p.evaluate(measure);
   const problems = [
     m.count === 0 ? 'no pins rendered' : '',
-    m.overlaps.length ? `pins overlap: ${m.overlaps.join(', ')}` : '',
-    m.spills.length ? `pins hang out of their board: ${m.spills.join(', ')}` : '',
+    m.orphans.length ? `pins anchored to nothing: ${m.orphans.join(', ')}` : '',
+    // Below the breakpoint the dots and lines are hidden on purpose, so only
+    // the wide layout has to draw one of each per pin.
+    m.wide && m.dots !== m.count ? `${m.count} pins but ${m.dots} dots` : '',
+    m.wide && m.lines !== m.count ? `${m.count} pins but ${m.lines} leader lines` : '',
+    m.overlaps.length ? `labels overlap: ${m.overlaps.join(', ')}` : '',
+    m.offpage.length ? `labels off the page: ${m.offpage.join(', ')}` : '',
     m.hscroll ? 'the page scrolls sideways' : '',
     errors.length ? `page errors: ${errors.join('; ')}` : '',
   ].filter(Boolean);
@@ -84,7 +91,7 @@ for (const [width, height, tag] of SIZES) {
     bad = 1;
     console.log(`FAIL progress-layout ${tag} (${width}px): ${problems.join('; ')}`);
   } else {
-    console.log(`pass ${tag} (${width}px): ${m.count} pins, no overlap, none spilling, no sideways scroll`);
+    console.log(`pass ${tag} (${width}px): ${m.count} pins, ${m.wide ? `${m.dots} dots, ${m.lines} lines, ` : 'list fallback, '}no overlap, nothing off-page`);
   }
 }
 await browser.close();

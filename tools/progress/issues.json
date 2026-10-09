@@ -1,33 +1,82 @@
 {
   "repo": "cybermelon/melee-pc",
   "base": "http://noel:4530/cybermelon/melee-pc/issues/",
-  "areas": [
-    {"id": "mobile",  "name": "Mobile + touch",  "blurb": "Run on a phone, then make it playable with fingers."},
-    {"id": "netplay", "name": "Netplay",         "blurb": "Two strangers open one link and play."},
-    {"id": "harness", "name": "Test harness",    "blurb": "Automated checks that do not need a person at the keyboard."},
-    {"id": "quality", "name": "Engine + QoL",    "blurb": "Correctness and comfort once the game runs."}
-  ],
+  "note": "The board draws the launcher as issue 21 proposes it, not as it is today, and pins each issue to the control that has to exist for that design to be true. A pin whose anchor is not in the mockup fails the build, so the target and the issue list cannot drift apart silently.",
   "issues": [
-    {"n": 1,  "area": "mobile",  "state": "closed", "title": "Verify the port runs on iOS Safari", "pin": "Gate passed: the port boots on a phone, so the overlay work was worth starting."},
-    {"n": 2,  "area": "mobile",  "state": "closed", "title": "Touch input layer", "pin": "The shared state object every touch control writes to. Built before any layout."},
-    {"n": 5,  "area": "mobile",  "state": "closed", "title": "Gamepad API for Bluetooth pads", "pin": "A real controller works on a phone, which sidesteps the overlay for anybody who owns one."},
-    {"n": 3,  "area": "mobile",  "state": "open",   "title": "On-screen control layout", "pin": "Needs a device in hand. No amount of code decides where a thumb reaches."},
-    {"n": 4,  "area": "mobile",  "state": "open",   "title": "Accessibility defaults for touch", "pin": "Wording only. The defaults are chosen; the issue text still argues with itself."},
-    {"n": 10, "area": "mobile",  "state": "open",   "title": "Mobile layout: full-viewport canvas", "pin": "Code complete. Waits on one iPhone screenshot to close."},
-    {"n": 15, "area": "mobile",  "state": "closed", "title": "Mobile CSS: pre-Start controls reachable", "pin": "A check now fails if the Start controls move out of reach."},
+    {"n": 21, "anchor": "#menu-panel", "side": "left", "state": "open",
+     "title": "Redesign the launcher UI",
+     "pin": "This panel is the target. Today the same controls are one flat column with no grouping and no first step."},
 
-    {"n": 6,  "area": "netplay", "state": "open",   "title": "Shared lobby URL with port claiming", "pin": "The main thread. Signalling, room claims and the data channel all measured working. Last gap: a browser on a second network."},
-    {"n": 17, "area": "netplay", "state": "open",   "title": "TURN relay for symmetric NAT", "pin": "Blocked on a NAT reading from two real endpoints. This network is cone, so it cannot produce the failing case."},
-    {"n": 12, "area": "netplay", "state": "open",   "title": "Drop-in join: send the whole sim state", "pin": "A second player joins a match already running. Not started."},
+    {"n": 1, "anchor": "#disc", "side": "left", "state": "closed",
+     "title": "Verify the port runs on iOS Safari",
+     "pin": "Step 1 of the walk-up path: pick a disc. Measured working on iOS Safari."},
 
-    {"n": 18, "area": "harness", "state": "open",   "title": "Allow a CPU adapter behind a switch", "pin": "aurora refuses a CPU adapter, so no browser check runs headless. Filed, not started."},
-    {"n": 19, "area": "harness", "state": "open",   "title": "Headless runs can draw on the desktop", "pin": "Fixed in melee-pc: the display variables are removed inside cage. melee-web still needs the same line."},
-    {"n": 20, "area": "harness", "state": "open",   "title": "launcher-close-repeat loses the GPU device", "pin": "Pass 1 destroys the device at teardown, so pass 2 finds no video device. Pre-existing."},
+    {"n": 12, "anchor": "#start", "side": "left", "state": "open",
+     "title": "Drop-in join",
+     "pin": "Start is all-or-nothing today. The target lets a second player join a match already running."},
 
-    {"n": 9,  "area": "quality", "state": "open",   "title": "Optimize the browser build", "pin": "18 fps on iOS against an -O1 build. Keep open until the boot trap stays absent across a clean rebuild."},
-    {"n": 8,  "area": "quality", "state": "open",   "title": "Training scenarios from a URL", "pin": "Partly done. Remaining: objective checks, one link per scenario, custom scenarios."},
-    {"n": 7,  "area": "quality", "state": "open",   "title": "Browser QoL: resume, pause, settings", "pin": "Parked."},
-    {"n": 13, "area": "quality", "state": "closed", "title": "GC adapter called two missing C functions", "pin": "Two calls into functions that were never defined. Removed."},
-    {"n": 14, "area": "quality", "state": "closed", "title": "_malloc survived only by accident", "pin": "Not in EXPORTED_FUNCTIONS. It worked until something else changed."}
+    {"n": 6, "anchor": "#new-room", "side": "left", "state": "open",
+     "title": "Shared lobby URL with port claiming",
+     "pin": "This button makes the room link. Signalling, claims and the data channel all measured working. Last gap: a browser on a second network."},
+
+    {"n": 17, "anchor": "#room-relay", "side": "left", "state": "open",
+     "title": "TURN relay for symmetric NAT",
+     "pin": "The room needs a relay line of its own. Blocked: this network is cone, so it cannot produce the failing case."},
+
+    {"n": 2, "anchor": "#mode-vs", "side": "left", "state": "closed",
+     "title": "Touch input layer",
+     "pin": "The shared state object every touch control writes to. Built before any layout."},
+
+    {"n": 5, "anchor": "#adapter", "side": "left", "state": "closed",
+     "title": "Gamepad API for Bluetooth pads",
+     "pin": "A real pad works on a phone, which sidesteps the overlay for anybody who owns one."},
+
+    {"n": 15, "anchor": "#modes", "side": "left", "state": "closed",
+     "title": "Mobile CSS: pre-Start controls reachable",
+     "pin": "A test now fails if these mode controls move out of thumb reach on a phone."},
+
+    {"n": 8, "anchor": "#mode-training", "side": "right", "state": "open",
+     "title": "Training scenarios from a URL",
+     "pin": "Training should offer the scenarios, not just the mode. Remaining: objective checks, one link per scenario, custom scenarios."},
+
+    {"n": 3, "anchor": "#touch-layout", "side": "right", "state": "open",
+     "title": "On-screen control layout",
+     "pin": "The target shows the pad layout here instead of a keyboard legend. Needs a device in hand: no code decides where a thumb reaches."},
+
+    {"n": 4, "anchor": "#access", "side": "right", "state": "open",
+     "title": "Accessibility defaults for touch",
+     "pin": "Tap-jump, deadzone, curve, C-stick. Defaults chosen; the issue text still argues with itself. Wording only."},
+
+    {"n": 10, "anchor": "#phone-note", "side": "right", "state": "open",
+     "title": "Mobile layout: full-viewport canvas",
+     "pin": "On a phone this whole panel folds behind the menu button. Code complete, waits on one iPhone screenshot."},
+
+    {"n": 9, "anchor": "#ctl-MELEE_SCALE", "side": "right", "state": "open",
+     "title": "Optimize the browser build",
+     "pin": "This control exists because of this issue: 18 fps on iOS against an -O1 build. Lowering the scale says whether pixels are the limit."},
+
+    {"n": 7, "anchor": "#ctl-MELEE_PAUSE_ON_BLUR", "side": "right", "state": "open",
+     "title": "Browser QoL: resume, pause, settings",
+     "pin": "Pause-on-blur landed. Resume after refresh and pause on crash did not. Parked."},
+
+    {"n": 13, "anchor": "#ctl-MELEE_HITBOXES", "side": "right", "state": "closed",
+     "title": "GC adapter called two missing C functions",
+     "pin": "Two calls into functions that were never defined. Removed."},
+
+    {"n": 14, "anchor": "#ctl-MELEE_20XX", "side": "right", "state": "closed",
+     "title": "_malloc survived only by accident",
+     "pin": "Not in EXPORTED_FUNCTIONS. It worked until something else changed."},
+
+    {"n": 20, "anchor": "#settings-apply", "side": "right", "state": "open",
+     "title": "launcher-close-repeat loses the GPU device",
+     "pin": "Apply reloads the page. Doing that repeatedly under the test harness destroys the GPU device on pass 1, so pass 2 finds none."},
+
+    {"n": 18, "anchor": "#status", "side": "right", "state": "open",
+     "title": "Allow a CPU adapter behind a switch",
+     "pin": "Where the WebGPU refusal is reported. aurora refuses a CPU adapter, so no browser check can boot the game."},
+
+    {"n": 19, "anchor": "#log-tab", "side": "right", "state": "open",
+     "title": "Headless runs can draw on the desktop",
+     "pin": "Fixed in melee-pc: the display variables are removed inside cage. melee-web still needs the same line."}
   ]
 }
