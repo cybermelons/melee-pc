@@ -563,9 +563,10 @@ for (const tab of document.querySelectorAll('.tab')) {{
 
 def audit(data):
     """Compare issues.json against the tracker and report what drifted."""
-    # tea pages at 30 and says nothing about it, so a single call reported
-    # #1, #11 and #16 as missing from the tracker when all three exist. Ask
-    # for the pages until one comes back short.
+    # tea defaults to 30 rows per page and says nothing about it, so page
+    # until one comes back short. (#11 and #16 are absent from this list for a
+    # different reason: they are pull requests, and tea issues list excludes
+    # them. The board carries no pins for either, so the audit is unaffected.)
     live, page = [], 1
     while True:
         try:

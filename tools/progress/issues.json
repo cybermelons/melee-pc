@@ -81,9 +81,9 @@
       "n": 25,
       "anchor": "#join-btn",
       "side": "left",
-      "state": "open",
+      "state": "closed",
       "title": "Disable Start while the disc loads",
-      "pin": "Nothing stops a press during the autoload today, and an early press starts the engine with no disc."
+      "pin": "No disc load exists to wait on: remote-disc.mjs fetches one HTTP Range per block on demand. Start is already gated on a disc being present, at shell.mjs:176."
     },
     {
       "n": 2,
@@ -161,9 +161,9 @@
       "n": 10,
       "anchor": "#phone-frame",
       "side": "right",
-      "state": "open",
+      "state": "closed",
       "title": "Mobile layout: full-viewport canvas",
-      "pin": "The whole launcher has to fit this box with no page scroll. Code complete, waits on one iPhone screenshot."
+      "pin": "The launcher fits this box with no page scroll. (pointer: coarse) and touch-action: none ship, and menu-button.mjs holds the controls. The launcher inside it is now #21's."
     },
     {
       "n": 9,
