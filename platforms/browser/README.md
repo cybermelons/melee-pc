@@ -102,6 +102,11 @@ optionally `onFrame(frame)`, `onGraphicsPreparation(done, total)` and `onAbort`.
 Environment variables go into `Module.ENV` from `preRun`, which is after
 Emscripten creates `ENV` and before the static constructor that snapshots it.
 Then the page mounts `/saves` and `/cache` and calls `callMain([])`.
+A page that wants the pipeline cache warm before Start can call
+`await Module.ccall('browser_prewarm', null, [], [], { async: true })` once
+`/cache` is populated: it creates the window and the device and builds the
+cached pipelines without the disc and without starting the game. It must
+finish before `callMain`, which then skips that part.
 
 ## Netplay
 
