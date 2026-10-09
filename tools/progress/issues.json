@@ -25,7 +25,7 @@
       "side": "left",
       "state": "open",
       "title": "Lobby replaces the mode list",
-      "pin": "One persistent room per URL, shipped: platforms/browser/lobby.mjs mints the room with replaceState and draws four port tiles. The mode links are gone. Being in a room is not being in a match, so holding a port, not the URL, decides whether the engine waits for the data channel."
+      "pin": "One persistent room per URL, shipped: platforms/browser/lobby.mjs mints the room with replaceState and draws four port tiles. The mode links are gone. Nothing waits for a partner: the engine boots whatever the ports say, and a claim connects you into the game already running."
     },
     {
       "n": 12,
@@ -33,7 +33,15 @@
       "side": "left",
       "state": "open",
       "title": "Drop-in join",
-      "pin": "Taking a free port has to reach a match already running. The lobby depends on this, so it is not optional any more."
+      "pin": "Taking a free port has to reach a match already running. Blocked, and not on the transport: the browser build defines no MELEE_STATE_SECTIONS, so snapshot_take() refuses every call and netplay is lockstep-only. See #34 and comment 2989 for the prerequisite order."
+    },
+    {
+      "n": 34,
+      "anchor": "#port-4",
+      "side": "left",
+      "state": "open",
+      "title": "Browser bypasses the lockstep guard",
+      "pin": "Why drop-in join is blocked: CMakeLists.txt:374 fails the build on a platform with no snapshot sections, and the browser target never reaches that check. Every online session silently degrades to lockstep."
     },
     {
       "n": 23,
