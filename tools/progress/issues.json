@@ -241,9 +241,9 @@
       "n": 31,
       "anchor": "#port-mine",
       "side": "left",
-      "state": "open",
+      "state": "closed",
       "title": "Signify which port is you",
-      "pin": "Shipped: the tile you hold carries a left bar and the word 'you', because colour alone fails a colour-blind reader and a screenshot. The id moves with a claim and a release, and matching is on the server id, so two players with one display name still mark one tile. The spectator line below is the other half."
+      "pin": "Closed. The tile you hold carries a left bar and the word 'you', because colour alone fails a colour-blind reader and a screenshot. The id moves with a claim and a release, and matching is on the server id, so two players with one display name still mark one tile. The spectator line below is the other half, and the queue on it is #23."
     },
     {
       "n": 32,
