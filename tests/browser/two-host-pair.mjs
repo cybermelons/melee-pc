@@ -10,11 +10,12 @@
 // share.
 //
 // It needs ssh to REMOTE_HOST, node there, and a playwright install there whose
-// browser build matches the local one. It reverse-forwards the local server
-// port, so the remote host reaches the page at its own 127.0.0.1 and no
-// listener is exposed to the LAN.
+// browser build must match the local one: playwright pins an exact browser
+// revision, so a different playwright version on the far side fails to launch.
+// It reverse-forwards the local server port, so the remote host reaches the
+// page at its own 127.0.0.1 and no listener is exposed to the LAN.
 //
-//   REMOTE_HOST=botan REMOTE_PW=/tmp/pwhost node tests/browser/two-host-pair.mjs
+//   REMOTE_PW=/tmp/pwhost node tests/browser/two-host-pair.mjs
 //
 // WARNING: a pass here is NOT a NAT hole punch. Report the candidate types this
 // prints. Two machines on one LAN, or on one tailnet, connect through 'host'
@@ -32,7 +33,12 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const require = createRequire(process.env.PLAYWRIGHT_FROM || '/home/kiri/repos/melee-web/');
 const pw = require('playwright');
 
-const HOST = process.env.REMOTE_HOST || 'botan';
+// The fully qualified tailnet name, not the short one. A bare tailnet hostname
+// is shadowed by the local hosts file on the host itself and by the router's
+// own DNS on the LAN, and both failures look like a plain connection error
+// with nothing pointing at DNS. Check with `getent hosts <name>` run from the
+// machine that opens the connection, not from the one serving it.
+const HOST = process.env.REMOTE_HOST || 'botan.tail623785.ts.net';
 const REMOTE_PW = process.env.REMOTE_PW || '/tmp/pwhost';
 const PORT = process.env.PORT || '8111';
 const room = randomUUID().slice(0, 8);
