@@ -19,7 +19,7 @@ const SERVE_DIR = process.env.SERVE_DIR || path.join(root, 'build/browser/runtim
 const PORT = process.env.SERVE_PORT || '8102';
 const kids = [
   spawn(process.execPath, [SERVE, SERVE_DIR],
-    { env: { ...process.env, PORT, MELEE_DISC: DISC, MELEE_PASSWORD: '' }, stdio: 'ignore' }),
+    { env: { ...process.env, PORT, MELEE_DISC: DISC }, stdio: 'ignore' }),
 ];
 // The deployed shell defaults to a same-origin /signal mount inside serve.mjs;
 // the build dir's shell still wants a standalone signal server on 8101.

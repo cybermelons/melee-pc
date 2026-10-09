@@ -8,15 +8,12 @@
 // without supplying their own dump. The image stays outside the served root and
 // is reachable only at that one path.
 //
-// Set MELEE_PASSWORD to require HTTP Basic auth. Tailscale Funnel puts the page
-// on the public internet, and a Funnel hostname appears in certificate
-// transparency logs, so it is discoverable rather than secret. The password is
-// the only thing in front of the page; serve nothing over Funnel that should
-// not be public if it leaks.
+// The server binds loopback only and has no authentication, so anything put in
+// front of it (Tailscale Funnel, for example) publishes the page to anyone with
+// the URL.
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
-import { timingSafeEqual } from 'node:crypto';
 import { signalHandler } from './signal.mjs';
 
 const ROOT = path.resolve(process.argv[2]
@@ -27,37 +24,12 @@ const PORT = Number(process.env.PORT || 8099);
 // phone can open the page and claim the second player slot. A netplay test
 // needs two machines, and two tabs on one host cannot stand in for them.
 const BIND = process.env.MELEE_BIND || '127.0.0.1';
-const PASSWORD = process.env.MELEE_PASSWORD || '';
-const USER = process.env.MELEE_USER || 'melee';
 const DISC = process.env.MELEE_DISC ? path.resolve(process.env.MELEE_DISC) : '';
 
 const TYPES = {
   '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript',
   '.wasm': 'application/wasm', '.json': 'application/json',
 };
-
-// Constant-time compare so a wrong password cannot be found a character at a
-// time from response timing. Lengths are compared first because
-// timingSafeEqual throws on a mismatch, so the length itself leaks either way.
-function secretEqual(a, b) {
-  const x = Buffer.from(a);
-  const y = Buffer.from(b);
-  return x.length === y.length && timingSafeEqual(x, y);
-}
-
-function authorised(req) {
-  if (!PASSWORD) return true;
-  const header = req.headers.authorization || '';
-  if (!header.startsWith('Basic ')) return false;
-  const decoded = Buffer.from(header.slice(6), 'base64').toString();
-  const split = decoded.indexOf(':');
-  if (split < 0) return false;
-  // Both halves are compared, and both comparisons always run, so neither the
-  // user nor the password can be probed separately.
-  const userOk = secretEqual(decoded.slice(0, split), USER);
-  const passOk = secretEqual(decoded.slice(split + 1), PASSWORD);
-  return userOk && passOk;
-}
 
 http.createServer((req, res) => {
   const headers = {
@@ -66,14 +38,9 @@ http.createServer((req, res) => {
     'Cross-Origin-Resource-Policy': 'same-origin',
   };
 
-  if (!authorised(req)) {
-    res.writeHead(401, { ...headers, 'WWW-Authenticate': 'Basic realm="Melee Web", charset="UTF-8"' });
-    return res.end('401');
-  }
-
   const url = new URL(req.url, 'http://x');
   // Netplay signaling, mounted here rather than run as a second process on its
-  // own port: one origin, one password, and nothing extra to start.
+  // own port: one origin, and nothing extra to start.
   if (url.pathname.startsWith('/signal/')) {
     return signalHandler(req, res, '/signal');
   }
@@ -119,4 +86,4 @@ http.createServer((req, res) => {
   res.writeHead(200, headers);
   fs.createReadStream(file).pipe(res);
 }).listen(PORT, BIND, () =>
-  console.log(`serving ${ROOT} on ${BIND}:${PORT}${PASSWORD ? ` (basic auth, user ${USER})` : ' (no password)'}${DISC ? `, disc ${DISC} at /disc` : ''}`));
+  console.log(`serving ${ROOT} on ${BIND}:${PORT}${DISC ? `, disc ${DISC} at /disc` : ''}`));
