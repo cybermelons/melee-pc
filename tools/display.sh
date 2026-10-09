@@ -32,8 +32,20 @@ export PULSE_SINK=alsa_output.pci-0000_0b_00.1.hdmi-stereo-extra2
 # "No free output buffer slot" with two clients, and the second instance's p99
 # drifts up over 30 s. If a long two-player run degrades, suspect the
 # compositor's buffer count before the netcode.
+# `env -u` removes the session's own display variables inside cage. Cage sets
+# WAYLAND_DISPLAY for its children, so removing the inherited one changes
+# nothing while cage is healthy. It matters when cage is absent, or when its
+# compositor has exited: the child then finds the desktop socket still named in
+# its environment, connects to it, and opens a window on the user's screen. The
+# run still passes, so only the person at the machine ever sees the problem.
+# This was measured: `launcher-close-repeat` lost cage's device at the end of
+# pass 1 ("Device lost ... Device was destroyed"), and pass 2 reached the
+# desktop compositor.
+#
+# DISPLAY goes too. It names the X server, which an SDL or Chromium fallback
+# will take once Wayland fails, and that window lands on the same screen.
 run_headless() {
   XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}" \
   WLR_BACKEND=headless WLR_LIBINPUT_NO_DEVICES=1 \
-    cage -- env "PULSE_SINK=$PULSE_SINK" "$@"
+    cage -- env -u WAYLAND_DISPLAY -u DISPLAY "PULSE_SINK=$PULSE_SINK" "$@"
 }
