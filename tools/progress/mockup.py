@@ -87,20 +87,38 @@ TABS = {
 }
 
 
+def _one(rid, label, control, hint, cls='setting'):
+    hint_html = f'<span class="setting-hint">{hint}</span>' if hint else ''
+    return (f'<label class="{cls}" id="{rid}">{control}'
+            f'<span class="setting-label">{label}</span>{hint_html}</label>')
+
+
 def _rows(rows):
-    out = []
+    """Emit the rows, with a run of children folded under its parent.
+
+    A select-all whose members are always open costs four rows for one
+    decision, and the panel has one viewport to spend. The parent carries
+    the common case; the fold carries the exceptions.
+    """
+    out, kids = [], []
+
+    def flush():
+        if not kids:
+            return
+        out.append('<details class="kids" open><summary>'
+                   f'{len(kids)} settings</summary>{"".join(kids)}</details>')
+        kids.clear()
+
     for rid, label, control, hint in rows:
-        cls = 'setting'
         if control == 'parent':
-            cls += ' parent'
-            control = _chk()
+            flush()
+            out.append(_one(rid, label, _chk(), hint, 'setting parent'))
         elif control == 'child':
-            cls += ' child'
-            control = _chk()
-        hint_html = f'<span class="setting-hint">{hint}</span>' if hint else ''
-        out.append(f'<label class="{cls}" id="{rid}">{control}'
-                   f'<span class="setting-label">{label}</span>'
-                   f'{hint_html}</label>')
+            kids.append(_one(rid, label, _chk(), hint, 'setting child'))
+        else:
+            flush()
+            out.append(_one(rid, label, control, hint))
+    flush()
     return '\n        '.join(out)
 
 
@@ -129,7 +147,50 @@ PORTS = """
       <div class="port cpu" id="port-3"><b>P3</b><i>CPU lv 9</i><button class="pbtn">Take</button></div>
       <div class="port free" id="port-4"><b>P4</b><i>free</i><button class="pbtn">Take</button></div>
     </div>
-    <p id="queue" class="sub">2 watching · <b>mango</b> is next for a free port. A port taken mid-match drops in on the next frame.</p>
+    <p id="queue" class="sub">2 watching · <b>mango</b> next up</p>
+"""
+
+
+# A phone, drawn at its real size, because "no scrolling" is a claim about a
+# fixed height and cannot be shown on a page that grows. 390x844 is an
+# iPhone 14. The frame is the budget: if the controls do not fit inside it,
+# the design is wrong, and the board shows that rather than describing it.
+PHONE = """
+<div id="phone">
+  <div id="phone-frame">
+    <div id="phone-screen">
+      <div id="phone-game">
+        <span id="phone-fps">60 fps</span>
+        <button id="phone-menu">\u2630</button>
+      </div>
+      <div id="phone-sheet">
+        <header id="phone-bar">
+          <b>Melee</b>
+          <button id="phone-room">FIG-7K2</button>
+        </header>
+        <div id="phone-ports">
+          <span class="pp taken">P1 kiri</span>
+          <span class="pp taken">P2 guest</span>
+          <span class="pp cpu">P3 CPU</span>
+          <span class="pp free">P4 take</span>
+        </div>
+        <div id="phone-tabs">
+          <span class="pt on">Game</span><span class="pt">Video</span><span class="pt">Audio</span><span class="pt">Input</span><span class="pt">Net</span>
+        </div>
+        <div id="phone-pane">
+          <span class="pr"><i class="box on"></i>20XX</span>
+          <span class="pr"><i class="box"></i>Boot to CSS</span>
+          <span class="pr"><i class="box on"></i>UCF</span>
+          <span class="pr"><i class="box"></i>Hitboxes</span>
+          <span class="pr"><i class="box on"></i>Pausing</span>
+          <span class="pr"><i class="box"></i>Unlock all</span>
+        </div>
+        <button id="phone-apply">Apply &amp; reload</button>
+      </div>
+    </div>
+  </div>
+  <p id="phone-cap" class="sub">390 \u00d7 844, nothing scrolls</p>
+</div>
 """
 
 LAUNCHER = """
@@ -159,7 +220,6 @@ LAUNCHER = """
       <button class="state" id="state-training"><b>Training menu</b><i>Hitboxes, no stocks</i></button>
       <button class="state" id="state-event"><b>Event stage</b><i>Event match 1</i></button>
     </div>
-    <p id="states-note" class="sub">A state loads into this lobby. Nobody changes rooms, and the ports stay as they are. Training tools run outside the player ports, so a scenario needs no seat of its own.</p>
   </section>
 
   <section id="settings" class="group">
@@ -183,4 +243,5 @@ engine: 60.0 fps</pre></details>
 
 
 def launcher_html():
-    return LAUNCHER.replace('%PORTS%', PORTS).replace('%TABS%', _tabs())
+    return (LAUNCHER.replace('%PORTS%', PORTS).replace('%TABS%', _tabs())
+            + PHONE)

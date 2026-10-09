@@ -149,11 +149,11 @@
     },
     {
       "n": 10,
-      "anchor": "#states-note",
+      "anchor": "#phone-frame",
       "side": "right",
       "state": "open",
       "title": "Mobile layout: full-viewport canvas",
-      "pin": "On a phone this whole panel folds behind the menu button. Code complete, waits on one iPhone screenshot."
+      "pin": "The whole launcher has to fit this box with no page scroll. Code complete, waits on one iPhone screenshot."
     },
     {
       "n": 9,

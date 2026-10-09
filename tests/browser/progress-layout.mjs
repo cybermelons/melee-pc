@@ -52,11 +52,16 @@ const measure = () => {
   const offpage = box.filter((b) => b.r.left < 0 || b.r.right > window.innerWidth)
     .map((b) => b.n);
   const wide = getComputedStyle(document.getElementById('leads')).display !== 'none';
+  // Narrow keeps the dots on the mockup and shows a label only when its dot
+  // is tapped. The earlier fallback printed the labels as a list instead,
+  // which is the one shape this page must not take.
+  const shown = box.filter((b) => b.r.width > 0 && b.r.height > 0).length;
   return {
     count: pins.length,
     dots: document.querySelectorAll('.dot').length,
     lines: document.querySelectorAll('#leads line').length,
     wide,
+    shown,
     overlaps,
     orphans,
     offpage,
@@ -75,14 +80,23 @@ for (const [width, height, tag] of SIZES) {
   // The labels are text, so the stacker re-runs once the fonts settle.
   await p.waitForTimeout(400);
   const m = await p.evaluate(measure);
+  if (!m.wide) {
+    // Tap the first dot: exactly one label must open.
+    m.tapped = await p.evaluate(() => {
+      document.querySelector('.dot').click();
+      return [...document.querySelectorAll('.pin')]
+        .filter((a) => a.getBoundingClientRect().height > 0).length;
+    });
+  }
   const problems = [
     m.count === 0 ? 'no pins rendered' : '',
     m.orphans.length ? `pins anchored to nothing: ${m.orphans.join(', ')}` : '',
-    // Below the breakpoint the dots and lines are hidden on purpose, so only
-    // the wide layout has to draw one of each per pin.
-    m.wide && m.dots !== m.count ? `${m.count} pins but ${m.dots} dots` : '',
     m.wide && m.lines !== m.count ? `${m.count} pins but ${m.lines} leader lines` : '',
     m.overlaps.length ? `labels overlap: ${m.overlaps.join(', ')}` : '',
+    // Every dot must be on the mockup at every width.
+    m.dots !== m.count ? `${m.count} pins but ${m.dots} dots` : '',
+    !m.wide && m.shown ? `${m.shown} labels visible before any tap` : '',
+    !m.wide && m.tapped !== 1 ? `a dot tap showed ${m.tapped} labels` : '',
     m.offpage.length ? `labels off the page: ${m.offpage.join(', ')}` : '',
     m.hscroll ? 'the page scrolls sideways' : '',
     errors.length ? `page errors: ${errors.join('; ')}` : '',
@@ -91,7 +105,7 @@ for (const [width, height, tag] of SIZES) {
     bad = 1;
     console.log(`FAIL progress-layout ${tag} (${width}px): ${problems.join('; ')}`);
   } else {
-    console.log(`pass ${tag} (${width}px): ${m.count} pins, ${m.wide ? `${m.dots} dots, ${m.lines} lines, ` : 'list fallback, '}no overlap, nothing off-page`);
+    console.log(`pass ${tag} (${width}px): ${m.count} pins, ${m.dots} dots, ${m.wide ? `${m.lines} lines, ` : 'tap-to-read, '}no overlap, nothing off-page`);
   }
 }
 await browser.close();

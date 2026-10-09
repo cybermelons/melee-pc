@@ -196,6 +196,14 @@ TEMPLATE = """<!DOCTYPE html>
                opacity:0; pointer-events:none; }}
   .pane-grid {{ display:grid; grid-template-columns:1fr 1fr; gap:7px 18px; }}
 
+  /* A run of children folds under its select-all. The fold is open on the
+     board so every pinned control has a box to measure. */
+  .kids {{ grid-column:1/-1; }}
+  .kids > summary {{ margin-left:22px; color:var(--dim); font-size:.74rem;
+                     cursor:pointer; list-style:none; }}
+  .kids > summary::before {{ content:"\\25b8 "; }}
+  .kids[open] > summary::before {{ content:"\\25be "; }}
+  .kids .setting {{ margin-top:5px; }}
   .setting.parent {{ font-weight:600; grid-column:1/-1; }}
   .setting.child {{ padding-left:18px;
                     border-left:2px solid #2a2d38; margin-left:4px; }}
@@ -225,6 +233,60 @@ TEMPLATE = """<!DOCTYPE html>
      is worse than one that is visibly inert. */
   #menu-panel button, #menu-panel summary {{ cursor:default; }}
 
+  /* ---- the phone: the viewport is the budget ----
+     The launcher is a game screen. Every option has to be reachable inside
+     one viewport, with no page scroll, so the board draws a real 390x844
+     screen beside the desktop panel. If the controls stop fitting in this
+     box, the design is wrong and the picture says so. */
+  #phone {{ margin:26px auto 0; width:max-content; }}
+  #phone-frame {{ width:min(390px,100%); aspect-ratio:390/844;
+                  border:10px solid #23252e; box-sizing:border-box;
+                  border-radius:38px; background:#000; overflow:hidden; }}
+  #phone {{ max-width:100%; }}
+  #phone-screen {{ position:relative; width:100%; height:100%;
+                   display:flex; flex-direction:column; }}
+  /* The game owns the viewport. The menu is a sheet over it, not a page
+     under it. */
+  #phone-game {{ flex:1; background:
+      radial-gradient(120% 80% at 50% 10%,#1b2434 0%,#0a0c12 70%);
+      position:relative; }}
+  #phone-fps {{ position:absolute; top:10px; left:12px; color:#4e5260;
+                font-size:.68rem; }}
+  #phone-menu {{ position:absolute; top:8px; right:10px; width:34px;
+                 height:34px; border-radius:9px; font-size:1rem;
+                 background:#ffffff14; color:var(--fg);
+                 border:1px solid #ffffff22; }}
+  #phone-sheet {{ background:#111; border-top:1px solid var(--line);
+                  padding:12px 12px 14px; display:grid; gap:10px; }}
+  #phone-bar {{ display:flex; align-items:center; justify-content:space-between; }}
+  #phone-bar b {{ font-size:.92rem; }}
+  #phone-room {{ padding:5px 10px; border-radius:7px; background:#1d2130;
+                 color:var(--fg); border:1px solid #3c4252;
+                 font:600 .78rem/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+                 letter-spacing:.05em; }}
+  #phone-ports {{ display:grid; grid-template-columns:repeat(4,1fr); gap:5px; }}
+  .pp {{ padding:6px 4px; text-align:center; font-size:.66rem;
+         border-radius:7px; background:#15171f;
+         border:1px solid var(--line); color:var(--dim); }}
+  .pp.taken {{ background:#1d2130; border-color:#3c4252; color:var(--fg); }}
+  .pp.free {{ background:var(--accent); color:#1a1405; border-color:var(--accent);
+              font-weight:600; }}
+  #phone-tabs {{ display:flex; gap:3px; border-bottom:1px solid var(--line); }}
+  .pt {{ flex:1; text-align:center; padding:6px 2px; font-size:.68rem;
+         color:var(--dim); border-radius:6px 6px 0 0; }}
+  .pt.on {{ color:var(--fg); background:#191b24; }}
+  /* Two columns, because one column of settings on a phone is the content
+     app this must not be. */
+  #phone-pane {{ display:grid; grid-template-columns:1fr 1fr; gap:7px 10px; }}
+  .pr {{ display:flex; align-items:center; gap:6px; font-size:.72rem; }}
+  .box {{ width:12px; height:12px; border-radius:3px; flex:none;
+          border:1px solid #4a4e5e; background:#15171f; }}
+  .box.on {{ background:var(--accent); border-color:var(--accent); }}
+  #phone-apply {{ padding:9px; border-radius:8px; font-weight:600;
+                  background:var(--accent); color:#1a1405;
+                  border:1px solid var(--accent); }}
+  #phone-cap {{ text-align:center; margin:.5rem 0 0; font-size:.74rem; }}
+
   /* ---- the pins ---- */
   .dot {{ position:absolute; width:11px; height:11px; margin:-5.5px 0 0 -5.5px;
           border-radius:50%; background:var(--open); z-index:4;
@@ -250,15 +312,22 @@ TEMPLATE = """<!DOCTYPE html>
   /* Below this width there is no room for a label column, so the board
      becomes the mockup and then a numbered list. The numbers still tie each
      note to its control, so the mapping survives the fallback. */
+  /* Narrow: the board is still a board. The earlier fallback hid the dots
+     and printed the labels as a list under the mockup, which is the one
+     thing this page must not be. The dots stay on the control; the label
+     becomes a tooltip that a tap opens. */
   @media (max-width:1320px) {{
-    .board {{ display:block; max-width:660px; }}
-    .dot, #leads {{ display:none; }}
+    .board {{ display:block; max-width:680px; }}
+    #leads {{ display:none; }}
     #pin-left, #pin-right {{ position:static; }}
-    #pin-left {{ margin-top:1.5rem; }}
-    .pin {{ position:static !important; width:auto;
-            padding:.8rem 0; border-top:1px solid var(--line);
-            text-align:left !important; grid-template-columns:auto 1fr !important; }}
-    .pin.left .pin-n {{ order:0; }}
+    .pin {{ position:fixed; width:min(17rem,74vw); z-index:6;
+            display:none; text-align:left !important;
+            grid-template-columns:auto 1fr !important;
+            background:#171922; border:1px solid #3c4252; border-radius:9px;
+            padding:.6rem .7rem; box-shadow:0 8px 24px #000a; }}
+    .pin.shown {{ display:grid; }}
+    .dot {{ pointer-events:auto; cursor:pointer; width:14px; height:14px;
+            margin:-7px 0 0 -7px; }}
   }}
   footer {{ max-width:46rem; margin:0 auto; padding:0 1rem 3rem;
             color:var(--dim); font-size:.82rem; text-align:center; }}
@@ -298,9 +367,10 @@ const MIN_GAP = 8;   // px between two labels before they are pushed apart
 function place() {{
   leads.replaceChildren();
   document.querySelectorAll('.dot').forEach((d) => d.remove());
-  // The one-column fallback has no room for the label column; the media query
-  // hides the lines and dots, so there is nothing to place.
-  if (getComputedStyle(leads).display === 'none') return;
+  // Below the breakpoint there is no label column and no leader line, but
+  // the dots still belong on the controls: they are the whole board. Only
+  // the column placement and the lines are skipped.
+  const wide = getComputedStyle(leads).display !== 'none';
 
   const base = stage.getBoundingClientRect();
   const colL = document.getElementById('pin-left').getBoundingClientRect();
@@ -341,15 +411,37 @@ function place() {{
   for (const w of want) {{
     // ly is measured from the stage, but each label is positioned inside its
     // own column, so it is converted into that column's coordinates.
-    const col = w.left ? colL : colR;
-    w.pin.style.top = `${{w.ly + base.top - col.top}}px`;
+    if (wide) {{
+      const col = w.left ? colL : colR;
+      w.pin.style.top = `${{w.ly + base.top - col.top}}px`;
+    }}
 
     const dot = document.createElement('span');
     dot.className = 'dot' + (w.pin.classList.contains('closed') ? ' closed' : '');
     dot.style.left = `${{w.ax}}px`;
     dot.style.top = `${{w.ay}}px`;
+    // Narrow mode has no room for a label column, so the dot opens its own
+    // label as a tooltip. The dot is the handle; the control under it stays
+    // free to behave like a control.
+    dot.addEventListener('click', (ev) => {{
+      ev.stopPropagation();
+      const was = w.pin.classList.contains('shown');
+      for (const q of pins) q.classList.remove('shown');
+      if (was) return;
+      w.pin.classList.add('shown');
+      // Place it beside the dot, then pull it back inside the page.
+      const pad = 10;
+      const now = stage.getBoundingClientRect();
+      w.pin.style.top = `${{w.ay + now.top + 14}}px`;
+      w.pin.style.left = '0px';
+      const r = w.pin.getBoundingClientRect();
+      let x = w.ax + now.left - r.width / 2;
+      x = Math.max(pad, Math.min(x, window.innerWidth - r.width - pad));
+      w.pin.style.left = `${{x}}px`;
+    }});
     stage.append(dot);
 
+    if (!wide) continue;
     const line = document.createElementNS(ns, 'line');
     line.setAttribute('x1', w.ax);
     line.setAttribute('y1', w.ay);
@@ -365,6 +457,12 @@ place();
 // height depends on the labels. Re-measure on resize and once the fonts land.
 addEventListener('resize', place);
 if (document.fonts) document.fonts.ready.then(place);
+
+// A tap outside closes the open tooltip. Without this the only way to
+// dismiss one is to find its own dot again.
+document.addEventListener('click', () => {{
+  for (const q of pins) q.classList.remove('shown');
+}});
 
 // The tabs are the one live control on the mockup, because a tab that does
 // not switch cannot show that the settings fit in the width. An off pane keeps
