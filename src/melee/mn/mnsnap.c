@@ -988,7 +988,9 @@ static inline s32 mnSnap_ReadCardStatus(s32 slot)
 /// Main per-frame update for the Snap menu. Handles all state transitions
 /// including slot selection, photo browsing, copy/move/delete operations,
 /// and dialog confirmations via a large switch on snap->state.
-void fn_802545C4(void)
+/* An HSD_GObjEvent: the gobj is passed but not used. wasm checks the
+ * signature at the indirect call, so the parameter must be declared. */
+void fn_802545C4(HSD_GObj* gobj)
 {
     struct {
         int index;
@@ -2177,7 +2179,9 @@ void fn_802545C4(void)
 }
 
 /// Handles the Back button to exit the Snap menu and cleans up GObjs/text.
-void fn_80257D7C(void)
+/* An HSD_GObjEvent: the gobj is passed but not used. wasm checks the
+ * signature at the indirect call, so the parameter must be declared. */
+void fn_80257D7C(HSD_GObj* gobj)
 {
     mnSnap_State* snap = &mnSnap_804A0A10;
     s32 i;
@@ -2446,7 +2450,7 @@ void mnSnap_80257F24(void)
     HSD_JObjSetFlagsAll(*move_jobj_ptr, JOBJ_HIDDEN);
     HSD_AObjSetFlags((*move_jobj_ptr)->u.dobj->mobj->tobj->aobj, 0x20000000);
 
-    HSD_GObj_SetupProc(gobj, (HSD_GObjEvent) fn_802545C4, 0);
+    HSD_GObj_SetupProc(gobj, fn_802545C4, 0);
 
     /* Sub GObj (arrows/cursor) */
     gobj = GObj_Create(6, 7, 0x80);
@@ -2577,6 +2581,6 @@ void mnSnap_80257F24(void)
 
     /* Timer/input GObj */
     gobj = GObj_Create(0, 1, 0x80);
-    proc = HSD_GObj_SetupProc(gobj, (HSD_GObjEvent) fn_80257D7C, 0);
+    proc = HSD_GObj_SetupProc(gobj, fn_80257D7C, 0);
     proc->flags_3 = HSD_GObj_804D783C;
 }

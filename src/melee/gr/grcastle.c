@@ -802,12 +802,15 @@ void grCastle_801CE260(Ground_GObj* gobj)
     grMaterial_801C94D8(jobj);
     gp->u.castle11.xD0 = (HSD_GObj*) grMaterial_801C8CFC(
         0, 3, gp, Ground_801C3FA4((HSD_GObj*) gobj, 0),
-        (void (*)(Item_GObj*, Ground*)) fn_801CE3A0, NULL, NULL);
+        fn_801CE3A0, NULL, NULL);
     it_80275414((Item_GObj*) gp->u.castle11.xD0);
     Ground_801C5440(gp, 0, 0x53025U);
 }
 
-void fn_801CE3A0(void) {}
+/* Registered through a cast to void (*)(Item_GObj*, Ground*): the arguments are
+ * passed but not used. wasm checks the signature at the indirect
+ * call, so they must be declared. */
+void fn_801CE3A0(Item_GObj* gobj, Ground* gp) {}
 
 bool grCastle_801CE3A4(Ground_GObj* gobj)
 {
@@ -1007,12 +1010,15 @@ void grCastle_801CE8E8(Ground_GObj* gobj)
     }
     gp->u.castle1.xC4 = (HSD_GObj*) grMaterial_801C8CFC(
         0, 4, gp, Ground_801C3FA4((HSD_GObj*) gobj, 0),
-        (void (*)(Item_GObj*, Ground*)) fn_801CE9DC, NULL, NULL);
+        fn_801CE9DC, NULL, NULL);
     it_80275414((Item_GObj*) gp->u.castle1.xC4);
     Ground_801C5440(gp, 0, 0x53024U);
 }
 
-void fn_801CE9DC(void) {}
+/* Registered through a cast to void (*)(Item_GObj*, Ground*): the arguments are
+ * passed but not used. wasm checks the signature at the indirect
+ * call, so they must be declared. */
+void fn_801CE9DC(Item_GObj* gobj, Ground* gp) {}
 
 bool grCastle_801CE9E0(Ground_GObj* gobj)
 {

@@ -124,7 +124,9 @@ static struct DISC_STRUCT {
 /* 4D7738 */ static int HSD_Synth_804D7738;
 /* 4D773C */ static volatile int sfxGroupDataReaddressCounter;
 /* 4D7740 */ static void (*driverInactivatedCallback)(int);
-/* 4D7744 */ static void (*driverMasterClockCallback)(int);
+/* Takes no argument: AXDriverCallback, the only function ever stored here,
+ * declares none and reads its own globals instead. */
+/* 4D7744 */ static void (*driverMasterClockCallback)(void);
 /* 4D7748 */ static void (*driverPauseCallback)(s32);
 /* 4D774C */ static struct HSD_SynthSFXNode* HSD_Synth_804D774C;
 /* 4D7750 */ static int HSD_Synth_804D7750;

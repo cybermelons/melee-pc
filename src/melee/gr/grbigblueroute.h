@@ -2,6 +2,7 @@
 #define GALE01_20B864
 
 #include <melee/gr/forward.h>
+#include <melee/it/forward.h>
 #include <melee/lb/forward.h>
 #include <melee/sc/forward.h>
 
@@ -41,7 +42,7 @@
 /* 20DAB4 */ void grBigBlueRoute_8020DAB4(HSD_JObj**, float, int);
 /* 20DD64 */ f32 grBigBlueRoute_8020DD64(Vec3*);
 /* 20DE48 */ DynamicModelDesc* grBigBlueRoute_8020DE48(void);
-/* 20DEAC */ void fn_8020DEAC(void);
+/* 20DEAC */ void fn_8020DEAC(Item_GObj*, Ground*);
 /* 20DED4 */ void grBigBlueRoute_8020DED4(Vec3*);
 /* 20DF78 */ DynamicsDesc* grBigBlueRoute_8020DF78(enum_t);
 /* 20DF80 */ bool grBigBlueRoute_8020DF80(Vec3*, int arg, HSD_JObj* jobj);

@@ -505,7 +505,9 @@ void fn_80184AB8(HSD_GObj* arg0)
     }
 }
 
-void fn_8018504C(void)
+/* An HSD_GObjEvent: the gobj is passed but not used. wasm checks the
+ * signature at the indirect call, so the parameter must be declared. */
+void fn_8018504C(HSD_GObj* gobj)
 {
     int new_var;
     PAD_STACK(16);
@@ -571,7 +573,9 @@ s32 fn_801851C0(void)
     return result;
 }
 
-void fn_801852FC(HSD_GObj* gobj)
+/* A GObj_RenderFunc: the render code is passed but not used. wasm checks
+ * the signature at the indirect call, so it must be declared. */
+void fn_801852FC(HSD_GObj* gobj, intptr_t code)
 {
     int i;
     int j;
@@ -684,13 +688,17 @@ double fn_801855BC(double x)
     }
 }
 
-void fn_8018564C(HSD_GObj* gobj)
+/* A GObj_RenderFunc: the render code is passed but not used. wasm checks
+ * the signature at the indirect call, so it must be declared. */
+void fn_8018564C(HSD_GObj* gobj, intptr_t code)
 {
     fn_80185408(0xFC8000, 0.0F, 480.0F, 200.0F, 640.0F);
     HSD_SObjLib_803A54EC(gobj, 7);
 }
 
-void fn_8018569C(HSD_GObj* gobj)
+/* A GObj_RenderFunc: the render code is passed but not used. wasm checks
+ * the signature at the indirect call, so it must be declared. */
+void fn_8018569C(HSD_GObj* gobj, intptr_t code)
 {
     int i;
     PAD_STACK(8);
@@ -709,7 +717,9 @@ void fn_8018569C(HSD_GObj* gobj)
     }
 }
 
-void fn_8018575C(HSD_GObj* gobj)
+/* A GObj_RenderFunc: the render code is passed but not used. wasm checks
+ * the signature at the indirect call, so it must be declared. */
+void fn_8018575C(HSD_GObj* gobj, intptr_t code)
 {
     if (HSD_CObjSetCurrent(GET_COBJ(gobj))) {
         Camera_800313E0(gobj, 1);
@@ -821,7 +831,7 @@ static inline void fn_80185A0C_Tail(const u8* count_ptr, s32* i)
     gobj3 = GObj_Create(0x13, 0x14, 0);
     cobj = HSD_CObjLoadDesc(DP(HSD_CObjDesc, GM_SCENE_CAMERA(lbl_804D6600)[0].desc));
     HSD_GObjObject_80390A70(gobj3, HSD_GObj_CameraKind, cobj);
-    GObj_SetupGXLinkMax(gobj3, (GObj_RenderFunc) (Event) fn_801852FC, 0);
+    GObj_SetupGXLinkMax(gobj3, fn_801852FC, 0);
     gobj3->gxlink_prios = 0x61;
     lbl_804D65F0 = gobj3;
 }
@@ -841,7 +851,7 @@ s32 fn_80185A0C(void)
     HSD_SObjLib_803A55DC(gobj, 0x280, 0x1E0, 0xB);
     gobj->gxlink_prios = 0x20000;
     HSD_GObjGXLink_8039084C(gobj);
-    GObj_SetupGXLinkMax(gobj, (GObj_RenderFunc) (Event) fn_8018564C, 0xB);
+    GObj_SetupGXLinkMax(gobj, fn_8018564C, 0xB);
 
     gobj2 = GObj_Create(0xE, 0xF, 0);
     HSD_GObjObject_80390A70(gobj2, HSD_SObjLib_804D7960, NULL);
@@ -1079,9 +1089,9 @@ static inline void gm_80186634_SetupCamera(void)
     gobj2 = GObj_Create(0x13, 0x15, 0);
     HSD_GObjObject_80390A70(gobj2, HSD_GObj_CameraKind, cobj2);
     if (lbl_8047368C.model_scale_kind == 4) {
-        GObj_SetupGXLinkMax(gobj2, (GObj_RenderFunc) (Event) fn_8018569C, 8);
+        GObj_SetupGXLinkMax(gobj2, fn_8018569C, 8);
     } else {
-        GObj_SetupGXLinkMax(gobj2, (GObj_RenderFunc) (Event) fn_8018575C, 8);
+        GObj_SetupGXLinkMax(gobj2, fn_8018575C, 8);
     }
 }
 

@@ -664,7 +664,9 @@ void fn_8024B7E4(mnSoundTest_GObj* arg0)
     }
 }
 
-void fn_8024B8B4(mnSoundTest_GObj* arg0, f32 farg0)
+/* An HSD_GObjEvent: takes the gobj only. The old f32 parameter was never
+ * passed by HSD_GObj_SetupProc and every read of it was dead. */
+void fn_8024B8B4(mnSoundTest_GObj* arg0)
 {
     f32 var_f1;
     HSD_JObj* sp20;
@@ -678,7 +680,6 @@ void fn_8024B8B4(mnSoundTest_GObj* arg0, f32 farg0)
     soundtest_user_data* user_data;
     HSD_Text* text;
 
-    var_f1 = farg0;
     user_data = arg0->user_data;
     jobj = arg0->hsd_obj;
     if ((u8) mn_804A04F0.cur_menu != 0x1B) {
@@ -776,7 +777,7 @@ void fn_8024BAF0(mnSoundTest_GObj* arg0)
         if (temp_f31 == vec_0.end_frame) {
             HSD_GObjProc_RemoveProc(HSD_GObj_CurrentInvokedProc);
             proc2 = HSD_GObj_SetupProc(
-                arg0, (void (*)(mnSoundTest_GObj*))(Event) fn_8024B8B4, 0U);
+                arg0, (void (*)(mnSoundTest_GObj*)) fn_8024B8B4, 0U);
             proc2->flags_3 = HSD_GObj_804D783C;
             mnSoundTest_8024A958(arg0);
             mnSoundTest_804D6C44 = 0;

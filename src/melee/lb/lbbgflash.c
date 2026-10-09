@@ -338,7 +338,9 @@ void fn_8001FEC4(HSD_GObj* gobj, intptr_t code)
     }
 }
 
-void fn_800204C8(void)
+/* An HSD_GObjEvent: the gobj is passed but not used. wasm checks the
+ * signature at the indirect call, so the parameter must be declared. */
+void fn_800204C8(HSD_GObj* gobj)
 {
     BgFlashData* data = &lbl_80433658;
     s32 mode = data->state.mode;
@@ -510,7 +512,7 @@ void lbBgFlash_800208EC(int arg0)
 
     gobj2_slot = &flash->x40;
     GObj_SetupGXLink(*gobj2_slot, fn_8001FEC4, 0x10, (u8) arg0);
-    HSD_GObj_SetupProc(*gobj2_slot, (HSD_GObjEvent) fn_800204C8, 0);
+    HSD_GObj_SetupProc(*gobj2_slot, fn_800204C8, 0);
 
     lbl_80433658.state.active = 1;
     lbl_80433658.state.mode = 0;
@@ -547,7 +549,7 @@ void lbBgFlash_800209F4(void)
     gobj2_slot = &flash->x40;
     GObj_SetupGXLink(*gobj2_slot, fn_8001FEC4, 0x10, 0xa);
     temp = *gobj2_slot;
-    HSD_GObj_SetupProc(temp, (HSD_GObjEvent) fn_800204C8, 0);
+    HSD_GObj_SetupProc(temp, fn_800204C8, 0);
     lbl_80433658.state.active = 1;
     lbl_80433658.state.mode = 0;
 }

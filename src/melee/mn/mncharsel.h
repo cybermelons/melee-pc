@@ -23,7 +23,7 @@
 /* 263354 */ void fn_80263354(HSD_GObj*);
 /* 2633B0 */ void fn_802633B0(HSD_GObj*);
 /* 264070 */ void mnCharSel_80264070(void);
-/* 26407C */ void fn_8026407C(HSD_GObj*);
+/* 26407C */ void fn_8026407C(HSD_GObj*, intptr_t);
 /* 2640A0 */ s32 mnCharSel_802640A0(void);
 /* 26688C */ void mnCharSel_Scene_OnEnter(void*);
 /* 2669F4 */ void mnCharSel_Scene_OnFrame(void);

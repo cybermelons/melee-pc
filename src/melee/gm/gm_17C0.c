@@ -244,7 +244,10 @@ void fn_8017C71C(void)
     ftLib_LoadFighterCostume(Ft_Kind_CrezyH, 0);
 }
 
-void fn_8017C7A0(void)
+/* Registered through a cast to void (*)(u8): the arguments are
+ * passed but not used. wasm checks the signature at the indirect
+ * call, so they must be declared. */
+void fn_8017C7A0(u8 outcome)
 {
     lbBgFlash_8002063C(0x30);
     if (Ground_801C1DAC()) {
@@ -601,7 +604,7 @@ void gm_8017CE34(StartMeleeData* arg0, Unk1PData* arg1, s8* arg2, u8 arg3,
             arg0->rules.x9 = 2;
             arg0->rules.x7 = 9;
             arg0->rules.x4_4 = 0;
-            arg0->rules.on_match_end = (void (*)(u8)) fn_8017C7A0;
+            arg0->rules.on_match_end = fn_8017C7A0;
             arg0->rules.xD = 0x30;
             break;
         }

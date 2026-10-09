@@ -301,7 +301,10 @@ static void fn_8019F6EC(HSD_GObj* gobj)
     HSD_JObjAnimAll(lbl_804D66E8.x0);
 }
 
-static void fn_8019F810(void)
+/* Registered through a cast to void (*)(HSD_GObj*): the arguments are
+ * passed but not used. wasm checks the signature at the indirect
+ * call, so they must be declared. */
+static void fn_8019F810(HSD_GObj* gobj)
 {
     u32 trigger;
     PAD_STACK(16);
@@ -487,7 +490,7 @@ void fn_8019F9C4(u32 arg0)
     jobj = HSD_JObjLoadJoint(DP(HSD_Joint, GM_SCENE_MODEL(lbl_804D669C, 0)->joint));
     HSD_GObjObject_80390A70(gobj, HSD_GObj_JObjKind, jobj);
     GObj_SetupGXLink(gobj, HSD_GObj_JObjCallback, 0xB, 0);
-    HSD_GObj_SetupProc(gobj, (void (*)(HSD_GObj*)) fn_8019F810, 0);
+    HSD_GObj_SetupProc(gobj, fn_8019F810, 0);
     gm_8016895C(jobj, GM_SCENE_MODEL(lbl_804D669C, 0), 0);
     HSD_JObjReqAnimAll(jobj, 0.0f);
     HSD_JObjAnimAll(jobj);

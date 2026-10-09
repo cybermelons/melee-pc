@@ -533,7 +533,9 @@ static inline void gm_801891F4_SetCpuType(int cpu_type)
     }
 }
 
-void fn_801891F4(void)
+/* An HSD_GObjEvent: the gobj is passed but not used. wasm checks the
+ * signature at the indirect call, so the parameter must be declared. */
+void fn_801891F4(HSD_GObj* gobj)
 {
     CssSubStruct* sub;
     u64 buttons;
@@ -842,7 +844,7 @@ void fn_80189B88(void)
     sub = &gm_80473814;
     sub->x00 = 0;
     sub->x01 = 0;
-    HSD_GObj_SetupProc(GObj_Create(0xE, 2, 0), (HSD_GObjEvent) fn_801891F4,
+    HSD_GObj_SetupProc(GObj_Create(0xE, 2, 0), fn_801891F4,
                        0x15);
     gobj = GObj_Create(0xE, 0xF, 0);
     jobj = HSD_JObjLoadJoint(DP(HSD_Joint, GM_DISC_ARR(DynamicModelDesc, lbl_804D662C, 0)->joint));

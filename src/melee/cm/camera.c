@@ -3512,7 +3512,9 @@ void Camera_SetModeToStandard(void)
     game_camera.mode = CAMERA_STANDARD;
 }
 
-s32 Camera_SetBounds(Vec4* arg0)
+/* Stored in Camera_x2D0::callback, which returns void. The return value
+ * was never read; wasm checks the whole signature at the indirect call. */
+void Camera_SetBounds(Vec4* arg0)
 {
     arg0->z = Stage_GetCamBoundsLeftOffset();
     arg0->w = Stage_GetCamBoundsRightOffset();
@@ -3552,7 +3554,7 @@ void Camera_SetUpPauseCamera(s8 pauserSlot, s8 pauserId, s32 arg2)
     game_camera.x2D0.unk28 = Stage_GetPauseCamZPosMin();
     game_camera.x2D0.unk2C = Stage_GetPauseCamZPosMax();
     game_camera.x2D0.callback =
-        (void (*)(Camera_x2D0*))(Event) Camera_SetBounds;
+        (void (*)(Camera_x2D0*)) Camera_SetBounds;
 
     switch (arg2) {
     case 0:
@@ -3683,7 +3685,8 @@ void Camera_SetModeToFixed(void)
     game_camera.mode = CAMERA_FIXED;
 }
 
-s32 fn_8002F908(HSD_RectF32* arg0)
+/* A Camera_x2D0::callback: returns void, see Camera_SetBounds. */
+void fn_8002F908(HSD_RectF32* arg0)
 {
     f32 half_width;
     f32 half_height;
@@ -3734,7 +3737,7 @@ void Camera_8002F9E4(s8 arg0, s8 arg1)
     scale = getPauseScale();
     game_camera.x2D0.unk28 = scale * cm_803BCCA0.x94;
     game_camera.x2D0.unk2C = scale * cm_803BCCA0.x98;
-    game_camera.x2D0.callback = (void (*)(Camera_x2D0*))(Event) fn_8002F908;
+    game_camera.x2D0.callback = (void (*)(Camera_x2D0*)) fn_8002F908;
 
     {
         s8 slot = game_camera.x304;
@@ -3765,7 +3768,8 @@ void Camera_8002F9E4(s8 arg0, s8 arg1)
     lbVector_Add(&transform->target_position, &game_camera.pause_eye_offset);
 }
 
-s32 fn_8002FBA0(HSD_RectF32* arg0)
+/* A Camera_x2D0::callback: returns void, see Camera_SetBounds. */
+void fn_8002FBA0(HSD_RectF32* arg0)
 {
     // duplicate function?? fn_8002F908
     f32 half_width;
@@ -3816,7 +3820,7 @@ void Camera_8002FC7C(s8 arg0, s8 arg1)
     temp_f2 = (game_camera.x32C * (*new_var).x8C) + (*new_var).x90;
     game_camera.x2D0.unk28 = temp_f2 * (*new_var).x94;
     game_camera.x2D0.unk2C = temp_f2 * (*new_var).x98;
-    game_camera.x2D0.callback = (void (*)(Camera_x2D0*))(Event) fn_8002FBA0;
+    game_camera.x2D0.callback = (void (*)(Camera_x2D0*)) fn_8002FBA0;
     x304_ptr = &game_camera.x304;
     x304_check = *x304_ptr;
     game_camera.x314.z = 0.0f;
@@ -4085,7 +4089,9 @@ static void fn_800301D0(HSD_GObj* gobj, intptr_t arg1)
     }
 }
 
-void Camera_800304E0(HSD_GObj* gobj)
+/* A GObj_RenderFunc: the render code is passed but not used. wasm checks
+ * the signature at the indirect call, so it must be declared. */
+void Camera_800304E0(HSD_GObj* gobj, intptr_t code)
 {
     s64 prio8;
     s64 prio1;

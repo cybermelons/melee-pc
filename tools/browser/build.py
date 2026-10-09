@@ -28,6 +28,7 @@ def main():
     run([sys.executable, ROOT / 'tests/browser/test_mobile_css.py'])
     run([sys.executable, ROOT / 'tests/browser/test_pause_on_blur.py'])
     run([sys.executable, ROOT / 'tests/browser/test_no_fpcast_emu.py'])
+    run([sys.executable, ROOT / 'tests/browser/test_callback_signatures.py'])
     run([sys.executable, ROOT / 'tests/browser/test_tier_layout.py'])
     run([sys.executable, ROOT / 'tests/browser/test_event_boot.py'])
     run([sys.executable, ROOT / 'tests/browser/test_asset_copy.py'])

@@ -294,7 +294,9 @@ static inline void mnInfo_FreeEntries(void)
     }
 }
 
-void fn_80251FE4(void)
+/* An HSD_GObjEvent: the gobj is passed but not used. wasm checks the
+ * signature at the indirect call, so the parameter must be declared. */
+void fn_80251FE4(HSD_GObj* gobj)
 {
     MnInfoData* data;
     u64 buttons;
@@ -572,7 +574,7 @@ s32 mnInfo_80252758(void)
     }
 
     proc = HSD_GObj_SetupProc(GObj_Create(0, 1, 0x80),
-                              (HSD_GObjEvent) fn_80251FE4, 0);
+                              fn_80251FE4, 0);
     proc->flags_3 = (u16) HSD_GObj_804D783C;
     return (s32) proc;
 }

@@ -6,7 +6,7 @@
 /* 3932D0 */ void fn_803932D0(s32, u32, s32);
 /* 393328 */ s32 hsd_80393328(void);
 /* 393440 */ void hsd_80393440(void*, void*);
-/* 393840 */ void hsd_80393840(void);
+/* 393840 */ void hsd_80393840(void*, void*);
 /* 393844 */ void hsd_80393844(void);
 
 /// Checks whether USB server is set up.

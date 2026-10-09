@@ -238,7 +238,10 @@ void fn_80180C60(HSD_GObj* gobj)
     }
 }
 
-void fn_80181598(void)
+/* Registered through a cast to void (*)(HSD_GObj*): the arguments are
+ * passed but not used. wasm checks the signature at the indirect
+ * call, so they must be declared. */
+void fn_80181598(HSD_GObj* gobj)
 {
     s32* unk_4;
     s32 val;
@@ -307,7 +310,7 @@ void fn_80181708(void)
     lbl_804D65D8 = 0;
 
     HSD_GObj_SetupProc(GObj_Create(0xEU, 0x11U, 0U),
-                       (void (*)(HSD_GObj*)) fn_80181598, 0x15U);
+                       fn_80181598, 0x15U);
 
     gobj = GObj_Create(0xEU, 0xFU, 0U);
     jobj = HSD_JObjLoadJoint(DP(HSD_Joint, GM_DISC_ARR(DynamicModelDesc, lbl_804D65CC, 0)->joint));

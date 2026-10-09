@@ -69,7 +69,7 @@ void it_802F10F8(Item_GObj* gobj)
     itCrazyHandBombAttributes* attrs = DP(itCrazyHandBombAttributes, ip->xC4_article_data->x4_specialAttributes);
     it_802762BC(ip);
     Item_80268E5C(gobj, 0, ITEM_ANIM_UPDATE);
-    ip->on_accessory = (HSD_GObjEvent) it_802F1340;
+    ip->on_accessory = it_802F1340;
     ip->x40_vel.y = attrs->x0;
 }
 
@@ -112,7 +112,9 @@ bool itCrazyhandbomb_UnkMotion0_Coll(Item_GObj* gobj)
     return false;
 }
 
-void it_802F1340(void) {}
+/* An HSD_GObjEvent: the gobj is passed but not used. wasm checks the
+ * signature at the indirect call, so the parameter must be declared. */
+void it_802F1340(HSD_GObj* gobj) {}
 
 void it_802F1344(Item_GObj* gobj)
 {

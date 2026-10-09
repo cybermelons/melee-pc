@@ -16,7 +16,7 @@
 /* 17C0C8 */ void fn_8017C0C8(void);
 /* 17C1A4 */ void fn_8017C1A4(HSD_GObj*);
 /* 17C71C */ void fn_8017C71C(void);
-/* 17C7A0 */ void fn_8017C7A0(void);
+/* 17C7A0 */ void fn_8017C7A0(u8);
 /* 17C7EC */ void fn_8017C7EC(void);
 /* 17C838 */ void gm_8017C838(void);
 /* 17C984 */ void gm_8017C984(UNK_T);
@@ -107,7 +107,7 @@ struct lbl_80472D28_t; /* defined in gmregclear.c */
 /* 180BA0 */ void gm_80180BA0(void);
 /* 180C14 */ void fn_80180C14(HSD_GObj* gobj);
 /* 180C60 */ void fn_80180C60(HSD_GObj* gobj);
-/* 181598 */ void fn_80181598(void);
+/* 181598 */ void fn_80181598(HSD_GObj*);
 /* 181708 */ void fn_80181708(void);
 /* 181998 */ void gm_80181998(void);
 /* 181A00 */ void gm_80181A00(s32 arg0, s32 arg1);
@@ -119,7 +119,7 @@ struct lbl_80472D28_t; /* defined in gmregclear.c */
 /* 181B64 */ void gm_80181B64(int c_kind, int, s32);
 /* 181BFC */ int fn_80181BFC(int*);
 /* 181C80 */ void fn_80181C80(s32 arg0);
-/* 181E18 */ void fn_80181E18(void);
+/* 181E18 */ void fn_80181E18(HSD_GObj*);
 /* 182174 */ void gm_80182174(void);
 /* 182510 */ bool gm_IsMultimanSmashMode(void);
 /* 182554 */ void gm_80182554(int, int);

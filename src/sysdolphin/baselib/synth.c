@@ -399,8 +399,8 @@ void HSD_SynthSFXGroupDataRemove(int sfx_id)
     }
 }
 
-static void HSD_SynthSFXGroupDataReaddressCallback(void* result, uintptr_t length,
-                                                   void* addr, int cancelflag)
+static void HSD_SynthSFXGroupDataReaddressCallback(int result, uintptr_t length,
+                                                   void* addr, bool cancelflag)
 {
     HSD_ASSERT(0x182, sfxGroupDataReaddressCounter > 0);
     sfxGroupDataReaddressCounter--;
@@ -428,7 +428,7 @@ void HSD_SynthSFXGroupDataReaddress(struct SfxLoadStreamNode* bank,
     sfxGroupDataReaddressCounter += 1;
     HSD_DevComRequest(
         0, bank->x10, aram_offset, bank->x14, 0x1B, 0,
-        (HSD_DevComCallback) (Event) HSD_SynthSFXGroupDataReaddressCallback,
+        HSD_SynthSFXGroupDataReaddressCallback,
         NULL);
     delta = (aram_offset - bank->x10) * 2;
     for (i = 0; i < bank->xC; i++) {
@@ -1212,7 +1212,7 @@ void HSD_SynthSFXSetDriverInactivatedCallback(UNK_T callback)
     driverInactivatedCallback = callback;
 }
 
-void HSD_SynthSFXSetDriverMasterClockCallback(UNK_T callback)
+void HSD_SynthSFXSetDriverMasterClockCallback(void (*callback)(void))
 {
     driverMasterClockCallback = callback;
 }
@@ -1255,7 +1255,7 @@ void HSD_SynthCallback(void)
     HSD_SynthSFXVolumeEnvelope();
 
     if (driverMasterClockCallback != NULL) {
-        driverMasterClockCallback(HSD_Synth_804D775C);
+        driverMasterClockCallback();
     }
 
     HSD_SynthPStreamMasterClockCallback();
@@ -1269,7 +1269,8 @@ void HSD_SynthResetStreamCounters(int result, uintptr_t length, void* buf, bool 
     HSD_Synth_804D7778 = 0;
 }
 
-void HSD_SynthPStreamHakoHeaderCallback(u32 offset, uintptr_t src)
+void HSD_SynthPStreamHakoHeaderCallback(int offset, uintptr_t src, void* addr,
+                                        bool cancelflag)
 {
     HSD_DevComRequest(HSD_Synth_804D7764, src,
                       HSD_Synth_804D7780 + (HSD_Synth_804D7768 << 16),
@@ -1301,8 +1302,7 @@ static inline void HSD_SynthPStreamMasterClockCallback_inline(u32 pos)
                     HSD_Synth_804D7764, src,
                     (uintptr_t) &pstHakoHeader[HSD_Synth_804D7768], 0x20, 0x21,
                     0,
-                    (HSD_DevComCallback) (Event)
-                        HSD_SynthPStreamHakoHeaderCallback,
+                    HSD_SynthPStreamHakoHeaderCallback,
                     (void*) (uintptr_t) (src + 0x20));
             }
         }
@@ -1362,7 +1362,8 @@ void HSD_SynthPStreamMasterClockCallback(void)
     HSD_SynthPStreamMasterClockCallback_inline(pos);
 }
 
-void HSD_SynthPStreamFirstHakoDataCallback(void)
+void HSD_SynthPStreamFirstHakoDataCallback(int result, uintptr_t length,
+                                           void* addr, bool cancelflag)
 {
     AXPBVE ve;
     int i;
@@ -1424,13 +1425,14 @@ void HSD_SynthPStreamFirstHakoDataCallback(void)
     }
 }
 
-void HSD_SynthPStreamFirstHakoHeaderCallback(void)
+void HSD_SynthPStreamFirstHakoHeaderCallback(int result, uintptr_t length,
+                                             void* addr, bool cancelflag)
 {
     HSD_DevComRequest(
         HSD_Synth_804D7764, 0xA0,
         HSD_Synth_804D7780 + (HSD_Synth_804D7768 << 16),
         pstHakoHeader[HSD_Synth_804D7768].x0, 0x23, 0,
-        (HSD_DevComCallback) HSD_SynthPStreamFirstHakoDataCallback, 0);
+        HSD_SynthPStreamFirstHakoDataCallback, 0);
 }
 
 void HSD_SynthPStreamHeaderCallback(int arg0, uintptr_t arg1, void* arg2,
@@ -1461,7 +1463,7 @@ void HSD_SynthPStreamHeaderCallback(int arg0, uintptr_t arg1, void* arg2,
         HSD_DevComRequest(
             HSD_Synth_804D7764, 0x80,
             (uintptr_t) &pstHakoHeader[HSD_Synth_804D7768], 0x20, 0x21, 0,
-            (HSD_DevComCallback) HSD_SynthPStreamFirstHakoHeaderCallback,
+            HSD_SynthPStreamFirstHakoHeaderCallback,
             NULL);
     } else {
         HSD_Synth_804D7778 = 0;

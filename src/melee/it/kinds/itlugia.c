@@ -82,7 +82,10 @@ void it_2725_Logic17_Spawned(Item_GObj* gobj)
     ip->xDD4_itemVar.lugia.xE50.x = 0.0f;
 }
 
-void it_802D14D0(void) {}
+/* Registered through a cast to void (*)(HSD_GObj*): the arguments are
+ * passed but not used. wasm checks the signature at the indirect
+ * call, so they must be declared. */
+void it_802D14D0(HSD_GObj* gobj) {}
 
 void itLugia_Logic17_EvtUnk(Item_GObj* gobj, Item_GObj* ref_gobj)
 {
@@ -386,7 +389,7 @@ void it_802D1DD8(Item_GObj* gobj)
 
 bool it_802D1E64(Item_GObj* gobj)
 {
-    return it_8027A118(gobj, (void (*)(HSD_GObj*)) it_802D14D0);
+    return it_8027A118(gobj, it_802D14D0);
 }
 
 Item_GObj* it_802D1E8C(Item_GObj* gobj, ItemKind kind, f32 param)

@@ -3,9 +3,12 @@
 
 #include <Runtime/platform.h>
 
+/* For OSAlarm and OSContext: fn_800195FC is an alarm handler. */
+#include <dolphin/os.h>
+
 /* 01955C */ void lb_8001955C(void);
 /* 0195D0 */ void lb_800195D0(void);
-/* 0195FC */ void fn_800195FC(void);
+/* 0195FC */ void fn_800195FC(OSAlarm*, OSContext*);
 /* 019628 */ void lb_80019628(void);
 /* 019880 */ void lb_80019880(u64);
 /* 019894 */ u8 lb_80019894(void);

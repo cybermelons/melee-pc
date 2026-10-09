@@ -4250,7 +4250,9 @@ void mnCharSel_80264070(void)
     mnCharSel_804D6CF4 = 1;
 }
 
-void fn_8026407C(HSD_GObj* gobj)
+/* A GObj_RenderFunc: the render code is passed but not used. wasm checks
+ * the signature at the indirect call, so it must be declared. */
+void fn_8026407C(HSD_GObj* gobj, intptr_t code)
 {
     HSD_FogSet(GET_FOG(gobj));
 }
@@ -4378,7 +4380,7 @@ s32 mnCharSel_802640A0(void)
         HSD_Fog* fog = HSD_FogLoadDesc(DP(HSD_FogDesc, css_data_table->fog));
         HSD_GObjObject_80390A70(gobj, HSD_GObj_FogKind, fog);
     }
-    GObj_SetupGXLink(gobj, (GObj_RenderFunc) (Event) fn_8026407C, 0, 0x80);
+    GObj_SetupGXLink(gobj, fn_8026407C, 0, 0x80);
 
     gobj = GObj_Create(4, 5, 0x80);
     jobj = HSD_JObjLoadJoint(DP(HSD_Joint, css_models->background.joint));

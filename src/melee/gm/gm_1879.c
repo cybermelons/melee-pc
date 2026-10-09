@@ -312,7 +312,7 @@ static inline void gm_80187F48_OnEnter_inline(gm_80187F48_EnterData* arg0)
     data->x8 = gobj;
     cobj = HSD_CObjLoadDesc(DP(HSD_CObjDesc, data->x4->desc));
     HSD_GObjObject_80390A70(gobj, HSD_GObj_CameraKind, cobj);
-    GObj_SetupGXLinkMax(gobj, (GObj_RenderFunc) (Event) Camera_800304E0, 8);
+    GObj_SetupGXLinkMax(gobj, Camera_800304E0, 8);
     HSD_GObj_SetupProc(gobj, fn_80187910, 0);
     HSD_CObjAddAnim(cobj, DP(HSD_CameraAnim, DP(DiscU32, data->x4->anims)[0].v));
     HSD_CObjReqAnim(cobj, 0.0f);

@@ -294,7 +294,9 @@ static inline int countActiveOpponents(void)
     return fn_80181BFC(NULL);
 }
 
-void fn_80181E18(void)
+/* An HSD_GObjEvent: the gobj is passed but not used. wasm checks the
+ * signature at the indirect call, so the parameter must be declared. */
+void fn_80181E18(HSD_GObj* gobj)
 {
     lbl_80472ED8_t* data = &lbl_80472ED8;
     s32* x4;
@@ -559,7 +561,7 @@ void gm_80182174(void)
     lbl_80473594.x10 = Player_GetPadPort(0);
     lbl_80473594.x11 = Player_GetNametagSlotID(0);
     HSD_GObj_SetupProc(GObj_Create(0xFU, 0x11U, 0U),
-                       (HSD_GObjEvent) fn_80181E18, 0x15U);
+                       fn_80181E18, 0x15U);
     gm_80168F88();
     PAD_STACK(8);
 }

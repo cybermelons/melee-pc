@@ -13,7 +13,7 @@
 
 /* 01FC08 */ void fn_8001FC08(void);
 /* 01FEC4 */ void fn_8001FEC4(HSD_GObj* gobj, intptr_t code);
-/* 0204C8 */ void fn_800204C8(void);
+/* 0204C8 */ void fn_800204C8(HSD_GObj*);
 /* 0205F0 */ void lbBgFlash_800205F0(s32 duration);
 /* 02063C */ void lbBgFlash_8002063C(int count);
 /* 020688 */ void lbBgFlash_80020688(int);

@@ -675,7 +675,7 @@ static inline void grBigBlueRoute_SpawnRoute(s32 route_idx, Ground* gp,
                     {
                         Item_GObj* item = grMaterial_801C8CFC(
                             0, 1, gp, jobj,
-                            (void (*)(Item_GObj*, Ground*)) fn_8020DEAC, NULL,
+                            fn_8020DEAC, NULL,
                             NULL);
                         re = GRBB_ROUTE_ENTRY_AT(gp->u.car.car_info, offset);
                         re->x28 = (void*) item;
@@ -1149,7 +1149,10 @@ DynamicModelDesc* grBigBlueRoute_8020DE48(void)
     return NULL;
 }
 
-void fn_8020DEAC(void)
+/* Registered through a cast to void (*)(Item_GObj*, Ground*): the arguments are
+ * passed but not used. wasm checks the signature at the indirect
+ * call, so they must be declared. */
+void fn_8020DEAC(Item_GObj* gobj, Ground* gp)
 {
     Ground_801C53EC(0x77A12);
 }

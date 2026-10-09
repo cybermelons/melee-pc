@@ -50,8 +50,8 @@
 /* 314C5C */ static void _tyFigupon_80314C5C(HSD_GObj*);
 /* 3152BC */ static void _tyFigupon_803152BC(HSD_GObj*);
 /* 3153EC */ static void _tyFigupon_803153EC(s32, s32, s32, s32, intptr_t);
-/* 315574 */ static void _tyFigupon_80315574(void);
-/* 3155C8 */ static void _tyFigupon_803155C8(void);
+/* 315574 */ static void _tyFigupon_80315574(HSD_GObj*);
+/* 3155C8 */ static void _tyFigupon_803155C8(HSD_GObj*);
 /* 315C44 */ static void _tyFigupon_80315C44(HSD_GObj*);
 /* 316170 */ static void _tyFigupon_80316170(HSD_GObj*);
 /* 316420 */ static void _tyFigupon_80316420(s32);
@@ -350,7 +350,10 @@ void _tyFigupon_803153EC(s32 arg0, s32 arg1, s32 arg2, s32 arg3,
     }
 }
 
-void _tyFigupon_80315574(void)
+/* Registered through a cast to void (*)(HSD_GObj*): the arguments are
+ * passed but not used. wasm checks the signature at the indirect
+ * call, so they must be declared. */
+void _tyFigupon_80315574(HSD_GObj* gobj)
 {
     TyFiguponData* data = _tyFigupon_804D6EF0;
 
@@ -447,7 +450,10 @@ static inline void setupBetAnim(struct un_804D6EF4_t* ef4)
     HSD_JObjAnimAll(ef4_2->jobjs[8]);
 }
 
-void _tyFigupon_803155C8(void)
+/* Registered through a cast to void (*)(HSD_GObj*): the arguments are
+ * passed but not used. wasm checks the signature at the indirect
+ * call, so they must be declared. */
+void _tyFigupon_803155C8(HSD_GObj* gobj)
 {
     ToyAnimState* aa8 = &Toy_804A2AA8;
     struct un_804D6EF4_t* ef4 = _tyFigupon_804D6EF4;
@@ -865,7 +871,7 @@ void _tyFigupon_80316420(s32 arg0)
     if (((TyModeState*) Toy_804A284C)->x0 == 2) {
         if (data->x10 == NULL) {
             data->x10 = HSD_GObj_SetupProc(
-                data->x0, (void (*)(HSD_GObj*)) _tyFigupon_80315574, 0);
+                data->x0, _tyFigupon_80315574, 0);
         }
         data->x24 = 0x12C;
         _tyFigupon_804D6EF0->x18->hidden = 0;
@@ -1074,7 +1080,7 @@ void _tyFigupon_80316C24(HSD_GObj* arg0)
                 HSD_GObj_80390CD4(ef4->x0C);
                 ef4->x5C = 1;
                 HSD_GObj_SetupProc(
-                    arg0, (void (*)(HSD_GObj*)) _tyFigupon_803155C8, 0);
+                    arg0, _tyFigupon_803155C8, 0);
                 HSD_GObj_80390CD4(arg0);
                 return;
             }

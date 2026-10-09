@@ -546,7 +546,9 @@ static HSD_Chan chan1 = {
     GX_AF_NONE,
 };
 
-void fn_80013614(HSD_GObj* gobj)
+/* A GObj_RenderFunc: the render code is passed but not used. wasm checks
+ * the signature at the indirect call, so it must be declared. */
+void fn_80013614(HSD_GObj* gobj, intptr_t code)
 {
     struct CameraBlurData* data =
         (struct CameraBlurData*) HSD_GObjGetUserData(gobj);
@@ -715,7 +717,7 @@ HSD_GObj* lb_800138EC(HSD_ImageDesc* img, GObj_RenderFunc render_func,
     GObj_InitUserData(gobj, 0, fn_800138AC, data);
 
     if (render_func == NULL) {
-        GObj_SetupGXLinkMax(gobj, (GObj_RenderFunc) (Event) fn_80013614, prio);
+        GObj_SetupGXLinkMax(gobj, fn_80013614, prio);
     } else {
         GObj_SetupGXLinkMax(gobj, render_func, prio);
     }

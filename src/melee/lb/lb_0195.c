@@ -49,7 +49,11 @@ void lb_800195D0(void)
     lb_8001CC84();
 }
 
-void fn_800195FC(void)
+/* An alarm handler: pc_os_run_alarms and the real OS both call it with the
+ * alarm and the interrupted context. It uses neither, but the parameters
+ * have to be declared, because wasm checks the signature at the indirect
+ * call and traps when the arity disagrees. */
+void fn_800195FC(OSAlarm* alarm, OSContext* context)
 {
     HSD_PadRenewRawStatus(0);
     lb_8001C600();
@@ -107,7 +111,7 @@ void lb_80019628(void)
     }
     OSCreateAlarm(&lb_804329F0.alarm);
     OSSetPeriodicAlarm(&lb_804329F0.alarm, lb_804329F0.x40, lb_804329F0.x40,
-                       (OSAlarmHandler) fn_800195FC);
+                       fn_800195FC);
     lb_804329F0.x48 = 1;
 }
 

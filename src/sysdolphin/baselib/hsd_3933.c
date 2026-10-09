@@ -100,7 +100,7 @@ s32 hsd_80393328(void)
 
 static void (*lbl_8040A93C[32])(void*, void*) = {
     (void (*)(void*, void*)) hsd_80393440,
-    (void (*)(void*, void*)) hsd_80393840,
+    hsd_80393840,
 };
 
 extern int hsd_804D78A0;
@@ -219,7 +219,10 @@ void hsd_80393440(void* request, void* response)
         "cannot use USB now.\n",
     };
 
-void hsd_80393840(void) {}
+/* Registered through a cast to void (*)(void*, void*): the arguments are
+ * passed but not used. wasm checks the signature at the indirect
+ * call, so they must be declared. */
+void hsd_80393840(void* a, void* b) {}
 
 typedef struct _MCCPacket {
     /* 0x0 */ s32 x0;

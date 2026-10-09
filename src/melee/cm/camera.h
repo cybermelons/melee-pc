@@ -64,7 +64,7 @@
 /* 02F360 */ void fn_8002F360(HSD_GObj*);
 /* 02F3AC */ void Camera_8002F3AC(void);
 /* 02F474 */ void Camera_SetModeToStandard(void);
-/* 02F488 */ s32 Camera_SetBounds(Vec4*);
+/* 02F488 */ void Camera_SetBounds(Vec4*);
 
 /**
  * @brief Switches the camera to pause-camera mode.
@@ -96,9 +96,9 @@
 /* 02F784 */ void Camera_8002F784(s8, s8);
 /* 02F7AC */ void Camera_8002F7AC(s8);
 /* 02F8F4 */ void Camera_SetModeToFixed(void);
-/* 02F908 */ s32 fn_8002F908(HSD_RectF32* arg0);
+/* 02F908 */ void fn_8002F908(HSD_RectF32* arg0);
 /* 02F9E4 */ void Camera_8002F9E4(s8 arg0, s8 arg1);
-/* 02FBA0 */ s32 fn_8002FBA0(HSD_RectF32* arg0);
+/* 02FBA0 */ void fn_8002FBA0(HSD_RectF32* arg0);
 /* 02FC7C */ void Camera_8002FC7C(s8, s8);
 /* 02FE38 */ void Camera_8002FE38(void);
 /* 02FEEC */ void Camera_8002FEEC(s32);
@@ -109,7 +109,7 @@
 /* 030154 */ bool Camera_80030154(void);
 /* 030178 */ bool Camera_80030178(void);
 /* 03019C */ Vec3* Camera_8003019C(void);
-/* 0304E0 */ void Camera_800304E0(HSD_GObj*);
+/* 0304E0 */ void Camera_800304E0(HSD_GObj*, intptr_t);
 /* 030688 */ void Camera_Create(void);
 /* 030730 */ void Camera_80030730(f32);
 
