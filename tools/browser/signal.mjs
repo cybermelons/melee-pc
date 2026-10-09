@@ -30,7 +30,19 @@ export function signalHandler(req, res, prefix = '') {
     res.write(`event: state\ndata: ${JSON.stringify(state(room))}\n\n`);
     req.on('close', () => {
       if (room.subs.get(me) === res) room.subs.delete(me);
-      if (!room.subs.size) rooms.delete(name);
+      if (!room.subs.size) return rooms.delete(name);
+      // Release the port too. A claim held by a page that has gone leaves the
+      // button grey for everyone and makes the room report itself full, so
+      // the other side waits for a peer that cannot answer.
+      // A refresh reuses the same id, and its new stream can subscribe before
+      // this close fires. Releasing then would drop the claim the new page just
+      // retook, so only release when no stream for this id remains.
+      if (room.subs.has(me)) return;
+      const slot = room.claims.indexOf(me);
+      if (slot !== -1) {
+        room.claims[slot] = null;
+        send(room, 'state', state(room));
+      }
     });
     return;
   }
