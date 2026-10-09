@@ -197,7 +197,14 @@ export function addLobby(host, {
   const code = el('button');
   code.id = 'room-code';
   code.title = 'Copy the link to this lobby';
-  code.append(el('b', null, room ?? ''), el('i', null, 'copy link'));
+  // The room code alone (#6). The `<i>` label under it is gone: the title
+  // already says what the press does, and #room-code is a flex row with a gap,
+  // so dropping the child leaves no separator and no empty box behind. The
+  // title is not enough on its own for a screen reader -- it reads the code as
+  // the button's name and the title only as a hint -- so aria-label carries
+  // the action that the visible word used to.
+  code.setAttribute('aria-label', 'Copy the link to this lobby');
+  code.append(el('b', null, room ?? ''));
   if (onCopy) code.addEventListener('click', onCopy);
   const join = el('button', null, 'Join');
   join.id = 'join-btn';
@@ -290,7 +297,7 @@ export function addLobby(host, {
       }
       const alone = spectating(claims, me);
       seat.hidden = !alone;
-      if (alone) seat.textContent = 'Spectating · you hold no port · wait for one to free up';
+      if (alone) seat.textContent = 'Spectating · you hold no port · take a free one or queue';
     },
     setRoom(value) { code.firstChild.textContent = value; },
     /**

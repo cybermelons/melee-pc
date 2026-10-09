@@ -21,8 +21,11 @@ function stubDoc() {
     const node = {
       tagName: tag, id: '', className: '', textContent: '', title: '',
       hidden: false, disabled: false, children: [], handlers: {},
+      attrs: {},
       append(...kids) { node.children.push(...kids); },
       addEventListener(type, fn) { node.handlers[type] = fn; },
+      setAttribute(name, value) { node.attrs[name] = value; },
+      getAttribute(name) { return node.attrs[name] ?? null; },
       removeAttribute(name) { node[name] = ''; },
       get firstChild() { return node.children[0]; },
       /**
@@ -370,4 +373,45 @@ test('the shell opens the WebHID picker from the press and never from a load', (
     'the port button is what calls it');
   assert.ok(!/\$\('adapter'\)/.test(code),
     'the page-level connect button is gone (#30)');
+});
+
+test('a spectator is told to take a free port or queue (#23)', () => {
+  // The exact wording the issue asks for, middle dots and all. It drifted
+  // once already -- the page said "wait for one to free up" while the mockup
+  // said this -- so the string is asserted whole rather than by keyword.
+  const { host, api } = buildLobby({ getGamepads: () => [] });
+  api.render(['a', 'b', null, null], 'me');
+  const seat = host.descendants().find((n) => n.id === 'no-port');
+  assert.equal(seat.hidden, false);
+  assert.equal(
+    seat.textContent,
+    'Spectating · you hold no port · take a free one or queue');
+});
+
+test('the room code button shows no "copy link" label but still has a name (#6)', () => {
+  // The visible word is gone; the button is still reachable. A button whose
+  // only content is the room code announces as the code, so the action lives
+  // in aria-label and in the title that draws the hover.
+  const { host } = buildLobby({ getGamepads: () => [] }, { room: 'FIG-7K2' });
+  const code = host.descendants().find((n) => n.id === 'room-code');
+  assert.ok(code, 'the room code button is still drawn');
+  const text = code.descendants()
+    .map((n) => n.textContent).concat(code.textContent).join(' ');
+  assert.ok(!/copy link/i.test(text), 'no visible "copy link" text');
+  assert.ok(!code.descendants().some((n) => n.tagName === 'i'),
+    'the <i> is dropped, not left empty');
+  assert.equal(code.title, 'Copy the link to this lobby');
+  assert.equal(code.getAttribute('aria-label'), 'Copy the link to this lobby');
+  // setRoom writes through firstChild, which is now the only child.
+  assert.equal(code.firstChild.textContent, 'FIG-7K2');
+});
+
+test('neither the page nor the mockup still says "copy link" (#6)', () => {
+  // Both sources, because the mockup is what the board renders and the page
+  // is what a visitor sees; one being fixed is how they drifted last time.
+  for (const rel of ['../../platforms/browser/lobby.mjs', '../../tools/progress/mockup.py']) {
+    const src = readFileSync(new URL(rel, import.meta.url), 'utf8');
+    assert.ok(!/>copy link</.test(src), `${rel} still renders "copy link"`);
+    assert.ok(!/wait for one to free up/.test(src), `${rel} still has the old #23 tail`);
+  }
 });

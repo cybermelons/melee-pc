@@ -33,6 +33,9 @@ function stubDoc() {
       click(target = node) {
         for (const fn of node.handlers.click ?? []) fn({ target });
       },
+      attrs: {},
+      setAttribute(name, value) { node.attrs[name] = value; },
+      getAttribute(name) { return node.attrs[name] ?? null; },
       removeAttribute(name) { node[name] = ''; },
       // <dialog>: the real element sets .open, which is what the CSS and the
       // page read, so the stub does the same rather than tracking a flag of

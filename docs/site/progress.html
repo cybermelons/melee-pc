@@ -335,8 +335,8 @@
   <h1>melee-pc — the launcher, and what is left to build it</h1>
   <p class="sub">This is the launcher as it should end up, not as it is today.
      Every pin marks a control that still needs work, and links to its issue.</p>
-  <div class="bar2"><i style="width:33%"></i></div>
-  <p class="counts">11 closed · 22 open · 33% of 33</p>
+  <div class="bar2"><i style="width:32%"></i></div>
+  <p class="counts">11 closed · 23 open · 32% of 34</p>
   <div class="legend">
     <span><i style="background:var(--open)"></i> still to build</span>
     <span><i style="background:var(--closed)"></i> done</span>
@@ -355,7 +355,7 @@
       <button id="load-btn" title="Load a save state">Load</button>
     </div>
     <div class="lb-right">
-      <button id="room-code" title="Copy the link to this lobby"><b>FIG-7K2</b><i>copy link</i></button>
+      <button id="room-code" title="Copy the link to this lobby" aria-label="Copy the link to this lobby"><b>FIG-7K2</b></button>
       <button id="join-btn">Join</button>
     </div>
   </header>
@@ -506,7 +506,8 @@ engine: 60.0 fps</pre></details>
   <a class="pin open left" data-anchor="#log-tab" href="http://noel:4530/cybermelon/melee-pc/issues/19" target="_blank" rel="noopener"><span class="pin-n">19</span><span class="pin-t">Headless runs can draw on the desktop</span><span class="pin-p">Fixed in melee-pc: the display variables are removed inside cage. melee-web still needs the same line.</span></a>
   <a class="pin open left" data-anchor="#port-1-pad" href="http://noel:4530/cybermelon/melee-pc/issues/30" target="_blank" rel="noopener"><span class="pin-n">30</span><span class="pin-t">Controller connect belongs on the port</span><span class="pin-p">Shipped: every tile has this button, and it offers only the sources this browser can do. The page-level WebHID button is gone, and the picker opens from the press. Picking a source labels the port; only the adapter routes input so far, which is #5 and #2.</span></a>
   <a class="pin closed left" data-anchor="#port-mine" href="http://noel:4530/cybermelon/melee-pc/issues/31" target="_blank" rel="noopener"><span class="pin-n">31</span><span class="pin-t">Signify which port is you</span><span class="pin-p">Closed. The tile you hold carries a left bar and the word &#x27;you&#x27;, because colour alone fails a colour-blind reader and a screenshot. The id moves with a claim and a release, and matching is on the server id, so two players with one display name still mark one tile. The spectator line below is the other half, and the queue on it is #23.</span></a></div>
-  <div id="pin-right"><a class="pin open right" data-anchor="#setting-tabs" href="http://noel:4530/cybermelon/melee-pc/issues/26" target="_blank" rel="noopener"><span class="pin-n">26</span><span class="pin-t">Settings into tabs</span><span class="pin-p">Three tabs of five. Game, Video and Audio hold the settings that exist; Input and Netplay arrive with the controls in #28.</span></a>
+  <div id="pin-right"><a class="pin open right" data-anchor="#settings-apply" href="http://noel:4530/cybermelon/melee-pc/issues/35" target="_blank" rel="noopener"><span class="pin-n">35</span><span class="pin-t">Boot flags are bound to the room code, not to the URL</span><span class="pin-p">Blocks #22. Owner ruling: the options belong to the room, so Apply with a different flag set mints a new room code instead of editing the query string. The ?room=X&amp;MELEE_20XX=1 form is a transient input the page consumes and resolves to a code.</span></a>
+  <a class="pin open right" data-anchor="#setting-tabs" href="http://noel:4530/cybermelon/melee-pc/issues/26" target="_blank" rel="noopener"><span class="pin-n">26</span><span class="pin-t">Settings into tabs</span><span class="pin-p">Three tabs of five. Game, Video and Audio hold the settings that exist; Input and Netplay arrive with the controls in #28.</span></a>
   <a class="pin closed right" data-anchor="#ctl-MELEE_20XX" href="http://noel:4530/cybermelon/melee-pc/issues/27" target="_blank" rel="noopener"><span class="pin-n">27</span><span class="pin-t">20XX as a select-all</span><span class="pin-p">Landed. The parent follows what env_flag_or_20xx reads: an untouched child follows 20XX, a child set by hand keeps its own value, and the URL carries a child only when it disagrees.</span></a>
   <a class="pin open right" data-anchor="#ctl-MELEE_UCF" href="http://noel:4530/cybermelon/melee-pc/issues/28" target="_blank" rel="noopener"><span class="pin-n">28</span><span class="pin-t">Port the native launcher settings</span><span class="pin-p">UCF, aspect, HUD, textures, camera, stadium, volumes and the netplay name all exist in src/pc/launcher.cpp and on no web control.</span></a>
   <a class="pin open right" data-anchor="#state-training" href="http://noel:4530/cybermelon/melee-pc/issues/8" target="_blank" rel="noopener"><span class="pin-n">8</span><span class="pin-t">Training scenarios from a URL</span><span class="pin-p">Training is a state loaded into the lobby. Its tools run outside the player ports, so a scenario needs no seat.</span></a>

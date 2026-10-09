@@ -210,7 +210,7 @@ LAUNCHER = """
       <button id="load-btn" title="Load a save state">Load</button>
     </div>
     <div class="lb-right">
-      <button id="room-code" title="Copy the link to this lobby"><b>FIG-7K2</b><i>copy link</i></button>
+      <button id="room-code" title="Copy the link to this lobby" aria-label="Copy the link to this lobby"><b>FIG-7K2</b></button>
       <button id="join-btn">Join</button>
     </div>
   </header>
