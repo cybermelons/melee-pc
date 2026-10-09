@@ -163,8 +163,20 @@ TEMPLATE = """<!DOCTYPE html>
            background:#191b24; color:var(--fg); border:1px solid var(--line); }}
   .port.free .pbtn {{ background:var(--accent); color:#1a1405;
                       border-color:var(--accent); font-weight:600; }}
+  /* #31: the port you hold. A left bar and a word, not colour alone, so the
+     marker survives a colour-blind reader and a greyscale screenshot. */
+  .port.mine {{ border-color:var(--accent); box-shadow:inset 3px 0 0 var(--accent); }}
+  .mine-tag {{ margin-left:4px; padding:0 4px; border-radius:3px; font-size:.64rem;
+               background:var(--accent); color:#1a1405; letter-spacing:.04em; }}
+  /* #30: which source feeds this port, and the button that changes it. */
+  .psrc {{ font-size:.68rem; color:var(--dim); letter-spacing:.03em; }}
+  .cbtn {{ justify-self:start; padding:2px 7px; border-radius:6px; font-size:.8rem;
+           background:#191b24; color:var(--fg); border:1px solid var(--line); }}
   #queue {{ margin:0; color:var(--dim); font-size:.78rem; }}
   #queue b {{ color:var(--fg); font-weight:600; }}
+  /* #31: stated rather than left to be inferred from four taken tiles. */
+  .seat-none {{ margin:0; padding:5px 9px; border-radius:7px;
+                border:1px dashed var(--line); color:var(--dim); font-size:.76rem; }}
 
   /* ---- save states, not places to go ---- */
   .states {{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }}
@@ -208,6 +220,11 @@ TEMPLATE = """<!DOCTYPE html>
   .kids > summary::before {{ content:"\\25b8 "; }}
   .kids[open] > summary::before {{ content:"\\25be "; }}
   .kids .setting {{ margin-top:5px; }}
+  /* #29: the children as a grid, so five short labels cost two rows rather
+     than five. auto-fit rather than a fixed count: the pane is one column at
+     390px, where two children per row do not fit. */
+  .kid-grid {{ display:grid; grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr));
+               gap:2px 10px; }}
   .setting.parent {{ font-weight:600; grid-column:1/-1; }}
   .setting.child {{ padding-left:18px;
                     border-left:2px solid #2a2d38; margin-left:4px; }}

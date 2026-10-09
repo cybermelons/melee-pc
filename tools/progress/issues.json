@@ -220,6 +220,38 @@
       "state": "open",
       "title": "Headless runs can draw on the desktop",
       "pin": "Fixed in melee-pc: the display variables are removed inside cage. melee-web still needs the same line."
+    },
+    {
+      "n": 29,
+      "anchor": "#kids-20xx",
+      "side": "right",
+      "state": "open",
+      "title": "Condense the 20XX children into a closed grid",
+      "pin": "This fold, closed and two across. Unlock everything is drawn here as the target, but prefs.unlock_all has no env var, so it needs one line of C before a web control can follow 20XX."
+    },
+    {
+      "n": 30,
+      "anchor": "#port-1-pad",
+      "side": "left",
+      "state": "open",
+      "title": "Controller connect belongs on the port",
+      "pin": "The WebHID picker is a page button today. A player connects a pad to the seat they are taking, so the control belongs here, with the source it feeds shown next to it."
+    },
+    {
+      "n": 31,
+      "anchor": "#port-mine",
+      "side": "left",
+      "state": "open",
+      "title": "Signify which port is you",
+      "pin": "Everyone is at the same URL, so the first question is which seat is yours. A bar and a word, not colour alone. The other half is the spectator line below."
+    },
+    {
+      "n": 32,
+      "anchor": "#ctl-deadzone",
+      "side": "right",
+      "state": "open",
+      "title": "Fill the Input tab, including controller options",
+      "pin": "The Input tab is drawn and empty: #26 shipped three tabs of five. Deadzone and curve describe a stick, not a seat, so this issue has to settle per-port against per-page first."
     }
   ]
 }

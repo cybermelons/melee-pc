@@ -44,10 +44,11 @@ TABS = {
         ('ctl-MELEE_BOOT_CSS', 'Boot to character select', 'child', ''),
         ('ctl-MELEE_20XX_RULES', 'Tournament rules', 'child',
          '4 stock, 8 minutes, items off.'),
-        # Not a 20XX child on the web: pc_is_unlock_all_enabled reads the
-        # native prefs file, not an env var, so no URL can set it. It stays a
-        # row of its own until #28 gives the web side a store for it.
-        ('ctl-unlock-all', 'Unlock everything', _chk(), ''),
+        # Drawn as a child because that is the target (#29). It is not one
+        # yet: pc_is_unlock_all_enabled reads prefs.unlock_all, a native field
+        # with no env var, so #29 has to add the env read in C before a web
+        # control can follow MELEE_20XX.
+        ('ctl-unlock-all', 'Unlock everything', 'child', ''),
         ('ctl-MELEE_UCF', 'Universal controller fix', _chk(True), ''),
         ('ctl-frozen-stadium', 'Pokémon Stadium', _sel('Normal', 'Hazardless'), ''),
         ('ctl-MELEE_PAUSE', 'Allow pausing', _chk(True),
@@ -108,8 +109,9 @@ def _rows(rows):
     def flush():
         if not kids:
             return
-        out.append('<details class="kids" open><summary>'
-                   f'Individual settings</summary>{"".join(kids)}</details>')
+        out.append('<details class="kids" id="kids-20xx"><summary>'
+                   f'Individual settings</summary>'
+                   f'<div class="kid-grid">{"".join(kids)}</div></details>')
         kids.clear()
 
     for rid, label, control, hint in rows:
@@ -145,12 +147,16 @@ def _tabs():
 # claim, one free.
 PORTS = """
     <div id="ports" class="ports">
-      <div class="port taken" id="port-1"><b>P1</b><i>kiri</i><button class="pbtn">Release</button></div>
-      <div class="port taken" id="port-2"><b>P2</b><i>guest-4f</i><button class="pbtn">Release</button></div>
-      <div class="port cpu" id="port-3"><b>P3</b><i>CPU lv 9</i><button class="pbtn">Take</button></div>
-      <div class="port free" id="port-4"><b>P4</b><i>free</i><button class="pbtn">Take</button></div>
+      <div class="port taken mine" id="port-1"><b>P1 <span id="port-mine" class="mine-tag">you</span></b><i>kiri</i><span class="psrc">adapter</span><button class="cbtn" id="port-1-pad" title="Connect a controller to this port">⌘</button><button class="pbtn">Release</button></div>
+      <div class="port taken" id="port-2"><b>P2</b><i>guest-4f</i><span class="psrc">touch</span><button class="cbtn" title="Connect a controller to this port">⌘</button><button class="pbtn">Release</button></div>
+      <div class="port cpu" id="port-3"><b>P3</b><i>CPU lv 9</i><span class="psrc">cpu</span><button class="cbtn" title="Connect a controller to this port">⌘</button><button class="pbtn">Take</button></div>
+      <div class="port free" id="port-4"><b>P4</b><i>free</i><span class="psrc">—</span><button class="cbtn" title="Connect a controller to this port">⌘</button><button class="pbtn">Take</button></div>
     </div>
     <p id="queue" class="sub">2 watching · <b>mango</b> next up</p>
+    <!-- The other half of #31: what a visitor holding no port is told. Drawn
+         here because the mockup shows you holding P1, so the state cannot be
+         shown on the tiles at the same time. -->
+    <p id="no-port" class="sub seat-none">Spectating · you hold no port · take a free one or queue</p>
 """
 
 
