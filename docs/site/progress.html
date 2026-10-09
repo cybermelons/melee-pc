@@ -274,9 +274,6 @@
   .pin.closed .pin-t { color:var(--dim); font-weight:500; }
   .pin:hover .pin-t { color:var(--accent); }
 
-  /* Below this width there is no room for a label column, so the board
-     becomes the mockup and then a numbered list. The numbers still tie each
-     note to its control, so the mapping survives the fallback. */
   /* Narrow: the board is still a board. The earlier fallback hid the dots
      and printed the labels as a list under the mockup, which is the one
      thing this page must not be. The dots stay on the control; the label
@@ -571,7 +568,7 @@ document.addEventListener('click', () => {
 
 // The tabs are the one live control on the mockup, because a tab that does
 // not switch cannot show that the settings fit in the width. An off pane keeps
-// its box (visibility:hidden, not display:none), so a pin anchored to a
+// its box (opacity:0 and z-index:-1, not display:none), so a pin anchored to a
 // control behind another tab still measures and still points at it.
 for (const tab of document.querySelectorAll('.tab')) {
   tab.style.cursor = 'pointer';
