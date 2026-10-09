@@ -3,18 +3,31 @@
 #include <dolphin/dvd.h>
 #include <emscripten.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 // clang-format off
-EM_JS(int, browser_disc_read, (void* dst,unsigned offset,unsigned size), {
+/* Reads `size` bytes at `off` within one file of the extracted disc, fetched by
+ * name from iso/<path> beside the page. Returns the bytes read (short at the end
+ * of the file), or -1 when the file cannot be fetched.
+ * ponytail: unbounded per-name map of whole files; evict if memory matters. */
+EM_JS(int, browser_file_read, (const char* path,void* dst,unsigned off,unsigned size), {
  // A suspended miss may be a cache hit when Asyncify replays this call.
  if(Asyncify.state===Asyncify.State.Rewinding)return Asyncify.handleAsync(async()=>0);
- const copy=bytes=>{HEAPU8.set(bytes,dst);return bytes.length;};
- const file=Module.discFile;
- if(!file||offset+size>file.size)return -1;
- const value=Module.readDisc ? Module.readDisc(offset,size) : file.slice(offset,offset+size).arrayBuffer().then(b=>new Uint8Array(b));
- if(value instanceof Uint8Array)return copy(value);
- return Asyncify.handleAsync(async()=>{try{return copy(await value);}catch(e){console.error('disc read',e);return -1;}});
+ const name=UTF8ToString(path);
+ const files=Module.isoFiles||(Module.isoFiles=new Map());
+ const copy=b=>{const n=Math.min(size,Math.max(0,b.byteLength-off));HEAPU8.set(new Uint8Array(b,off,n),dst);return n;};
+ const hit=files.get(name);
+ if(hit)return copy(hit);
+ return Asyncify.handleAsync(async()=>{
+  try{
+   const r=await fetch('iso/'+name);
+   if(!r.ok)throw new Error('HTTP '+r.status);
+   const b=await r.arrayBuffer();
+   files.set(name,b);
+   return copy(b);
+  }catch(e){console.error('iso read',name,e);return -1;}
+ });
 });
 // clang-format on
 typedef struct DiscCompletion {
@@ -50,6 +63,7 @@ static uint32_t be32(const unsigned char* p) {
 }
 static unsigned char *fst, *dol;
 static unsigned fst_size, dol_size, entries;
+static char** paths; /* per FST entry: its path in the extraction, files/... */
 static DVDDiskID disc_id;
 static unsigned field(unsigned n, unsigned word) {
     return be32(fst + n * 12 + word * 4);
@@ -60,26 +74,59 @@ static int isdir(unsigned n) {
 static const char* name(unsigned n) {
     return (char*)fst + entries * 12 + (field(n, 0) & 0xffffff);
 }
+/* The FST lists a directory's children right after it, up to its end index
+ * (word 2), so a stack of open directories gives every entry its parent. */
+static bool build_paths(void) {
+    paths = calloc(entries, sizeof(*paths));
+    unsigned open[16];
+    int depth = 0;
+    open[0] = 0;
+    if (!paths)
+        return false;
+    paths[0] = (char*)"files";
+    for (unsigned n = 1; n < entries; n++) {
+        while (depth > 0 && n >= field(open[depth], 2))
+            depth--;
+        const char* parent = paths[open[depth]];
+        size_t len = strlen(parent) + strlen(name(n)) + 2;
+        char* p = malloc(len);
+        if (!p)
+            return false;
+        snprintf(p, len, "%s/%s", parent, name(n));
+        paths[n] = p;
+        if (isdir(n)) {
+            if (depth + 1 >= (int)(sizeof(open) / sizeof(*open)))
+                return false;
+            open[++depth] = n;
+        }
+    }
+    return true;
+}
+/* The disc header, the DOL and the FST come from sys/ by name, as nod lays an
+ * extraction out; nothing is read at a disc address. */
 bool aurora_dvd_open(const char* path) {
     (void)path;
     unsigned char h[0x440];
-    if (browser_disc_read(h, 0, sizeof(h)) != sizeof(h) || memcmp(h, "GALE01", 6) || h[7] != 2)
+    if (browser_file_read("sys/boot.bin", h, 0, sizeof(h)) != sizeof(h) || memcmp(h, "GALE01", 6) ||
+        h[7] != 2)
         return false;
     memcpy(&disc_id, h, 32);
     unsigned d = be32(h + 0x420), f = be32(h + 0x424);
     fst_size = be32(h + 0x428);
     if (f <= d || f - d > 8 * 1024 * 1024 || fst_size > 8 * 1024 * 1024)
         return false;
-    dol_size = f - d;
-    dol = malloc(dol_size);
+    /* f - d bounds the DOL from above (the disc pads it); main.dol is its
+     * real length, the one nod hands the native build. */
+    dol = malloc(f - d);
     fst = malloc(fst_size);
     if (!dol || !fst)
         return false;
-    if (browser_disc_read(dol, d, dol_size) != dol_size ||
-        browser_disc_read(fst, f, fst_size) != fst_size)
+    int got = browser_file_read("sys/main.dol", dol, 0, f - d);
+    if (got <= 0 || browser_file_read("sys/fst.bin", fst, 0, fst_size) != fst_size)
         return false;
+    dol_size = got;
     entries = field(0, 2);
-    return entries > 0 && entries * 12 < fst_size;
+    return entries > 0 && entries * 12 < fst_size && build_paths();
 }
 /* Only the entry points this target links are implemented: the game opens by
  * entry number and reads asynchronously (lbfile.c, devcom.c); src/pc needs the
@@ -155,7 +202,9 @@ BOOL DVDFastOpen(s32 n, DVDFileInfo* f) {
     if (n < 0 || (unsigned)n >= entries || isdir(n))
         return false;
     memset(f, 0, sizeof(*f));
-    f->startAddr = field(n, 1);
+    /* The browser reads by name, never at a disc address, so startAddr holds
+     * the FST entry number; nothing outside this file reads it. */
+    f->startAddr = n;
     f->length = field(n, 2);
     return true;
 }
@@ -169,7 +218,7 @@ static s32 read_file(DVDFileInfo* f, void* p, s32 n, s32 off) {
     unsigned actual = n;
     if (actual > f->length - off)
         actual = f->length - off;
-    int got = browser_disc_read(p, f->startAddr + off, actual);
+    int got = browser_file_read(paths[f->startAddr], p, off, actual);
     if (got < 0 || (unsigned)got != actual)
         return -1;
     if (actual < (unsigned)n)
