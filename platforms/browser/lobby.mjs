@@ -16,6 +16,14 @@
 // rather than keeping a second copy. What it cannot do yet is four of them:
 // the WebRTC path in shell.mjs pairs exactly two peers, so slots 3 and 4 are
 // drawn and disabled until #6 lands the transport that carries more.
+//
+// A controller belongs to a port too (#30). Connecting one was a page-level
+// button, which made sense while the page was one seat; with four ports a
+// player is putting a pad on the seat they are taking, so each tile carries
+// the control and the line that says what feeds it. The sources offered are
+// the ones this browser can actually do, injected rather than read off
+// `navigator`, because the combinations are the thing worth testing and a
+// render path that reads a global cannot be driven from a test.
 
 // The signal server accepts slot 0 and 1 only (tools/browser/signal.mjs:59).
 // Four tiles are drawn because four is what a GameCube has and what the
@@ -25,6 +33,60 @@ export const PAIRABLE = 2;
 
 /** A room id short enough to read aloud and type from a phone. */
 export const mintRoom = () => crypto.randomUUID().slice(0, 8);
+
+/**
+ * The input sources a browser can actually offer (#30).
+ *
+ * `navigator` is a parameter rather than a global read, because the whole
+ * point is the combinations: WebHID only on Chrome and Edge, the Gamepad API
+ * on nearly everything but not in every embedding, touch always. A test
+ * cannot drive those from the real navigator, and a render path that reads
+ * the global cannot be tested at all.
+ *
+ * Touch is unconditional on purpose. It is the fallback the issue asks for:
+ * a browser with neither of the other two must still have one way in, so the
+ * button always has an outcome. The on-screen pad needs no device permission,
+ * so there is nothing to detect.
+ */
+export const SOURCES = [
+  { id: 'adapter', label: 'GameCube adapter', gesture: true },
+  { id: 'gamepad', label: 'Bluetooth or USB pad', gesture: false },
+  { id: 'touch', label: 'On-screen pad', gesture: false },
+];
+
+export function detectSources(nav = navigator) {
+  const can = {
+    adapter: !!nav?.hid,
+    // getGamepads, not a `gamepad` key: the API is a navigator method, and
+    // checking for a property that does not exist would make every browser
+    // report no pad support.
+    gamepad: typeof nav?.getGamepads === 'function',
+    touch: true,
+  };
+  return SOURCES.filter((s) => can[s.id]);
+}
+
+/**
+ * The per-port source record, which nothing else holds (#30).
+ *
+ * The signal server tracks who holds a port; it does not track what they
+ * plugged into it, and the C side has no query either -- pc_touch_set_pad and
+ * pc_gcadapter_web_report take a port index but keep no map back. So this is
+ * the only record, and the tile reads it.
+ *
+ * A plain array of PORTS entries, null for a port nothing feeds.
+ */
+export const newPortSources = () => Array(PORTS).fill(null);
+
+/** Put `source` on `port`, returning a new array. */
+export function setPortSource(sources, port, source) {
+  const out = sources.slice();
+  if (port >= 0 && port < PORTS) out[port] = source;
+  return out;
+}
+
+/** What the tile prints for a port's source. Em dash for nothing. */
+export const sourceLabel = (source) => source ?? '—';
 
 /**
  * The room this page is in, minting one when the URL names none.
@@ -106,7 +168,9 @@ export const roomLink = (location) => {
  * board measures against. Ids are the mockup's ids so a board pin anchored to
  * a control points at the same control here.
  */
-export function addLobby(host, { room, onClaim, onRelease, onCopy } = {}) {
+export function addLobby(host, {
+  room, onClaim, onRelease, onCopy, onConnect, sources = detectSources(),
+} = {}) {
   const doc = host.ownerDocument ?? document;
   const el = (tag, cls, text) => {
     const node = doc.createElement(tag);
@@ -145,14 +209,42 @@ export function addLobby(host, { room, onClaim, onRelease, onCopy } = {}) {
     tag.hidden = true;
     name.append(' ', tag);
     const who = el('i', null, 'free');
+    // Which source feeds this port. Always present, em dash when none, so the
+    // tile does not change height when a controller is connected.
+    const src = el('span', 'psrc', sourceLabel(null));
+    // The controller button (#30). One per tile, because a player connects a
+    // pad to the seat they are taking rather than to the page.
+    const cbtn = el('button', 'cbtn', '⌘');
+    cbtn.title = 'Connect a controller to this port';
+    // The board pins #30 to #port-1-pad, so port 1 carries the id.
+    if (i === 0) cbtn.id = 'port-1-pad';
+    // The source list, built from what this browser detected. Hidden until
+    // the press: WebHID needs a user gesture, and the gesture has to be the
+    // press of a source, not the press of the page, so the picker is opened
+    // from inside this handler's call stack.
+    const menu = el('div', 'psrc-menu');
+    menu.hidden = true;
+    for (const s of sources) {
+      const item = el('button', 'psrc-pick', s.label);
+      item.addEventListener('click', () => {
+        menu.hidden = true;
+        onConnect?.(i, s.id);
+      });
+      menu.append(item);
+    }
+    // No sources at all cannot happen -- touch is unconditional -- but a
+    // caller that injects an empty list gets a disabled button rather than
+    // one that opens an empty menu.
+    cbtn.disabled = sources.length === 0;
+    cbtn.addEventListener('click', () => { menu.hidden = !menu.hidden; });
     const act = el('button', 'pbtn', 'Take');
     act.addEventListener('click', () => {
       if (tile.className.split(' ').includes('mine')) onRelease?.(i);
       else onClaim?.(i);
     });
-    tile.append(name, who, act);
+    tile.append(name, who, src, cbtn, menu, act);
     ports.append(tile);
-    tiles.push({ tile, name, who, act, tag });
+    tiles.push({ tile, name, who, act, tag, src, cbtn, menu });
   }
 
   const seat = el('p', 'sub seat-none');
@@ -161,11 +253,16 @@ export function addLobby(host, { room, onClaim, onRelease, onCopy } = {}) {
 
   host.append(bar, ports, seat);
 
+  // The per-port source record lives here, because nothing else holds it: the
+  // signal server tracks claims only, and C keeps no map back from a port.
+  let portSources = newPortSources();
+
   const api = {
     /** Paint the claims array onto the tiles. */
     render(claims, me) {
       for (const s of portStates(claims, me)) {
-        const { tile, who, act, tag } = tiles[s.port];
+        const { tile, who, act, tag, src } = tiles[s.port];
+        src.textContent = sourceLabel(portSources[s.port]);
         const cls = ['port'];
         if (s.mine) cls.push('taken', 'mine');
         else if (s.taken) cls.push('taken');
@@ -186,6 +283,21 @@ export function addLobby(host, { room, onClaim, onRelease, onCopy } = {}) {
       if (alone) seat.textContent = 'Spectating · you hold no port · wait for one to free up';
     },
     setRoom(value) { code.firstChild.textContent = value; },
+    /**
+     * Record that `source` now feeds `port`, and show it (#30).
+     *
+     * Painted straight onto the tile rather than waiting for the next
+     * `state` event: connecting a controller changes nothing the signal
+     * server knows, so no event follows and a render-only update would leave
+     * the tile reading em dash until somebody else claimed a port.
+     */
+    setSource(port, source) {
+      portSources = setPortSource(portSources, port, source);
+      const tile = tiles[port];
+      if (tile) tile.src.textContent = sourceLabel(portSources[port]);
+    },
+    /** The record, for the caller that needs to know what feeds a port. */
+    get sources() { return portSources; },
     join,
   };
 

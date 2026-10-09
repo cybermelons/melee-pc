@@ -41,6 +41,16 @@
   .port.mine { border-color: #e8c349; box-shadow: inset 3px 0 0 #e8c349; }
   .mine-tag { margin-left: 4px; padding: 0 4px; border-radius: 3px; font-size: 10px;
               background: #e8c349; color: #1a1405; letter-spacing: .04em; }
+  /* The controller control (#30): what feeds this port, and the button that
+     changes it. The source list is in the tile rather than a page-level
+     dialog, so the press that opens it is the press that takes the seat. */
+  .psrc { font-size: 11px; color: #6f7280; letter-spacing: .03em; }
+  .cbtn { min-height: 36px; padding: 4px 8px; border-radius: 6px; font-size: 13px;
+          background: #222; color: #eee; border: 1px solid #333; }
+  .cbtn:disabled { opacity: .45; }
+  .psrc-menu { display: grid; gap: 3px; }
+  .psrc-pick { min-height: 32px; padding: 3px 7px; border-radius: 5px; font-size: 11px;
+               text-align: left; background: #1d2130; color: #eee; border: 1px solid #3c4252; }
   .pbtn { min-height: 36px; margin-top: 2px; padding: 4px 8px; border-radius: 6px;
           font-size: 12px; background: #222; color: #eee; border: 1px solid #333; }
   .port.free .pbtn { background: #e8c349; color: #1a1405; border-color: #e8c349;
@@ -392,7 +402,8 @@
 <div id="bar">
   <input id="disc" type="file" accept=".iso,.gcm">
   <button id="start" disabled>Start</button>
-  <button id="adapter">Connect GC adapter</button>
+  <!-- The GC adapter connect button used to sit here. It is per-port now
+       (#30): the lobby tile owns it, because a controller feeds a seat. -->
   <span id="status">Loading engine…</span>
   <span id="stats"></span>
 </div>

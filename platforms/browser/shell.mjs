@@ -143,11 +143,13 @@ window.Module = {
     updateStart();
     adapter = createGCAdapter(Module, log);
     // An adapter authorised in an earlier visit reopens without a gesture.
+    // Reconnecting it is not a choice of seat, so it lands on the port this
+    // page holds, or P1 when it holds none (#30). The picker itself is never
+    // opened here: WebHID needs a gesture, and the gesture is the tile press.
     adapter.resume().then((found) => {
-      // Mobile browsers have no WebHID, where the button can only report that.
-      // Keep it hidden there rather than offer a control with one outcome.
-      $('adapter').hidden = found || !navigator.hid;
-      if (found) log('GC adapter: reconnected');
+      if (!found) return;
+      log('GC adapter: reconnected');
+      lobby.setSource(Math.max(mySeat, 0), 'adapter');
     }, (error) => log(`GC adapter: ${error.message}`));
   },
 };
@@ -156,6 +158,9 @@ window.Module = {
 // the wasm is still compiling, and a disc picked by then started a dead runtime.
 let ready = false;
 let adapter = null;
+// Which port this page holds, from the signal server's `state` event, or -1.
+// The adapter reconnect reads it; see the state handler in joinLobby.
+let mySeat = -1;
 // Mounting and populating /saves and /cache; started once the runtime is up.
 let storage = null;
 // browser_prewarm, started once storage is in.
@@ -178,10 +183,6 @@ function updateStart() {
 }
 $('disc').addEventListener('change', updateStart);
 
-// Hidden before the runtime initializes as well, so it is never tappable on a
-// browser without WebHID.
-if (!navigator.hid) $('adapter').hidden = true;
-
 // Into the menu panel, so the same button that reveals the panel mid-game
 // reveals the settings. Built at load rather than on first open: the form
 // reads the URL, and the URL does not change while the page lives.
@@ -194,14 +195,32 @@ addSettings($('menu-panel'));
 // it needs no reload.
 addTierToggle($('menu-panel'));
 
-$('adapter').addEventListener('click', async () => {
+/**
+ * Put a controller source on a port (#30).
+ *
+ * This is the page-level connect button's old job, moved onto the port. The
+ * adapter plumbing is the same createGCAdapter as before; only the trigger and
+ * the reporting moved, and request() is still called straight out of the tile's
+ * click handler because WebHID needs the gesture to still be on the stack.
+ *
+ * Touch and gamepad need no permission, so recording the choice is all there
+ * is to do: the overlay is created at Start, and the engine already routes a
+ * pad per port (pc_touch_set_pad takes an index).
+ */
+async function connectPort(port, source) {
   try {
-    $('adapter').hidden = await adapter.request();
+    if (source === 'adapter') {
+      if (!adapter) return status('The engine is still loading.');
+      // Never from a load: this call is inside the click's call stack.
+      if (!await adapter.request()) return; // the picker was dismissed
+    }
+    lobby.setSource(port, source);
+    status(`P${port + 1}: ${source}.`);
   } catch (error) {
     status(error.message);
     log(error.stack || error);
   }
-});
+}
 
 $('start').addEventListener('click', async () => {
   $('start').disabled = true;
@@ -283,6 +302,10 @@ const lobby = addLobby($('lobby'), {
   room: roomId,
   onClaim: (i) => claim?.(i),
   onRelease: () => release?.(),
+  // The per-port controller button (#30). Sources come from detectSources()
+  // inside addLobby, which reads this browser's real capabilities, so a source
+  // this browser cannot do is absent from the list rather than offered.
+  onConnect: (i, source) => connectPort(i, source),
   onCopy: () => navigator.clipboard?.writeText(roomLink(location))
     .then(() => status('Link copied.'), () => status('Could not copy the link.')),
 });
@@ -381,6 +404,10 @@ async function joinLobby() {
     const { claims, queue } = JSON.parse(e.data);
     place = (queue ?? []).indexOf(me);
     slot = mySlot(claims, me);
+    // Published out of the handler because the adapter reconnect (#30) needs
+    // to know which port is this page's, and it runs from onRuntimeInitialized
+    // rather than from inside the signalling.
+    mySeat = slot;
     lobby.render(claims, me);
     // Holding a port and having a peer is what opens the channel. Neither
     // this nor the engine boot waits on the other: the engine is already

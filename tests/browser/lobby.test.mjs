@@ -6,11 +6,57 @@ import test from 'node:test';
 import assert from 'assert/strict';
 import { readFileSync } from 'fs';
 import {
-  PORTS, PAIRABLE, ensureRoom, portStates, mySlot, spectating, roomLink,
+  PORTS, PAIRABLE, SOURCES, ensureRoom, portStates, mySlot, spectating, roomLink,
+  addLobby, detectSources, newPortSources, setPortSource, sourceLabel,
 } from '../../platforms/browser/lobby.mjs';
 
 const loc = (search, pathname = '/', origin = 'http://melee.test') =>
   ({ search, pathname, origin, href: `${origin}${pathname}${search}` });
+
+// Enough of the DOM for addLobby: elements that hold a class, an id, children
+// and click listeners. Same approach as touch.test.mjs -- jsdom would do it
+// and is not a dependency this repo has.
+function stubDoc() {
+  const make = (tag) => {
+    const node = {
+      tagName: tag, id: '', className: '', textContent: '', title: '',
+      hidden: false, disabled: false, children: [], handlers: {},
+      append(...kids) { node.children.push(...kids); },
+      addEventListener(type, fn) { node.handlers[type] = fn; },
+      removeAttribute(name) { node[name] = ''; },
+      get firstChild() { return node.children[0]; },
+      /**
+       * Every node under this one, so a test can look inside a tile. Strings
+       * are skipped: the real append takes text nodes too, and the lobby
+       * appends a literal space next to the "you" tag.
+       */
+      descendants() {
+        return node.children.flatMap(
+          (k) => (typeof k === 'string' ? [] : [k, ...k.descendants()]));
+      },
+      /**
+       * Descendants carrying a class, in document order. Split rather than
+       * compared whole: render() writes "port free" and "port taken mine".
+       */
+      find(sel) {
+        const cls = sel.replace('.', '');
+        return node.descendants()
+          .filter((k) => String(k.className).split(' ').includes(cls));
+      },
+    };
+    return node;
+  };
+  return { createElement: make, host: make('div') };
+}
+
+/** addLobby against the stub, with `nav` as the browser it detects. */
+function buildLobby(nav, opts = {}) {
+  const doc = stubDoc();
+  const host = doc.host;
+  host.ownerDocument = doc;
+  const api = addLobby(host, { room: 'r', sources: detectSources(nav), ...opts });
+  return { host, api };
+}
 
 test('a URL with no room gets one, without reloading the page', () => {
   const calls = [];
@@ -137,4 +183,191 @@ test('the marker moves on release, and nothing is yours after it', () => {
   // that has to hold is that no tile claims to be yours afterwards.
   assert.equal(portStates(['me', 'b'], 'me').filter((s) => s.mine).length, 1);
   assert.equal(portStates([null, 'b'], 'me').filter((s) => s.mine).length, 0);
+});
+
+// Controller connect per port (#30). Two things here are wrong in ways a
+// screenshot does not show: which sources a browser is offered, and which
+// port a connected controller is recorded against.
+
+test('a browser with everything is offered all three sources', () => {
+  const ids = detectSources({ hid: {}, getGamepads: () => [] }).map((s) => s.id);
+  assert.deepEqual(ids, ['adapter', 'gamepad', 'touch']);
+});
+
+test('a browser with no WebHID is not offered the adapter at all', () => {
+  // The issue's rule: a source the browser cannot do is ABSENT, not present
+  // and failing. An iPhone has no WebHID, and the old page-level button hid
+  // itself there because it had one outcome.
+  const ids = detectSources({ getGamepads: () => [] }).map((s) => s.id);
+  assert.ok(!ids.includes('adapter'), ids.join());
+  assert.deepEqual(ids, ['gamepad', 'touch']);
+});
+
+test('a browser with no Gamepad API is not offered a pad', () => {
+  const ids = detectSources({ hid: {} }).map((s) => s.id);
+  assert.deepEqual(ids, ['adapter', 'touch']);
+});
+
+test('a browser with neither still offers touch, so the button has an outcome', () => {
+  // The last bullet of #30. The failure this prevents is a controller button
+  // that opens an empty list, which is the page-level button's old problem
+  // moved onto four tiles instead of fixed.
+  const ids = detectSources({}).map((s) => s.id);
+  assert.deepEqual(ids, ['touch']);
+  assert.equal(detectSources(null).length, 1, 'no navigator at all is still touch');
+});
+
+test('getGamepads is checked as a method, not as a property', () => {
+  // The bug this catches: testing `nav.gamepad` or `'getGamepads' in nav` on
+  // a navigator-shaped object. Every real browser has the method, so a wrong
+  // check reports no pad support everywhere and silently drops the source.
+  assert.ok(detectSources({ getGamepads: () => [] }).some((s) => s.id === 'gamepad'));
+  assert.ok(!detectSources({ getGamepads: 'yes' }).some((s) => s.id === 'gamepad'),
+    'a non-callable getGamepads is not the Gamepad API');
+});
+
+test('WebHID is the only source that needs a user gesture', () => {
+  // The third bullet of #30: the picker opens from the press. The flag is
+  // what tells the shell which source must stay inside the click's stack.
+  const gesture = SOURCES.filter((s) => s.gesture).map((s) => s.id);
+  assert.deepEqual(gesture, ['adapter']);
+});
+
+test('a fresh port record says nothing feeds any port', () => {
+  const sources = newPortSources();
+  assert.equal(sources.length, PORTS);
+  assert.deepEqual(sources, [null, null, null, null]);
+  assert.equal(sourceLabel(sources[0]), '—', 'an unfed port prints a dash, not "null"');
+});
+
+test('a source lands on the port it was chosen on, and only that port', () => {
+  // The record #30 says does not exist yet. pc_touch_set_pad and
+  // pc_gcadapter_web_report both take a port index, so C can route more than
+  // one source; nothing on either side remembers which port chose which.
+  let s = newPortSources();
+  s = setPortSource(s, 2, 'touch');
+  assert.deepEqual(s, [null, null, 'touch', null]);
+  s = setPortSource(s, 0, 'adapter');
+  assert.deepEqual(s, ['adapter', null, 'touch', null],
+    'a second connect must not move the first');
+});
+
+test('setting a port source does not mutate the array handed in', () => {
+  // render() reads the record every repaint. A mutating setter would make the
+  // tile and the record agree by accident and hide a stale read.
+  const before = newPortSources();
+  const after = setPortSource(before, 1, 'gamepad');
+  assert.deepEqual(before, [null, null, null, null]);
+  assert.equal(after[1], 'gamepad');
+});
+
+test('a port index outside the four is ignored rather than growing the record', () => {
+  assert.deepEqual(setPortSource(newPortSources(), 9, 'touch'), [null, null, null, null]);
+  assert.deepEqual(setPortSource(newPortSources(), -1, 'touch'), [null, null, null, null]);
+});
+
+test('replacing a port source replaces it rather than keeping both', () => {
+  // Swapping a touch pad for an adapter on the same seat. A port is fed by
+  // one thing, so the tile must not end up printing two.
+  let s = setPortSource(newPortSources(), 0, 'touch');
+  s = setPortSource(s, 0, 'adapter');
+  assert.equal(s[0], 'adapter');
+});
+
+test('every port tile gets a controller button, and port 1 carries the board id', () => {
+  // The first bullet of #30, through the real addLobby. The id is the anchor
+  // tools/progress/build.py checks against the mockup, so it has to be on the
+  // element the board pin points at.
+  const { host } = buildLobby({ hid: {}, getGamepads: () => [] });
+  const tiles = host.find('.port');
+  assert.equal(tiles.length, PORTS);
+  for (const tile of tiles) {
+    assert.equal(tile.descendants().filter((n) => n.className === 'cbtn').length, 1,
+      'one controller button per tile');
+    assert.equal(tile.descendants().filter((n) => n.className === 'psrc').length, 1,
+      'and one line saying what feeds it');
+  }
+  const pads = host.find('.cbtn');
+  assert.equal(pads[0].id, 'port-1-pad');
+  assert.deepEqual(pads.slice(1).map((p) => p.id), ['', '', ''],
+    'only one element may carry the anchor id');
+});
+
+test('the offered list holds only the sources this browser can do', () => {
+  const full = buildLobby({ hid: {}, getGamepads: () => [] });
+  assert.deepEqual(full.host.find('.psrc-pick').slice(0, 3).map((n) => n.textContent),
+    SOURCES.map((s) => s.label));
+  const phone = buildLobby({});
+  const labels = phone.host.find('.psrc-pick').map((n) => n.textContent);
+  assert.equal(labels.length, PORTS, 'one item per tile, which is touch alone');
+  assert.ok(labels.every((l) => l === 'On-screen pad'), labels.join());
+});
+
+test('the source list is closed until the button is pressed', () => {
+  // WebHID needs a user gesture, so nothing may open a picker on load. The
+  // list being hidden at build time is what proves no load-time path exists.
+  const { host } = buildLobby({ hid: {}, getGamepads: () => [] });
+  assert.ok(host.find('.psrc-menu').every((m) => m.hidden));
+});
+
+test('pressing a source reports the port and the source, and closes the list', () => {
+  const calls = [];
+  const { host } = buildLobby({ hid: {}, getGamepads: () => [] },
+    { onConnect: (...a) => calls.push(a) });
+  const tile = host.find('.port')[2];
+  const menu = tile.descendants().find((n) => n.className === 'psrc-menu');
+  tile.descendants().find((n) => n.className === 'cbtn').handlers.click();
+  assert.equal(menu.hidden, false, 'the press opens the list');
+  menu.children.find((n) => n.textContent === 'GameCube adapter').handlers.click();
+  assert.deepEqual(calls, [[2, 'adapter']], 'the third tile is port index 2');
+  assert.equal(menu.hidden, true);
+});
+
+test('a tile shows which source feeds it, and only that tile', () => {
+  // The second bullet of #30. Painted by setSource rather than by render,
+  // because connecting a controller changes nothing the signal server knows,
+  // so no `state` event follows it.
+  const { host, api } = buildLobby({ hid: {}, getGamepads: () => [] });
+  const shown = () => host.find('.psrc').map((n) => n.textContent);
+  assert.deepEqual(shown(), ['—', '—', '—', '—']);
+  api.setSource(1, 'touch');
+  assert.deepEqual(shown(), ['—', 'touch', '—', '—']);
+  assert.equal(api.sources[1], 'touch');
+});
+
+test('a repaint from the server keeps what the tile says feeds it', () => {
+  // The regression: render() repaints every tile from the claims array, and
+  // claims carry no source. A render that rebuilt the line from the claims
+  // would wipe a connected controller the moment anybody else took a seat.
+  const { host, api } = buildLobby({ hid: {}, getGamepads: () => [] });
+  api.setSource(0, 'adapter');
+  api.render(['me', 'other', null, null], 'me');
+  assert.equal(host.find('.psrc')[0].textContent, 'adapter');
+});
+
+test('a browser that can do nothing gets a disabled button, not an empty list', () => {
+  // Cannot happen through detectSources, which always has touch. This is the
+  // guard for a caller that injects a list, so the button never opens empty.
+  const { host } = buildLobby({}, { sources: [] });
+  assert.ok(host.find('.cbtn').every((b) => b.disabled));
+});
+
+test('the shell opens the WebHID picker from the press and never from a load', () => {
+  // #30's third bullet is a rule about what the page does NOT do, which no
+  // pure function can check, so this reads the module. The thing that would
+  // break it is adapter.request() back on a load path, or resume() growing
+  // into a picker.
+  const shell = readFileSync(
+    new URL('../../platforms/browser/shell.mjs', import.meta.url), 'utf8');
+  const code = shell.replace(/\/\*[\s\S]*?\*\//g, '')
+    .split('\n').map((l) => l.replace(/\/\/.*$/, '')).join('\n');
+  assert.ok(/adapter\.request\(\)/.test(code), 'the adapter plumbing is still wired');
+  // request() may appear once only, inside connectPort, which onConnect calls
+  // from the tile's click handler.
+  assert.equal(code.match(/adapter\.request\(\)/g).length, 1);
+  assert.ok(/async function connectPort\(/.test(code));
+  assert.ok(/connectPort\(i, source\)/.test(code),
+    'the port button is what calls it');
+  assert.ok(!/\$\('adapter'\)/.test(code),
+    'the page-level connect button is gone (#30)');
 });
