@@ -12,6 +12,7 @@ import { addTierToggle } from './tier.mjs';
 import { showCrash } from './crash.mjs';
 import { addSettings } from './settings.mjs';
 import { addLobby, ensureRoom, mySlot, roomLink } from './lobby.mjs';
+import { addStates } from './states.mjs';
 
 const $ = (id) => document.getElementById(id);
 const lines = [];
@@ -181,7 +182,28 @@ let remoteDisc = null;
 function updateStart() {
   $('start').disabled = !(ready && (remoteDisc || $('disc').files.length));
 }
-$('disc').addEventListener('change', updateStart);
+// The disc line under the lobby bar (#33), which replaced the chip in it. No
+// percentage: the disc is read one HTTP Range per block (remote-disc.mjs) and
+// cached per block (disc-cache.mjs), so it is never fetched as a unit and no
+// total-loaded figure exists. What the line can honestly report is whether a
+// disc is reachable at all, which is what blocks loading a state.
+function discState() {
+  const picked = $('disc').files?.length ? $('disc').files[0] : null;
+  const node = $('disc-state');
+  if (!node) return;
+  // One line at 390px, in all three cases. The disc line replaced two taller
+  // controls -- the chip the issue removes and #launch-hint -- so a text that
+  // wraps to three lines on a phone would give the height straight back.
+  if (remoteDisc) {
+    const mib = (remoteDisc.size / 1048576).toFixed(0);
+    node.textContent = `Disc ready · ${mib} MiB, read on demand`;
+  } else if (picked) {
+    node.textContent = `Disc ready · ${picked.name}`;
+  } else {
+    node.textContent = 'No disc yet · choose one below';
+  }
+}
+$('disc').addEventListener('change', () => { updateStart(); discState(); });
 
 // Into the menu panel, so the same button that reveals the panel mid-game
 // reveals the settings. Built at load rather than on first open: the form
@@ -280,12 +302,13 @@ try {
 }
 if (remoteDisc) {
   $('disc').hidden = true;
-  // The disc comes from the server, so telling the visitor to choose one
-  // points at a control that is now hidden.
-  $('launch-hint').textContent = 'Pick a mode, then click Start.';
+  // What used to be said twice -- "Choose a disc image and click Start" in
+  // #launch-hint and the served-disc case overwriting it -- is now the one
+  // disc line under the bar, which discState() writes from the probe result.
   log(`Server disc: ${(remoteDisc.size / 1048576).toFixed(0)} MiB`);
   updateStart();
 }
+discState();
 
 // Every page is in a room (#22). A visitor who arrived with no ?room= gets one
 // minted into the URL, so the mode list no longer decides anything and the
@@ -308,7 +331,15 @@ const lobby = addLobby($('lobby'), {
   onConnect: (i, source) => connectPort(i, source),
   onCopy: () => navigator.clipboard?.writeText(roomLink(location))
     .then(() => status('Link copied.'), () => status('Could not copy the link.')),
+  // The Load button opens the save-state modal (#33). The handler is wired
+  // here rather than inside addLobby, because the modal is a sibling of the
+  // panel and the lobby does not own it.
+  onLoad: () => states.open(),
 });
+// The modal hangs off <body>, not off #menu-panel: showModal puts a dialog in
+// the top layer, so the panel's own position, max-height and overflow:auto
+// would otherwise clip and scroll it mid-match.
+const states = addStates(document.body);
 // Set by joinLobby once the signal channel is open; before that a tile press
 // has nothing to post to.
 let claim = null;

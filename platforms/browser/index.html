@@ -12,7 +12,6 @@
   #stats { margin-left: auto; font-variant-numeric: tabular-nums; color: #9c9; }
   #status { color: #fc6; }
   pre { white-space: pre-wrap; color: #999; font-size: 12px; max-height: 14em; overflow: auto; }
-  #launch-hint { color: #999; }
   /* The lobby (#22): the room code top right, four ports as tiles. Ids and
      class names match tools/progress/mockup.py, which is the target the issue
      board measures against. */
@@ -391,9 +390,60 @@
   #settings select, #settings input, #settings button { min-height: 44px; font-size: 16px; }
   #settings-link { width: 100%; max-width: 46ch; font-family: ui-monospace, monospace; font-size: 13px; }
   #settings-note { margin: 0; color: #999; font-size: 12px; }
+
+  /* The Load button and the save-state modal (#33). Ids and class names match
+     tools/progress/mockup.py, which is the target the board measures. */
+  #load-btn { min-height: 44px; padding: 7px 12px; border-radius: 8px;
+              background: #1d2130; color: #eee; border: 1px solid #3c4252; }
+  /* The disc line: one line under the bar, no bar and no percentage, because
+     the browser build has no total-loaded figure to draw one from. */
+  .disc { margin: 0 0 8px; color: #6f7280; font-size: 12px; }
+  /* A native <dialog>: showModal brings the backdrop, the top layer, the focus
+     trap and Esc with it, so none of that is written here. A closed dialog is
+     display:none by the UA stylesheet, which is why the panel gets its height
+     back when the modal is shut. */
+  #load-modal {
+    margin: auto; padding: 14px; width: min(92vw, 420px);
+    /* The fit-the-viewport half of the issue: the sheet may use the height it
+       needs up to the viewport, and no more, so the modal never scrolls the
+       page behind it. */
+    max-height: calc(100dvh - 32px); box-sizing: border-box;
+    border-radius: 12px; border: 1px solid #3c4252;
+    background: #0f1117; color: #eee;
+    font: 15px/1.4 system-ui, sans-serif;
+  }
+  #load-modal::backdrop { background: #000000b0; }
+  #load-modal .sheet { display: grid; gap: 10px; }
+  #load-modal .group-h { margin: 0; font-size: 15px; }
+  #load-modal .sub-h { margin-left: 6px; color: #999; font-size: 12px; font-weight: 400; }
+  .states { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .state { text-align: left; display: grid; gap: 2px; min-height: 44px;
+           padding: 9px 10px; background: #191b24; color: #eee;
+           border: 1px solid #333; border-radius: 9px; }
+  .state b { font-size: 14px; }
+  .state i { font-style: normal; color: #999; font-size: 12px; }
+  .sheet-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .sheet-row button { min-height: 44px; padding: 7px 12px; border-radius: 8px;
+                      font-size: 16px; background: #222; color: #eee;
+                      border: 1px solid #333; }
+  .sheet-row .primary { background: #e8c349; color: #1a1405;
+                        border-color: #e8c349; font-weight: 600; }
+  #load-modal .sub { margin: 0; color: #6f7280; font-size: 12px; }
+  #load-modal .sub[hidden] { display: none; }
 </style>
 <h1>Melee Web</h1>
-<div id="menu-panel"><div id="lobby"></div><p id="launch-hint">Choose a disc image and click Start.</p>
+<div id="menu-panel"><div id="lobby"></div>
+<!-- The disc keeps a place outside the modal (#33), because a disc that is
+     still loading is exactly what blocks loading a state. A thin line under
+     the bar rather than a chip in it: the chip read a percentage that does not
+     exist here. remote-disc.mjs answers one HTTP Range per block and
+     disc-cache.mjs caches blocks, so the disc is never fetched as a unit and
+     there is no total-loaded figure to print. shell.mjs writes what the probe
+     actually found. It also absorbs #launch-hint, which was a second line
+     saying the same thing less precisely ("Choose a disc image and click
+     Start") and is in no mockup and on no pin. One line about the disc, not
+     two. -->
+<p id="disc-state" class="disc">Looking for a disc…</p>
 <p id="perf">Render scale, to measure whether a slow frame is the pixel count:
 <a href="?MELEE_BOOT_SCENE=vs&amp;MELEE_SCALE=1">1.0 · 960x720</a>
 <a href="?MELEE_BOOT_SCENE=vs&amp;MELEE_SCALE=0.667">0.667 · 640x480</a>

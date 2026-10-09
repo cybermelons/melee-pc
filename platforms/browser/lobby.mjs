@@ -169,7 +169,7 @@ export const roomLink = (location) => {
  * a control points at the same control here.
  */
 export function addLobby(host, {
-  room, onClaim, onRelease, onCopy, onConnect, sources = detectSources(),
+  room, onClaim, onRelease, onCopy, onConnect, onLoad, sources = detectSources(),
 } = {}) {
   const doc = host.ownerDocument ?? document;
   const el = (tag, cls, text) => {
@@ -182,7 +182,17 @@ export function addLobby(host, {
   const bar = el('header');
   bar.id = 'lobby-bar';
   const left = el('div', 'lb-left');
-  left.append(el('span', 'lb-title', 'Melee'));
+  // Load, where the disc chip used to be drawn (#33). The chip read a
+  // percentage the browser build cannot measure -- remote-disc.mjs answers one
+  // HTTP Range per block, so there is no total-loaded figure -- and the most
+  // valuable slot in the bar is worth a press instead. What the disc line can
+  // honestly say now sits under the bar, outside the modal.
+  const loadBtn = el('button', null, 'Load');
+  loadBtn.id = 'load-btn';
+  loadBtn.type = 'button';
+  loadBtn.title = 'Load a save state';
+  if (onLoad) loadBtn.addEventListener('click', onLoad);
+  left.append(el('span', 'lb-title', 'Melee'), loadBtn);
   const right = el('div', 'lb-right');
   const code = el('button');
   code.id = 'room-code';
@@ -299,6 +309,7 @@ export function addLobby(host, {
     /** The record, for the caller that needs to know what feeds a port. */
     get sources() { return portSources; },
     join,
+    loadBtn,
   };
 
   // Paint an empty room before the server has said anything. Without this the
