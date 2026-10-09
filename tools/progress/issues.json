@@ -75,7 +75,7 @@
       "side": "left",
       "state": "open",
       "title": "Flatten the web disc path",
-      "pin": "What this bar is waiting on: HTTP Range over a 1.4 GB ISO. The engine reads files by name, and 60% of the disc is FMV that never plays. Gated on measuring the real working set."
+      "pin": "What the disc line is waiting on: HTTP Range over a 1.4 GB ISO. The engine reads files by name and fetches blocks on demand, so there is no load percentage; 60% of the disc is FMV that never plays. Gated on measuring the real working set."
     },
     {
       "n": 25,
@@ -252,6 +252,14 @@
       "state": "open",
       "title": "Fill the Input tab, including controller options",
       "pin": "The Input tab is drawn and empty: #26 shipped three tabs of five. Deadzone and curve describe a stick, not a seat, so this issue has to settle per-port against per-page first."
+    },
+    {
+      "n": 33,
+      "anchor": "#load-btn",
+      "side": "right",
+      "state": "open",
+      "title": "Load button and save-state modal, instead of a disc chip",
+      "pin": "The chip read a percentage the browser build cannot measure. The slot becomes a press: Load opens the state menu, which holds the four presets and the states this player saved."
     }
   ]
 }

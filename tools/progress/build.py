@@ -145,9 +145,14 @@ TEMPLATE = """<!DOCTYPE html>
   #room-code b {{ font:600 .95rem/1 ui-monospace,SFMono-Regular,Menlo,monospace;
                   letter-spacing:.06em; }}
   #room-code i {{ font-style:normal; font-size:.7rem; color:var(--dim); }}
-  #join-btn {{ padding:7px 12px; border-radius:8px; background:#191b24;
+  #join-btn, #load-btn {{ padding:7px 12px; border-radius:8px; background:#191b24;
                color:var(--fg); border:1px solid var(--line);
                font-size:.82rem; }}
+  /* #33: the slot the disc chip used to hold. A press, not a reading. */
+  #load-btn {{ background:#1d2130; border-color:#3c4252; }}
+  /* #33: one line, because the browser build has no total-loaded figure to
+     draw a bar from. */
+  .disc {{ margin:0; color:#6f7280; font-size:.74rem; }}
 
   /* ---- ports: one row, because the lobby is one couch ---- */
   .ports {{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }}
@@ -178,7 +183,20 @@ TEMPLATE = """<!DOCTYPE html>
   .seat-none {{ margin:0; padding:5px 9px; border-radius:7px;
                 border:1px dashed var(--line); color:var(--dim); font-size:.76rem; }}
 
-  /* ---- save states, not places to go ---- */
+  /* ---- save states, not places to go ----
+     #33 moved them behind the Load button. The modal is drawn open and after
+     the panel, because the board has to show what the button opens: a closed
+     dialog measures 0x0 and no pin could anchor into it. */
+  .modal {{ margin-top:14px; padding:14px; border-radius:12px;
+            background:#0f1117; border:1px solid #3c4252;
+            box-shadow:0 10px 30px #0008; }}
+  .modal .sheet {{ display:grid; gap:10px; }}
+  .sheet-row {{ display:flex; gap:8px; flex-wrap:wrap; }}
+  .sheet-row button {{ padding:7px 12px; border-radius:8px; font-size:.82rem;
+                       background:#191b24; color:var(--fg);
+                       border:1px solid var(--line); }}
+  .sheet-row .primary {{ background:var(--accent); color:#1a1405;
+                         border-color:var(--accent); font-weight:600; }}
   .states {{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }}
   .state {{ text-align:left; display:grid; gap:2px; padding:9px 10px;
             background:#191b24; color:var(--fg);
@@ -264,8 +282,7 @@ TEMPLATE = """<!DOCTYPE html>
     .lb-left {{ min-width:0; gap:6px; }}
     .lb-right {{ flex:none; gap:6px; }}
     .lb-title {{ font-size:.88rem; }}
-    #disc-state {{ min-width:0; overflow:hidden; text-overflow:ellipsis;
-                   white-space:nowrap; font-size:.68rem; padding:3px 7px; }}
+    #disc-state {{ font-size:.68rem; }}
     #room-code {{ padding:6px 10px; }}
     #room-code i {{ display:none; }}
     #join-btn {{ padding:6px 10px; }}
@@ -275,6 +292,7 @@ TEMPLATE = """<!DOCTYPE html>
     .port {{ padding:7px 8px; }}
     .port i {{ font-size:.78rem; }}
     .pbtn {{ padding:3px 6px; }}
+    .modal {{ padding:10px; }}
     .states {{ gap:6px; }}
     .state {{ padding:7px 9px; }}
     .state b {{ font-size:.8rem; }}

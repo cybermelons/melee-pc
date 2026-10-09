@@ -66,9 +66,14 @@
   #room-code b { font:600 .95rem/1 ui-monospace,SFMono-Regular,Menlo,monospace;
                   letter-spacing:.06em; }
   #room-code i { font-style:normal; font-size:.7rem; color:var(--dim); }
-  #join-btn { padding:7px 12px; border-radius:8px; background:#191b24;
+  #join-btn, #load-btn { padding:7px 12px; border-radius:8px; background:#191b24;
                color:var(--fg); border:1px solid var(--line);
                font-size:.82rem; }
+  /* #33: the slot the disc chip used to hold. A press, not a reading. */
+  #load-btn { background:#1d2130; border-color:#3c4252; }
+  /* #33: one line, because the browser build has no total-loaded figure to
+     draw a bar from. */
+  .disc { margin:0; color:#6f7280; font-size:.74rem; }
 
   /* ---- ports: one row, because the lobby is one couch ---- */
   .ports { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
@@ -99,7 +104,20 @@
   .seat-none { margin:0; padding:5px 9px; border-radius:7px;
                 border:1px dashed var(--line); color:var(--dim); font-size:.76rem; }
 
-  /* ---- save states, not places to go ---- */
+  /* ---- save states, not places to go ----
+     #33 moved them behind the Load button. The modal is drawn open and after
+     the panel, because the board has to show what the button opens: a closed
+     dialog measures 0x0 and no pin could anchor into it. */
+  .modal { margin-top:14px; padding:14px; border-radius:12px;
+            background:#0f1117; border:1px solid #3c4252;
+            box-shadow:0 10px 30px #0008; }
+  .modal .sheet { display:grid; gap:10px; }
+  .sheet-row { display:flex; gap:8px; flex-wrap:wrap; }
+  .sheet-row button { padding:7px 12px; border-radius:8px; font-size:.82rem;
+                       background:#191b24; color:var(--fg);
+                       border:1px solid var(--line); }
+  .sheet-row .primary { background:var(--accent); color:#1a1405;
+                         border-color:var(--accent); font-weight:600; }
   .states { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
   .state { text-align:left; display:grid; gap:2px; padding:9px 10px;
             background:#191b24; color:var(--fg);
@@ -185,8 +203,7 @@
     .lb-left { min-width:0; gap:6px; }
     .lb-right { flex:none; gap:6px; }
     .lb-title { font-size:.88rem; }
-    #disc-state { min-width:0; overflow:hidden; text-overflow:ellipsis;
-                   white-space:nowrap; font-size:.68rem; padding:3px 7px; }
+    #disc-state { font-size:.68rem; }
     #room-code { padding:6px 10px; }
     #room-code i { display:none; }
     #join-btn { padding:6px 10px; }
@@ -196,6 +213,7 @@
     .port { padding:7px 8px; }
     .port i { font-size:.78rem; }
     .pbtn { padding:3px 6px; }
+    .modal { padding:10px; }
     .states { gap:6px; }
     .state { padding:7px 9px; }
     .state b { font-size:.8rem; }
@@ -317,8 +335,8 @@
   <h1>melee-pc — the launcher, and what is left to build it</h1>
   <p class="sub">This is the launcher as it should end up, not as it is today.
      Every pin marks a control that still needs work, and links to its issue.</p>
-  <div class="bar2"><i style="width:26%"></i></div>
-  <p class="counts">8 closed · 23 open · 26% of 31</p>
+  <div class="bar2"><i style="width:25%"></i></div>
+  <p class="counts">8 closed · 24 open · 25% of 32</p>
   <div class="legend">
     <span><i style="background:var(--open)"></i> still to build</span>
     <span><i style="background:var(--closed)"></i> done</span>
@@ -334,13 +352,22 @@
   <header id="lobby-bar">
     <div class="lb-left">
       <span class="lb-title">Melee</span>
-      <span id="disc-state" class="chip">Disc 62%</span>
+      <button id="load-btn" title="Load a save state">Load</button>
     </div>
     <div class="lb-right">
       <button id="room-code" title="Copy the link to this lobby"><b>FIG-7K2</b><i>copy link</i></button>
       <button id="join-btn">Join</button>
     </div>
   </header>
+
+  <!-- The disc keeps a place outside the modal, because the disc is what
+       the engine reads, and a visitor wants to know it is there. There is no
+       load step and no progress bar: remote-disc.mjs answers one HTTP Range
+       per block and disc-cache.mjs caches blocks, so the disc is never
+       fetched as a unit and no total-loaded figure exists. The line says the
+       disc is reachable, which is all the code can honestly report. #25 and
+       melee-web#34 both hang off this. -->
+  <p id="disc-state" class="disc">Disc ready &middot; served by this room &middot; read on demand, never loaded whole</p>
 
   <section id="lobby" class="group">
     <h2 class="group-h">Lobby <span class="sub-h">everyone at this link is in this room</span></h2>
@@ -359,15 +386,6 @@
 
   </section>
 
-  <section id="states" class="group">
-    <h2 class="group-h">Load a save state</h2>
-    <div class="states">
-      <button class="state" id="state-vs"><b>Versus</b><i>Character select, 4 ports</i></button>
-      <button class="state" id="state-20xx"><b>20XX lobby</b><i>Full cast, tournament rules</i></button>
-      <button class="state" id="state-training"><b>Training menu</b><i>Hitboxes, no stocks</i></button>
-      <button class="state" id="state-event"><b>Event stage</b><i>Event match 1</i></button>
-    </div>
-  </section>
 
   <section id="settings" class="group">
     <h2 class="group-h">Settings <span class="sub-h">applied at boot, so Apply reloads the page</span></h2>
@@ -410,6 +428,27 @@
 engine: adapter nvidia/turing
 engine: 60.0 fps</pre></details>
 
+</div>
+
+<div id="load-modal" class="modal">
+  <div id="states" class="sheet">
+    <h2 class="group-h">Load a save state <span class="sub-h">the lobby keeps its ports</span></h2>
+    <div class="states">
+      <button class="state" id="state-vs"><b>Versus</b><i>Character select, 4 ports</i></button>
+      <button class="state" id="state-20xx"><b>20XX lobby</b><i>Full cast, tournament rules</i></button>
+      <button class="state" id="state-training"><b>Training menu</b><i>Hitboxes, no stocks</i></button>
+      <button class="state" id="state-event"><b>Event stage</b><i>Event match 1</i></button>
+    </div>
+    <h2 class="group-h">Your saves</h2>
+    <div class="states" id="own-states">
+      <button class="state" id="state-own-1"><b>Fox ditto g3</b><i>yesterday &middot; 2 ports</i></button>
+      <button class="state" id="state-own-2"><b>Ledge practice</b><i>Monday &middot; training</i></button>
+    </div>
+    <div class="sheet-row">
+      <button id="state-save" class="primary">Save current state</button>
+      <button id="load-close">Close</button>
+    </div>
+  </div>
 </div>
 
 <div id="phone">
@@ -457,7 +496,7 @@ engine: 60.0 fps</pre></details>
   <a class="pin open left" data-anchor="#ctl-net-relay" href="http://noel:4530/cybermelon/melee-pc/issues/17" target="_blank" rel="noopener"><span class="pin-n">17</span><span class="pin-t">TURN relay for symmetric NAT</span><span class="pin-p">The fallback this control names. Blocked: this network is cone, so it cannot produce the failing case.</span></a>
   <a class="pin open left" data-anchor="#states" href="http://noel:4530/cybermelon/melee-pc/issues/24" target="_blank" rel="noopener"><span class="pin-n">24</span><span class="pin-t">Modes become save states</span><span class="pin-p">Versus and Training stop being places to go. They load into the lobby that already exists, so nobody changes rooms.</span></a>
   <a class="pin closed left" data-anchor="#disc-state" href="http://noel:4530/cybermelon/melee-pc/issues/1" target="_blank" rel="noopener"><span class="pin-n">1</span><span class="pin-t">Verify the port runs on iOS Safari</span><span class="pin-p">The disc loads and boots. Measured working on iOS Safari.</span></a>
-  <a class="pin open left" data-anchor="#disc-state" href="http://noel:4530/cybermelon/melee-web/issues/34" target="_blank" rel="noopener"><span class="pin-n">web#34</span><span class="pin-t">Flatten the web disc path</span><span class="pin-p">What this bar is waiting on: HTTP Range over a 1.4 GB ISO. The engine reads files by name, and 60% of the disc is FMV that never plays. Gated on measuring the real working set.</span></a>
+  <a class="pin open left" data-anchor="#disc-state" href="http://noel:4530/cybermelon/melee-web/issues/34" target="_blank" rel="noopener"><span class="pin-n">web#34</span><span class="pin-t">Flatten the web disc path</span><span class="pin-p">What the disc line is waiting on: HTTP Range over a 1.4 GB ISO. The engine reads files by name and fetches blocks on demand, so there is no load percentage; 60% of the disc is FMV that never plays. Gated on measuring the real working set.</span></a>
   <a class="pin open left" data-anchor="#join-btn" href="http://noel:4530/cybermelon/melee-pc/issues/25" target="_blank" rel="noopener"><span class="pin-n">25</span><span class="pin-t">Disable Start while the disc loads</span><span class="pin-p">Nothing stops a press during the autoload today, and an early press starts the engine with no disc.</span></a>
   <a class="pin closed left" data-anchor="#port-1" href="http://noel:4530/cybermelon/melee-pc/issues/2" target="_blank" rel="noopener"><span class="pin-n">2</span><span class="pin-t">Touch input layer</span><span class="pin-p">The shared state object every touch control writes to. One per port.</span></a>
   <a class="pin closed left" data-anchor="#port-2" href="http://noel:4530/cybermelon/melee-pc/issues/5" target="_blank" rel="noopener"><span class="pin-n">5</span><span class="pin-t">Gamepad API for Bluetooth pads</span><span class="pin-p">A real pad claims a port like any other controller.</span></a>
@@ -479,7 +518,8 @@ engine: 60.0 fps</pre></details>
   <a class="pin closed right" data-anchor="#ctl-custom-textures" href="http://noel:4530/cybermelon/melee-pc/issues/14" target="_blank" rel="noopener"><span class="pin-n">14</span><span class="pin-t">_malloc survived only by accident</span><span class="pin-p">Not in EXPORTED_FUNCTIONS. It worked until something else changed.</span></a>
   <a class="pin open right" data-anchor="#settings-apply" href="http://noel:4530/cybermelon/melee-pc/issues/20" target="_blank" rel="noopener"><span class="pin-n">20</span><span class="pin-t">launcher-close-repeat loses the GPU device</span><span class="pin-p">Apply reloads the page. Doing that repeatedly under the test harness destroys the GPU device on pass 1, so pass 2 finds none.</span></a>
   <a class="pin open right" data-anchor="#kids-20xx" href="http://noel:4530/cybermelon/melee-pc/issues/29" target="_blank" rel="noopener"><span class="pin-n">29</span><span class="pin-t">Condense the 20XX children into a closed grid</span><span class="pin-p">This fold, closed and two across. Unlock everything is drawn here as the target, but prefs.unlock_all has no env var, so it needs one line of C before a web control can follow 20XX.</span></a>
-  <a class="pin open right" data-anchor="#ctl-deadzone" href="http://noel:4530/cybermelon/melee-pc/issues/32" target="_blank" rel="noopener"><span class="pin-n">32</span><span class="pin-t">Fill the Input tab, including controller options</span><span class="pin-p">The Input tab is drawn and empty: #26 shipped three tabs of five. Deadzone and curve describe a stick, not a seat, so this issue has to settle per-port against per-page first.</span></a></div>
+  <a class="pin open right" data-anchor="#ctl-deadzone" href="http://noel:4530/cybermelon/melee-pc/issues/32" target="_blank" rel="noopener"><span class="pin-n">32</span><span class="pin-t">Fill the Input tab, including controller options</span><span class="pin-p">The Input tab is drawn and empty: #26 shipped three tabs of five. Deadzone and curve describe a stick, not a seat, so this issue has to settle per-port against per-page first.</span></a>
+  <a class="pin open right" data-anchor="#load-btn" href="http://noel:4530/cybermelon/melee-pc/issues/33" target="_blank" rel="noopener"><span class="pin-n">33</span><span class="pin-t">Load button and save-state modal, instead of a disc chip</span><span class="pin-p">The chip read a percentage the browser build cannot measure. The slot becomes a press: Load opens the state menu, which holds the four presets and the states this player saved.</span></a></div>
 </div>
 <footer>The board draws the launcher as issue 21 proposes it, not as it is today, and pins each issue to the control that has to exist for that design to be true. A pin whose anchor is not in the mockup fails the build, so the target and the issue list cannot drift apart silently. · <a href="http://noel:4530/cybermelon/melee-pc/issues/">All issues</a></footer>
 

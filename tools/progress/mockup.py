@@ -208,7 +208,7 @@ LAUNCHER = """
   <header id="lobby-bar">
     <div class="lb-left">
       <span class="lb-title">Melee</span>
-      <span id="disc-state" class="chip">Disc 62%</span>
+      <button id="load-btn" title="Load a save state">Load</button>
     </div>
     <div class="lb-right">
       <button id="room-code" title="Copy the link to this lobby"><b>FIG-7K2</b><i>copy link</i></button>
@@ -216,20 +216,20 @@ LAUNCHER = """
     </div>
   </header>
 
+  <!-- The disc keeps a place outside the modal, because the disc is what
+       the engine reads, and a visitor wants to know it is there. There is no
+       load step and no progress bar: remote-disc.mjs answers one HTTP Range
+       per block and disc-cache.mjs caches blocks, so the disc is never
+       fetched as a unit and no total-loaded figure exists. The line says the
+       disc is reachable, which is all the code can honestly report. #25 and
+       melee-web#34 both hang off this. -->
+  <p id="disc-state" class="disc">Disc ready &middot; served by this room &middot; read on demand, never loaded whole</p>
+
   <section id="lobby" class="group">
     <h2 class="group-h">Lobby <span class="sub-h">everyone at this link is in this room</span></h2>
     %PORTS%
   </section>
 
-  <section id="states" class="group">
-    <h2 class="group-h">Load a save state</h2>
-    <div class="states">
-      <button class="state" id="state-vs"><b>Versus</b><i>Character select, 4 ports</i></button>
-      <button class="state" id="state-20xx"><b>20XX lobby</b><i>Full cast, tournament rules</i></button>
-      <button class="state" id="state-training"><b>Training menu</b><i>Hitboxes, no stocks</i></button>
-      <button class="state" id="state-event"><b>Event stage</b><i>Event match 1</i></button>
-    </div>
-  </section>
 
   <section id="settings" class="group">
     <h2 class="group-h">Settings <span class="sub-h">applied at boot, so Apply reloads the page</span></h2>
@@ -250,7 +250,30 @@ engine: 60.0 fps</pre></details>
 </div>
 """
 
+MODAL = """
+<div id="load-modal" class="modal">
+  <div id="states" class="sheet">
+    <h2 class="group-h">Load a save state <span class="sub-h">the lobby keeps its ports</span></h2>
+    <div class="states">
+      <button class="state" id="state-vs"><b>Versus</b><i>Character select, 4 ports</i></button>
+      <button class="state" id="state-20xx"><b>20XX lobby</b><i>Full cast, tournament rules</i></button>
+      <button class="state" id="state-training"><b>Training menu</b><i>Hitboxes, no stocks</i></button>
+      <button class="state" id="state-event"><b>Event stage</b><i>Event match 1</i></button>
+    </div>
+    <h2 class="group-h">Your saves</h2>
+    <div class="states" id="own-states">
+      <button class="state" id="state-own-1"><b>Fox ditto g3</b><i>yesterday &middot; 2 ports</i></button>
+      <button class="state" id="state-own-2"><b>Ledge practice</b><i>Monday &middot; training</i></button>
+    </div>
+    <div class="sheet-row">
+      <button id="state-save" class="primary">Save current state</button>
+      <button id="load-close">Close</button>
+    </div>
+  </div>
+</div>
+"""
+
 
 def launcher_html():
     return (LAUNCHER.replace('%PORTS%', PORTS).replace('%TABS%', _tabs())
-            + PHONE)
+            + MODAL + PHONE)
