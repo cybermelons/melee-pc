@@ -563,20 +563,30 @@ for (const tab of document.querySelectorAll('.tab')) {{
 
 def audit(data):
     """Compare issues.json against the tracker and report what drifted."""
-    try:
-        raw = subprocess.run(
-            ['tea', 'issues', 'list', '--login', 'noel',
-             '--repo', data['repo'], '--state', 'all', '--output', 'json'],
-            capture_output=True, text=True, timeout=60, check=True).stdout
-    except (OSError, subprocess.SubprocessError) as err:
-        print(f'audit: could not reach the tracker: {err}')
-        return 1
-    try:
-        live = json.loads(raw)
-    except json.JSONDecodeError:
-        # tea prints an error page rather than JSON when the login is wrong.
-        print(f'audit: the tracker did not return JSON: {raw[:200]!r}')
-        return 1
+    # tea pages at 30 and says nothing about it, so a single call reported
+    # #1, #11 and #16 as missing from the tracker when all three exist. Ask
+    # for the pages until one comes back short.
+    live, page = [], 1
+    while True:
+        try:
+            raw = subprocess.run(
+                ['tea', 'issues', 'list', '--login', 'noel',
+                 '--repo', data['repo'], '--state', 'all', '--output', 'json',
+                 '--limit', '50', '--page', str(page)],
+                capture_output=True, text=True, timeout=60, check=True).stdout
+        except (OSError, subprocess.SubprocessError) as err:
+            print(f'audit: could not reach the tracker: {err}')
+            return 1
+        try:
+            batch = json.loads(raw)
+        except json.JSONDecodeError:
+            # tea prints an error page rather than JSON when the login is wrong.
+            print(f'audit: the tracker did not return JSON: {raw[:200]!r}')
+            return 1
+        live += batch
+        if len(batch) < 50:
+            break
+        page += 1
 
     live_state = {int(i['index']): i['state'] for i in live}
     mine = {i['n']: i['state'] for i in data['issues'] if 'base' not in i}
