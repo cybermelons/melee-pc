@@ -389,6 +389,19 @@
   /* The disc line: one line under the bar, no bar and no percentage, because
      the browser build has no total-loaded figure to draw one from. */
   .disc { margin: 0 0 8px; color: #6f7280; font-size: 12px; }
+  /* "Load disc" is a label over the real file input, so the browser's own
+     "Choose File / No file chosen" never shows. The input is clipped, not
+     display:none: shell.mjs still reads .files from it, and a label only
+     forwards its click to an input that is rendered. */
+  .disc-pick { position: relative; cursor: pointer; min-height: 44px; padding: 7px 12px;
+               display: inline-flex; align-items: center; border-radius: 8px;
+               background: #1d2130; color: #eee; border: 1px solid #3c4252; }
+  .disc-pick input { position: absolute; width: 1px; height: 1px; opacity: 0;
+                     overflow: hidden; clip-path: inset(50%); pointer-events: none; }
+  /* shell.mjs sets .hidden / .disabled on the input only; follow it from here
+     rather than touch the shell. */
+  .disc-pick:has(input[hidden]) { display: none; }
+  .disc-pick:has(input:disabled) { opacity: .5; cursor: default; }
   /* A native <dialog>: showModal brings the backdrop, the top layer, the focus
      trap and Esc with it, so none of that is written here. A closed dialog is
      display:none by the UA stylesheet, which is why the panel gets its height
@@ -436,7 +449,9 @@
      two. -->
 <p id="disc-state" class="disc">Looking for a disc…</p>
 <div id="bar">
-  <input id="disc" type="file" accept=".iso,.gcm">
+  <label id="disc-label" class="disc-pick">Load disc
+    <input id="disc" type="file" accept=".iso,.gcm">
+  </label>
   <button id="start" disabled>Start</button>
   <!-- The GC adapter connect button used to sit here. It is per-port now
        (#30): the lobby tile owns it, because a controller feeds a seat. -->

@@ -136,8 +136,12 @@ export function setPortSource(sources, port, source) {
   return out;
 }
 
-/** What the tile prints for a port's source. Em dash for nothing. */
-export const sourceLabel = (source) => source ?? '—';
+/**
+ * What the tile prints for a port's source. Em dash for nothing or an unknown
+ * id. Looked up in SOURCES, not echoed, so the tile and the picker menu print
+ * the same string for the same thing; the raw id is an internal key.
+ */
+export const sourceLabel = (source) => SOURCES.find((s) => s.id === source)?.label ?? '—';
 
 /**
  * The room this page is in, minting one when the URL names none.
@@ -282,7 +286,7 @@ export function addLobby(host, {
     const src = el('span', 'psrc', sourceLabel(null));
     // The controller button (#30). One per tile, because a player connects a
     // pad to the seat they are taking rather than to the page.
-    const cbtn = el('button', 'cbtn', '⌘');
+    const cbtn = el('button', 'cbtn', 'Pad');
     cbtn.title = 'Connect a controller to this port';
     // The board pins #30 to #port-1-pad, so port 1 carries the id.
     if (i === 0) cbtn.id = 'port-1-pad';

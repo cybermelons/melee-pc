@@ -304,6 +304,15 @@ test('a fresh port record says nothing feeds any port', () => {
   assert.equal(sourceLabel(sources[0]), '—', 'an unfed port prints a dash, not "null"');
 });
 
+test('the tile prints the picker\'s label for a source, not its id', () => {
+  // The tile said "gamepad" while the menu for the same thing said
+  // "Bluetooth or USB pad". One name, looked up from SOURCES.
+  assert.equal(sourceLabel('gamepad'), 'Bluetooth or USB pad');
+  assert.equal(sourceLabel('adapter'), 'GameCube adapter');
+  assert.equal(sourceLabel(null), '—');
+  assert.equal(sourceLabel('nonsense'), '—', 'an unknown id prints a dash, not itself');
+});
+
 test('a source lands on the port it was chosen on, and only that port', () => {
   // The record #30 says does not exist yet. pc_touch_set_pad and
   // pc_gcadapter_web_report both take a port index, so C can route more than
@@ -395,7 +404,7 @@ test('a tile shows which source feeds it, and only that tile', () => {
   const shown = () => host.find('.psrc').map((n) => n.textContent);
   assert.deepEqual(shown(), ['—', '—', '—', '—']);
   api.setSource(1, 'touch');
-  assert.deepEqual(shown(), ['—', 'touch', '—', '—']);
+  assert.deepEqual(shown(), ['—', 'On-screen pad', '—', '—']);
   assert.equal(api.sources[1], 'touch');
 });
 
@@ -406,7 +415,7 @@ test('a repaint from the server keeps what the tile says feeds it', () => {
   const { host, api } = buildLobby({ hid: {}, getGamepads: () => [] });
   api.setSource(0, 'adapter');
   api.render(['me', 'other', null, null], 'me');
-  assert.equal(host.find('.psrc')[0].textContent, 'adapter');
+  assert.equal(host.find('.psrc')[0].textContent, 'GameCube adapter');
 });
 
 test('a browser that can do nothing gets a disabled button, not an empty list', () => {
