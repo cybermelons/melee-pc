@@ -72,12 +72,7 @@ function onFrame() {
     if (frames.samples.length > 7200) frames.samples.shift(); // two minutes
   }
   frames.last = now;
-  // The pipelines the boot built are in /cache by now, but only in memory.
-  // The flushes on pagehide and visibilitychange start an IndexedDB write the
-  // closing page does not wait for, so a visit closed before the 30 s save
-  // interval left the next visit nothing to prewarm. Measured: a repeat visit
-  // queued 0 known pipeline configs; with this flush it prepares them.
-  if (++frames.count === 120) syncfs(false).catch(log);
+  ++frames.count;
   if (frames.count % 30 === 0 && frames.samples.length > 60) {
     const recent = frames.samples.slice(-120);
     const sorted = [...recent].sort((a, b) => a - b);
@@ -101,6 +96,40 @@ function syncfs(populate) {
     Module.FS.syncfs(populate, (error) => (error ? reject(error) : resolve())));
 }
 
+// The engine's pipeline cache is a SQLite file its writer thread commits to
+// with no journal, so a flush that lands mid-commit persists a torn database.
+// The engine calls onPipelineCacheCommit after each commit, with the writer
+// blocked until it returns: the one moment the file is known to be whole. Copy
+// it then, and persist the copy at once, so pipelines built after boot reach
+// IndexedDB without waiting for the save interval or a pagehide flush that the
+// closing page does not wait for. The next visit restores the copy over the
+// live file, which any other flush may have caught mid-commit.
+const PIPELINE_DB = '/cache/pipeline_cache.db';
+const PIPELINE_COPY = '/cache/pipeline_cache.copy';
+let flushing = null;
+let flushAgain = false;
+function flushCache() {
+  if (flushing) {
+    flushAgain = true;
+    return;
+  }
+  flushing = syncfs(false).catch(log).finally(() => {
+    flushing = null;
+    if (flushAgain) {
+      flushAgain = false;
+      flushCache();
+    }
+  });
+}
+
+// A fresh profile has no pipeline cache, so the engine seeds it from
+// /initial_pipeline_cache.db: the configs a browser session built from boot to
+// a match. Fetched while the wasm compiles; without it a first visit prepares
+// nothing before Start. The engine ignores the seed once the cache has rows.
+const seed = fetch('./initial_pipeline_cache.db')
+  .then((r) => (r.ok ? r.arrayBuffer() : null))
+  .catch(() => null);
+
 // Any MELEE_* query parameter becomes an environment variable, so the knobs in
 // docs/testing.md work unchanged: ?MELEE_BOOT_SCENE=vs&MELEE_SEED=1
 // MELEE_SLP_DIR defaults to /saves, which is mounted IDBFS with autoPersist,
@@ -119,6 +148,10 @@ window.Module = {
   print: log,
   printErr: log,
   onFrame,
+  onPipelineCacheCommit: () => {
+    Module.FS.writeFile(PIPELINE_COPY, Module.FS.readFile(PIPELINE_DB));
+    flushCache();
+  },
   onAbort: (reason) => { crashed = true; showCrash(reason, { log, status }); },
   // Runs before Start now (browser_prewarm below), so done returns to the
   // launch row's own status; the click clears it.
@@ -133,6 +166,13 @@ window.Module = {
         Module.FS.mount(Module.FS.filesystems.IDBFS, { autoPersist: dir === '/saves' }, dir);
       }
       await syncfs(true);
+      // Only the copy is known to be whole. With none, the live file is either
+      // absent or from a build that persisted it unguarded, so start over.
+      const FS = Module.FS;
+      if (FS.analyzePath(PIPELINE_COPY).exists) FS.writeFile(PIPELINE_DB, FS.readFile(PIPELINE_COPY));
+      else if (FS.analyzePath(PIPELINE_DB).exists) FS.unlink(PIPELINE_DB);
+      const bytes = await seed;
+      if (bytes) FS.writeFile('/initial_pipeline_cache.db', new Uint8Array(bytes));
     })();
     // The window, the device and the cached pipelines need /cache but not the
     // disc, so build them now rather than after Start (main.c). callMain must
@@ -251,8 +291,8 @@ $('start').addEventListener('click', async () => {
     Module.discFile = remoteDisc || $('disc').files[0];
     Module.readDisc = createDiscCache(Module.discFile).read;
     await graphics;
-    // The pipeline cache is written by a background thread; flush it when the
-    // page is hidden rather than on every write.
+    // The pipeline cache persists on each commit (onPipelineCacheCommit);
+    // this catches the memory card and the replay when the page is hidden.
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden') syncfs(false).catch(log);
     });

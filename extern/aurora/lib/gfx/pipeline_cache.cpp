@@ -1189,6 +1189,14 @@ static void pipeline_cache_writer() {
       pipeline_cache_abort();
       return;
     }
+#ifdef __EMSCRIPTEN__
+    // The database is whole only between transactions: journal_mode=MEMORY
+    // leaves no journal to recover a commit an IndexedDB flush cut in half.
+    // This call blocks the writer until the page returns, so the page can
+    // copy the file here, the one point it is known to be consistent, and
+    // persist the copy as soon as the new pipelines exist.
+    MAIN_THREAD_EM_ASM({ Module.onPipelineCacheCommit?.(); });
+#endif
   }
 }
 
