@@ -8,11 +8,9 @@
       "label": "this board, served from tsunomaki"
     },
     "deploy": {
-      "url": "https://cybermelons.github.io/melee-pc/",
-      "play": "https://cybermelons.github.io/melee-pc/play/",
-      "label": "GitHub Pages",
-      "live": false,
-      "blocked": "Pages is not enabled: set Settings > Pages > Source = GitHub Actions. The last 5 runs built the site and failed only at the publish step."
+      "url": "https://botan.tail623785.ts.net:2001/",
+      "label": "the playable build, public over a tailscale funnel on botan",
+      "live": true
     },
     "dev": {
       "url": "http://100.113.182.40:8131/index.html",
