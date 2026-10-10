@@ -6,10 +6,10 @@ hid or covered the controls from page load rather than from Start, and the
 unit tests could not see either: they stub the DOM, so they know nothing about
 CSS, and there is no browser in the dev container.
 
-#game is fixed, fills the viewport and is black; #menu-panel wraps the mode
-links and the Start button. A rule that hides or covers either of those must
-be scoped to body.playing, because before Start the page IS the only way to
-choose a mode, pick a disc, read an error and press Start.
+#game is fixed, fills the viewport and is black; #menu-panel wraps the lobby
+and the Start button. A rule that hides or covers either of those must be
+scoped to body.playing, because before Start the page IS the only way to claim
+a port, pick a disc, read an error and press Start.
 
 Reading the cascade by eye is what failed. The rules were correct by
 specificity and still wrong, twice. So this check is mechanical: it extracts
@@ -23,9 +23,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 PAGE = ROOT / 'platforms/browser/index.html'
 
-# Controls a phone needs before the game runs: the mode links, the disc picker
-# and Start, the status and the log that shows an error.
-CONTROLS = {'#launch', '#perf', '#bar', '#log', '#menu-panel', '#game', 'body', 'canvas'}
+# Controls a phone needs before the game runs: the lobby, the disc picker and
+# Start, the status and the log that shows an error. #launch and #perf were in
+# this set until the lobby replaced the mode list (#22) and the render-scale
+# links became a Video setting; neither selector exists in the page now.
+CONTROLS = {'#lobby', '#bar', '#log', '#menu-panel', '#game', 'body', 'canvas'}
 
 # Deliberately hidden on a phone at all times, game running or not.
 # h1 and #keys are page furniture; #touch is the overlay's own root.

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import test from 'node:test';
 import assert from 'assert/strict';
-import { SETTINGS, isOn, buildSearch, readSearch } from '../../platforms/browser/settings.mjs';
+import { SETTINGS, TABS, isOn, buildSearch, readSearch } from '../../platforms/browser/settings.mjs';
 
 test('a default-valued setting stays out of the URL', () => {
   assert.equal(buildSearch({ MELEE_20XX: '', MELEE_BOOT_SCENE: '' }), '');
@@ -102,7 +102,10 @@ function stubDom(search) {
           // createTextNode returns a bare {text}, which has no children.
           for (const kid of node.children ?? []) {
             if (name && kid.name === name[1]) out.push(kid);
-            else if (cls && kid.className === cls[1]) out.push(kid);
+            // A class selector matches any class in the list, the way a real
+            // document does. An exact string match would miss "setting child"
+            // for ".setting" and silently undercount the rows.
+            else if (cls && (kid.className ?? '').split(' ').includes(cls[1])) out.push(kid);
             else if (!name && !cls && kid.tagName === sel) out.push(kid);
             walk(kid);
           }
@@ -116,7 +119,9 @@ function stubDom(search) {
   const host = make('div');
   host.id = 'menu-panel';
   globalThis.document = { createElement: make, createTextNode: (t) => ({ text: t }) };
-  globalThis.location = { search, href: `https://example.test/${search}`, pathname: '/' };
+  // http, not https: the page is served over http on the tailnet, and a stub
+  // that disagrees with the deployment can hide a scheme-dependent fault.
+  globalThis.location = { search, href: `http://example.test/${search}`, pathname: '/' };
   return host;
 }
 
@@ -163,4 +168,273 @@ test('a page without the panel degrades instead of throwing', async () => {
   stubDom('');
   const { addSettings } = await import('../../platforms/browser/settings.mjs');
   assert.equal(addSettings(null), null);
+});
+
+test('the rows are grouped into tabs, one head per pane', async () => {
+  const host = stubDom('');
+  const { addSettings } = await import('../../platforms/browser/settings.mjs');
+  const form = addSettings(host, { reload: () => {} });
+  const heads = form.querySelectorAll('.tab').concat(form.querySelectorAll('.tab on'));
+  const used = new Set(SETTINGS.map((s) => s.tab ?? TABS[0]));
+  assert.equal(heads.length, used.size, 'one head per tab that has a row');
+  // Every row still reaches the form, so no setting is lost in a pane.
+  assert.equal(form.querySelectorAll('.setting').length, SETTINGS.length);
+});
+
+test('exactly one pane is in front, and a head switches it', async () => {
+  const host = stubDom('');
+  const { addSettings } = await import('../../platforms/browser/settings.mjs');
+  const form = addSettings(host, { reload: () => {} });
+  const panes = () => form.querySelectorAll('.pane');
+  const front = () => panes().filter((p) => !p.className.split(' ').includes('off')).length;
+  assert.equal(front(), 1, 'one pane in front at the start');
+  const heads = form.querySelector('.tab-heads');
+  // Press the second head. The first pane must leave the front, and the
+  // count must stay at one: two panes in front is the bug a stacked layout
+  // hides, because both are drawn in the same grid cell.
+  assert.equal(panes().length, TABS.length, 'one pane per tab');
+  heads.children[1].handlers.get('click')();
+  assert.equal(front(), 1, 'still exactly one pane in front after a switch');
+  assert.equal(heads.children[1].className, 'tab on');
+  assert.equal(heads.children[0].className, 'tab');
+});
+
+test('a setting that names no tab still gets a control', async () => {
+  for (const setting of SETTINGS) {
+    assert.ok(setting.tab == null || TABS.includes(setting.tab),
+      `${setting.key} names a tab that is not in TABS`);
+  }
+  // Every shipped setting names a tab, so SETTINGS alone cannot exercise the
+  // fallback. A flag added without one must still get a control rather than
+  // vanish, so the case is supplied here.
+  const host = stubDom('');
+  const mod = await import('../../platforms/browser/settings.mjs');
+  const loose = { key: 'MELEE_NO_TAB', kind: 'flag', label: 'No tab' };
+  SETTINGS.push(loose);
+  try {
+    const form = mod.addSettings(host, { reload: () => {} });
+    assert.equal(form.querySelectorAll('.setting').length, SETTINGS.length);
+    assert.ok(form.querySelector('[name=MELEE_NO_TAB]'), 'the untabbed row is missing');
+  } finally {
+    SETTINGS.pop();
+  }
+});
+
+test('a child that agrees with its parent stays out of the URL', () => {
+  // env_flag_or_20xx reads an absent child as "follow the parent", so writing
+  // the agreement would add noise to a shared link without changing anything.
+  const search = buildSearch({ MELEE_20XX: '1', MELEE_BOOT_CSS: '1', MELEE_20XX_RULES: '1' });
+  const params = new URLSearchParams(search);
+  assert.equal(params.get('MELEE_20XX'), '1');
+  assert.equal(params.has('MELEE_BOOT_CSS'), false);
+  assert.equal(params.has('MELEE_20XX_RULES'), false);
+});
+
+test('a child that disagrees is written, including when it is off', () => {
+  // This is the one case an omitted key cannot express: off while the parent
+  // is on. env_flag_or_20xx checks presence, so "0" is a real answer.
+  const off = new URLSearchParams(
+    buildSearch({ MELEE_20XX: '1', MELEE_BOOT_CSS: '', MELEE_20XX_RULES: '1' }));
+  assert.equal(off.get('MELEE_BOOT_CSS'), '0');
+  assert.equal(off.has('MELEE_20XX_RULES'), false);
+  // And on while the parent is off.
+  const on = new URLSearchParams(
+    buildSearch({ MELEE_20XX: '', MELEE_BOOT_CSS: '1' }));
+  assert.equal(on.get('MELEE_BOOT_CSS'), '1');
+  assert.equal(on.has('MELEE_20XX'), false);
+});
+
+test('a child the URL does not name displays its parent state', async () => {
+  const host = stubDom('?MELEE_20XX=1');
+  const { addSettings } = await import('../../platforms/browser/settings.mjs');
+  const form = addSettings(host, { reload: () => {} });
+  assert.equal(form.querySelector('[name=MELEE_20XX]').checked, true);
+  assert.equal(form.querySelector('[name=MELEE_BOOT_CSS]').checked, true,
+    'an unnamed child must show the parent, not an unchecked box');
+  // An explicit 0 overrides the parent, which is what the C side reads.
+  const host2 = stubDom('?MELEE_20XX=1&MELEE_BOOT_CSS=0');
+  const form2 = addSettings(host2, { reload: () => {} });
+  assert.equal(form2.querySelector('[name=MELEE_BOOT_CSS]').checked, false);
+});
+
+test('the parent re-displays an untouched child, and leaves a touched one', async () => {
+  const host = stubDom('');
+  const { addSettings } = await import('../../platforms/browser/settings.mjs');
+  const form = addSettings(host, { reload: () => {} });
+  const parent = form.querySelector('[name=MELEE_20XX]');
+  const css = form.querySelector('[name=MELEE_BOOT_CSS]');
+  const rules = form.querySelector('[name=MELEE_20XX_RULES]');
+  // The player sets one child by hand, then ticks the parent.
+  rules.checked = true;
+  rules.handlers.get('change')();
+  parent.checked = true;
+  parent.handlers.get('change')();
+  assert.equal(css.checked, true, 'the untouched child follows the parent');
+  assert.equal(rules.checked, true, 'the touched child keeps its own value');
+  // Untick the parent: the untouched child follows back down.
+  parent.checked = false;
+  parent.handlers.get('change')();
+  assert.equal(css.checked, false);
+  assert.equal(rules.checked, true);
+});
+
+test('a child row is marked as one, and its parent as a parent', async () => {
+  const host = stubDom('');
+  const { addSettings } = await import('../../platforms/browser/settings.mjs');
+  const form = addSettings(host, { reload: () => {} });
+  const row = (key) => form.querySelector(`[name=${key}]`).parent;
+  assert.ok(row('MELEE_BOOT_CSS').className.split(' ').includes('child'));
+  assert.ok(row('MELEE_20XX').className.split(' ').includes('parent'));
+  assert.equal(row('MELEE_HITBOXES').className, 'setting');
+});
+
+test('every child names a parent that is a flag in SETTINGS', () => {
+  const byKey = new Map(SETTINGS.map((s) => [s.key, s]));
+  for (const setting of SETTINGS) {
+    if (!setting.parent) continue;
+    const parent = byKey.get(setting.parent);
+    assert.ok(parent, `${setting.key} names a parent that is not a setting`);
+    assert.equal(parent.kind, 'flag', `${setting.parent} is not a flag`);
+    assert.equal(setting.kind, 'flag', `${setting.key} is a child but not a flag`);
+    assert.equal(setting.tab, parent.tab, `${setting.key} is on another tab than its parent`);
+  }
+});
+
+test('the children sit in one fold under the parent, not as loose rows', async () => {
+  const host = stubDom('');
+  const { addSettings } = await import('../../platforms/browser/settings.mjs');
+  const form = addSettings(host, { reload: () => {} });
+  const folds = form.querySelectorAll('.kids');
+  assert.equal(folds.length, 1, 'one fold per parent');
+  // Every child is inside it, so the pane costs one row for the group rather
+  // than one per child.
+  for (const setting of SETTINGS.filter((s) => s.parent)) {
+    const row = form.querySelector(`[name=${setting.key}]`).parent;
+    assert.equal(row.parent, folds[0], `${setting.key} is not in the fold`);
+  }
+  assert.equal(folds[0].parent.className.split(' ').includes('pane'), true);
+});
+
+test('the fold is closed on load, so the group costs one row', async () => {
+  // #29 asks for it closed: "The fold currently opens on its own, which costs
+  // the rows it was added to save." A <details> with no open attribute is
+  // closed by the UA, so this guards against someone adding one back.
+  const host = stubDom('');
+  const { addSettings } = await import('../../platforms/browser/settings.mjs');
+  const form = addSettings(host, { reload: () => {} });
+  const fold = form.querySelectorAll('.kids')[0];
+  assert.ok(fold, 'no fold to check');
+  assert.ok(!fold.open, 'the fold must start closed');
+  assert.equal(fold.getAttribute?.('open') ?? null, null, 'no open attribute');
+});
+
+test('the render scale hint is gone: the option labels carry the pixel counts', () => {
+  // #17: the user asked for the explanatory hint removed twice. The options
+  // already read "1.0 · 960x720", which is the information the hint repeated.
+  const scale = SETTINGS.find((s) => s.key === 'MELEE_SCALE');
+  assert.equal(scale.hint, undefined, 'MELEE_SCALE must carry no hint');
+  for (const [, text] of scale.options) assert.match(text, /\d+x\d+/, text);
+});
+
+test('the 20XX family stays condensed, and keeps the pausing fact', () => {
+  // #29: fewer words, less vertical space. A hint that grows back past a
+  // short phrase is the bloat the user asked to be rid of.
+  const family = SETTINGS.filter(
+    (s) => s.key === 'MELEE_20XX' || s.parent === 'MELEE_20XX');
+  assert.equal(family.length, 3, '20XX plus its two children');
+  for (const s of family) {
+    const words = (s.hint ?? '').split(/\s+/).filter(Boolean).length;
+    assert.ok(words <= 8, `${s.key} hint is ${words} words, budget is 8`);
+    assert.ok(s.label.split(/\s+/).length <= 2, `${s.key} label too long`);
+  }
+  // The rules/pause interaction is real -- src/pc/input_poll.c:202, MELEE_PAUSE
+  // opts back in -- so it must be stated on one side or the other.
+  const rules = SETTINGS.find((s) => s.key === 'MELEE_20XX_RULES');
+  const pause = SETTINGS.find((s) => s.key === 'MELEE_PAUSE');
+  assert.match(`${rules.hint} ${pause.hint}`, /paus/i,
+    'nothing tells the player that tournament rules and pausing interact');
+});
+
+test('only the settings with a real env reader got a control (#28)', () => {
+  // The web launcher writes a query string that becomes Module.ENV and is read
+  // by std::getenv. The other twelve settings #28 names are `prefs` fields
+  // with no getenv anywhere in src/, so a control for one would do nothing.
+  // Precedent: asked about unlock_all, the owner condensed the UI rather than
+  // add a MELEE_UNLOCK_ALL read in C.
+  const keys = new Set(SETTINGS.map((s) => s.key));
+  for (const reachable of ['MELEE_UCF', 'MELEE_FROZEN_STADIUM', 'MELEE_NET_DELAY']) {
+    assert.ok(keys.has(reachable), `${reachable} has an env reader and needs a control`);
+  }
+  for (const unreachable of ['MELEE_WIDESCREEN', 'MELEE_HUD_MODE', 'MELEE_CUSTOM_TEXTURES',
+    'MELEE_FREE_CAMERA', 'MELEE_FILTER_MODE', 'MELEE_ANISOTROPY', 'MELEE_VOLUME',
+    'MELEE_MUSIC_VOLUME', 'MELEE_SFX_VOLUME', 'MELEE_REVERB', 'MELEE_MUTE',
+    'MELEE_NET_NAME', 'MELEE_UNLOCK_ALL']) {
+    assert.equal(keys.has(unreachable), false,
+      `${unreachable} has no getenv in src/, so a control cannot reach it`);
+  }
+});
+
+test('the new flags reach the URL, and stay out of it when off', () => {
+  const on = new URLSearchParams(
+    buildSearch({ MELEE_UCF: '1', MELEE_FROZEN_STADIUM: '1' }));
+  assert.equal(on.get('MELEE_UCF'), '1');
+  assert.equal(on.get('MELEE_FROZEN_STADIUM'), '1');
+  // Neither is a child, so off means "leave the launcher preference alone"
+  // and the key must be omitted rather than written as 0.
+  const off = new URLSearchParams(
+    buildSearch({ MELEE_UCF: '', MELEE_FROZEN_STADIUM: '' }));
+  assert.equal(off.has('MELEE_UCF'), false);
+  assert.equal(off.has('MELEE_FROZEN_STADIUM'), false);
+});
+
+test('a non-default net delay round-trips through readSearch', () => {
+  for (const value of ['auto', '0', '3']) {
+    assert.equal(readSearch(`MELEE_NET_DELAY=${value}`).MELEE_NET_DELAY, value,
+      `${value} must survive the read unchanged, not be squashed to a flag`);
+    assert.equal(
+      new URLSearchParams(buildSearch(readSearch(`MELEE_NET_DELAY=${value}`)))
+        .get('MELEE_NET_DELAY'), value);
+  }
+  // "Saved" is the default and carries no key.
+  assert.equal(new URLSearchParams(buildSearch({ MELEE_NET_DELAY: '' }))
+    .has('MELEE_NET_DELAY'), false);
+});
+
+test('every net delay option is a value src/pc/net.c accepts', () => {
+  // net.c:2171 -- "auto", else atoi() and rejected unless 0 <= n < RING/2.
+  const delay = SETTINGS.find((s) => s.key === 'MELEE_NET_DELAY');
+  for (const [value] of delay.options) {
+    if (value === '' || value === 'auto') continue;
+    const n = Number(value);
+    assert.ok(Number.isInteger(n) && n >= 0 && n < 32, `${value} is out of net.c's range`);
+  }
+});
+
+test('the Netplay tab exists and holds the net delay row', async () => {
+  assert.ok(TABS.includes('Netplay'), 'MELEE_NET_DELAY needs a tab to live on');
+  const host = stubDom('');
+  const { addSettings } = await import('../../platforms/browser/settings.mjs');
+  const form = addSettings(host, { reload: () => {} });
+  const row = form.querySelector('[name=MELEE_NET_DELAY]').parent;
+  assert.equal(row.parent.className.split(' ').includes('pane'), true,
+    'the row must be a loose row in a pane, not folded under a parent');
+  const heads = form.querySelector('.tab-heads');
+  assert.ok(heads.children.some((h) => h.textContent === 'Netplay'));
+});
+
+test('the new rows stay condensed: short labels, no hints (#29)', () => {
+  for (const key of ['MELEE_UCF', 'MELEE_FROZEN_STADIUM', 'MELEE_NET_DELAY']) {
+    const s = SETTINGS.find((x) => x.key === key);
+    assert.equal(s.hint, undefined, `${key} must carry no hint`);
+    assert.ok(s.label.split(/\s+/).length <= 2, `${key} label too long`);
+  }
+});
+
+test('the new settings are not children, so the parent logic is untouched', () => {
+  const parents = new Set(SETTINGS.filter((s) => s.parent).map((s) => s.key));
+  for (const key of ['MELEE_UCF', 'MELEE_FROZEN_STADIUM', 'MELEE_NET_DELAY']) {
+    assert.equal(parents.has(key), false, `${key} must not be a child`);
+  }
+  // Still exactly one fold's worth of children: the 20XX family.
+  assert.equal(parents.size, 2);
 });

@@ -6,11 +6,13 @@ import { openRemoteDisc } from './remote-disc.mjs';
 import { createGCAdapter } from './gcadapter.mjs';
 import { checkGraphics } from './gpu-preflight.mjs';
 import { createTouchOverlay } from './touch.mjs';
-import { iceServers, natKind } from './nat.mjs';
+import { iceServers, natKind, gathered } from './nat.mjs';
 import { addMenuButton } from './menu-button.mjs';
 import { addTierToggle } from './tier.mjs';
 import { showCrash } from './crash.mjs';
 import { addSettings } from './settings.mjs';
+import { addLobby, ensureRoom, mySlot, roomLink, sessionId } from './lobby.mjs';
+import { addStates } from './states.mjs';
 
 const $ = (id) => document.getElementById(id);
 const lines = [];
@@ -70,7 +72,13 @@ function onFrame() {
     if (frames.samples.length > 7200) frames.samples.shift(); // two minutes
   }
   frames.last = now;
-  if (++frames.count % 30 === 0 && frames.samples.length > 60) {
+  // The pipelines the boot built are in /cache by now, but only in memory.
+  // The flushes on pagehide and visibilitychange start an IndexedDB write the
+  // closing page does not wait for, so a visit closed before the 30 s save
+  // interval left the next visit nothing to prewarm. Measured: a repeat visit
+  // queued 0 known pipeline configs; with this flush it prepares them.
+  if (++frames.count === 120) syncfs(false).catch(log);
+  if (frames.count % 30 === 0 && frames.samples.length > 60) {
     const recent = frames.samples.slice(-120);
     const sorted = [...recent].sort((a, b) => a - b);
     const fps = 1000 * recent.length / recent.reduce((a, b) => a + b, 0);
@@ -112,19 +120,37 @@ window.Module = {
   printErr: log,
   onFrame,
   onAbort: (reason) => { crashed = true; showCrash(reason, { log, status }); },
+  // Runs before Start now (browser_prewarm below), so done returns to the
+  // launch row's own status; the click clears it.
   onGraphicsPreparation: (done, total) =>
-    status(done === total ? 'Starting…' : `Preparing graphics… ${Math.floor(done * 100 / total)}%`),
+    status(done === total ? idleStatus() : `Preparing graphics… ${Math.floor(done * 100 / total)}%`),
   onRuntimeInitialized: () => {
+    // Neither depends on the disc, so pull IDBFS in while the visitor is still
+    // on the launch row rather than after Start. The click awaits this.
+    storage = (async () => {
+      for (const dir of ['/saves', '/cache']) {
+        Module.FS.mkdirTree(dir);
+        Module.FS.mount(Module.FS.filesystems.IDBFS, { autoPersist: dir === '/saves' }, dir);
+      }
+      await syncfs(true);
+    })();
+    // The window, the device and the cached pipelines need /cache but not the
+    // disc, so build them now rather than after Start (main.c). callMain must
+    // wait for it; the click does.
+    graphics = storage.then(() => Module.ccall('browser_prewarm', null, [], [], { async: true }));
+    graphics.catch(log);
     ready = true;
-    status(remoteDisc ? 'Ready.' : 'Choose a GALE01 disc image (.iso or .gcm).');
+    status(idleStatus());
     updateStart();
     adapter = createGCAdapter(Module, log);
     // An adapter authorised in an earlier visit reopens without a gesture.
+    // Reconnecting it is not a choice of seat, so it lands on the port this
+    // page holds, or P1 when it holds none (#30). The picker itself is never
+    // opened here: WebHID needs a gesture, and the gesture is the tile press.
     adapter.resume().then((found) => {
-      // Mobile browsers have no WebHID, where the button can only report that.
-      // Keep it hidden there rather than offer a control with one outcome.
-      $('adapter').hidden = found || !navigator.hid;
-      if (found) log('GC adapter: reconnected');
+      if (!found) return;
+      log('GC adapter: reconnected');
+      lobby.setSource(Math.max(mySeat, 0), 'adapter');
     }, (error) => log(`GC adapter: ${error.message}`));
   },
 };
@@ -133,17 +159,51 @@ window.Module = {
 // the wasm is still compiling, and a disc picked by then started a dead runtime.
 let ready = false;
 let adapter = null;
+// Which port this page holds, from the signal server's `state` event, or -1.
+// The adapter reconnect reads it; see the state handler in joinLobby.
+let mySeat = -1;
+// Mounting and populating /saves and /cache; started once the runtime is up.
+let storage = null;
+// browser_prewarm, started once storage is in.
+let graphics = null;
+const idleStatus = () => remoteDisc ? 'Ready.' : 'Choose a GALE01 disc image (.iso or .gcm).';
+// SDL listens for keys on window and cancels the ones it takes, Space and
+// Enter included. Its window exists from browser_prewarm, before Start, so
+// until the game runs keep key events on the page: the Start button, the
+// settings form and the room field still need them.
+for (const type of ['keydown', 'keyup', 'keypress']) {
+  document.addEventListener(type, (event) => {
+    if (!document.body.classList.contains('playing')) event.stopPropagation();
+  });
+}
 // A disc served alongside the page, so a visitor does not supply their own.
 // Probed once at load; null means this server has none.
 let remoteDisc = null;
 function updateStart() {
   $('start').disabled = !(ready && (remoteDisc || $('disc').files.length));
 }
-$('disc').addEventListener('change', updateStart);
-
-// Hidden before the runtime initializes as well, so it is never tappable on a
-// browser without WebHID.
-if (!navigator.hid) $('adapter').hidden = true;
+// The disc line under the lobby bar (#33), which replaced the chip in it. No
+// percentage: the disc is read one HTTP Range per block (remote-disc.mjs) and
+// cached per block (disc-cache.mjs), so it is never fetched as a unit and no
+// total-loaded figure exists. What the line can honestly report is whether a
+// disc is reachable at all, which is what blocks loading a state.
+function discState() {
+  const picked = $('disc').files?.length ? $('disc').files[0] : null;
+  const node = $('disc-state');
+  if (!node) return;
+  // One line at 390px, in all three cases. The disc line replaced two taller
+  // controls -- the chip the issue removes and #launch-hint -- so a text that
+  // wraps to three lines on a phone would give the height straight back.
+  if (remoteDisc) {
+    const mib = (remoteDisc.size / 1048576).toFixed(0);
+    node.textContent = `Disc ready · ${mib} MiB, read on demand`;
+  } else if (picked) {
+    node.textContent = `Disc ready · ${picked.name}`;
+  } else {
+    node.textContent = 'No disc yet · choose one below';
+  }
+}
+$('disc').addEventListener('change', () => { updateStart(); discState(); });
 
 // Into the menu panel, so the same button that reveals the panel mid-game
 // reveals the settings. Built at load rather than on first open: the form
@@ -157,14 +217,32 @@ addSettings($('menu-panel'));
 // it needs no reload.
 addTierToggle($('menu-panel'));
 
-$('adapter').addEventListener('click', async () => {
+/**
+ * Put a controller source on a port (#30).
+ *
+ * This is the page-level connect button's old job, moved onto the port. The
+ * adapter plumbing is the same createGCAdapter as before; only the trigger and
+ * the reporting moved, and request() is still called straight out of the tile's
+ * click handler because WebHID needs the gesture to still be on the stack.
+ *
+ * Touch and gamepad need no permission, so recording the choice is all there
+ * is to do: the overlay is created at Start, and the engine already routes a
+ * pad per port (pc_touch_set_pad takes an index).
+ */
+async function connectPort(port, source) {
   try {
-    $('adapter').hidden = await adapter.request();
+    if (source === 'adapter') {
+      if (!adapter) return status('The engine is still loading.');
+      // Never from a load: this call is inside the click's call stack.
+      if (!await adapter.request()) return; // the picker was dismissed
+    }
+    lobby.setSource(port, source);
+    status(`P${port + 1}: ${source}.`);
   } catch (error) {
     status(error.message);
     log(error.stack || error);
   }
-});
+}
 
 $('start').addEventListener('click', async () => {
   $('start').disabled = true;
@@ -172,11 +250,7 @@ $('start').addEventListener('click', async () => {
   try {
     Module.discFile = remoteDisc || $('disc').files[0];
     Module.readDisc = createDiscCache(Module.discFile).read;
-    for (const dir of ['/saves', '/cache']) {
-      Module.FS.mkdirTree(dir);
-      Module.FS.mount(Module.FS.filesystems.IDBFS, { autoPersist: dir === '/saves' }, dir);
-    }
-    await syncfs(true);
+    await graphics;
     // The pipeline cache is written by a background thread; flush it when the
     // page is hidden rather than on every write.
     document.addEventListener('visibilitychange', () => {
@@ -228,39 +302,77 @@ try {
 }
 if (remoteDisc) {
   $('disc').hidden = true;
-  // The disc comes from the server, so telling the visitor to choose one
-  // points at a control that is now hidden.
-  $('launch-hint').textContent = 'Pick a mode, then click Start.';
+  // What used to be said twice -- "Choose a disc image and click Start" in
+  // #launch-hint and the served-disc case overwriting it -- is now the one
+  // disc line under the bar, which discState() writes from the probe result.
   log(`Server disc: ${(remoteDisc.size / 1048576).toFixed(0)} MiB`);
   updateStart();
 }
+discState();
 
-// Room mode (?room=<id>): claim a controller port and open a WebRTC data channel
-// to the other tab. This must finish before melee_browser.js is injected,
-// because preRun copies ENV into the engine only once that script loads.
-const roomId = new URLSearchParams(location.search).get('room');
-async function pairIfRoom() {
-  if (!roomId) return;
+// Every page is in a room (#22). A visitor who arrived with no ?room= gets one
+// minted into the URL, so the mode list no longer decides anything and the
+// link in the address bar is always the link to share.
+//
+// Being in a room is not the same as being in a match, and before #22 the code
+// could not tell them apart: any ?room= URL blocked the module on the data
+// channel, so a visitor sent a link who only wanted to watch sat at a page
+// that never booted and never said why. Holding a port is the real condition,
+// and the signal server is the only thing that knows it, so the wait is
+// published from the `state` event rather than decided here.
+const { room: roomId } = ensureRoom(location, history);
+const lobby = addLobby($('lobby'), {
+  room: roomId,
+  onClaim: (i) => claim?.(i),
+  onRelease: () => release?.(),
+  // The per-port controller button (#30). Sources come from detectSources()
+  // inside addLobby, which reads this browser's real capabilities, so a source
+  // this browser cannot do is absent from the list rather than offered.
+  onConnect: (i, source) => connectPort(i, source),
+  onCopy: () => navigator.clipboard?.writeText(roomLink(location))
+    .then(() => status('Link copied.'), () => status('Could not copy the link.')),
+  // The Load button opens the save-state modal (#33). The handler is wired
+  // here rather than inside addLobby, because the modal is a sibling of the
+  // panel and the lobby does not own it.
+  onLoad: () => states.open(),
+});
+// The modal hangs off <body>, not off #menu-panel: showModal puts a dialog in
+// the top layer, so the panel's own position, max-height and overflow:auto
+// would otherwise clip and scroll it mid-match.
+const states = addStates(document.body);
+// Set by joinLobby once the signal channel is open; before that a tile press
+// has nothing to post to.
+let claim = null;
+let release = null;
+// True once melee_browser.js has been added to the page, which is the moment
+// preRun copies ENV into the engine. After that a new MELEE_NET_PLAYER cannot
+// reach the engine, so a port claimed later has to reload the page.
+let injected = false;
+
+// Joining the lobby must not block the engine. Before #22 the page waited on
+// `await done` only when the URL named a room, so a visitor with a bare URL
+// booted solo. Now every URL names a room, so waiting here would hang every
+// solo player at "Take a port" for ever. The lobby is therefore ambient: it
+// connects, renders and lets a port be claimed, and only a claim makes this
+// page wait for the other side to pair.
+async function joinLobby() {
   // Default to the signaling mounted on this origin by the page server. A
   // second port cannot be the default: a visitor who was sent a link has no
   // reason to have 8101 reachable, and a cross-origin http:// request from an
   // https:// page is blocked as mixed content. ?signal= still points at a
   // standalone `node tools/browser/signal.mjs` for local development.
   const signal = new URLSearchParams(location.search).get('signal') || '/signal';
-  const me = crypto.randomUUID();
+  // Stable across a reload, so loading a save state keeps this page's port
+  // (#24). See sessionId in lobby.mjs for why a fresh UUID lost it.
+  const me = sessionId();
   const base = `${signal}/r/${encodeURIComponent(roomId)}`;
   const post = (msg) => fetch(base, { method: 'POST', body: JSON.stringify({ ...msg, from: me }) });
-  const buttons = [$('p1'), $('p2')];
-  for (const b of buttons) b.hidden = false;
-  status('Pick P1 or P2.');
+  status('Take a port.');
   const events = new EventSource(`${base}/events?me=${me}`);
-  const gathered = (pc) => new Promise((resolve) => {
-    if (pc.iceGatheringState === 'complete') return resolve();
-    pc.addEventListener('icegatheringstatechange', () => pc.iceGatheringState === 'complete' && resolve());
-  });
   let slot = -1;
-  let paired;
-  const done = new Promise((resolve) => { paired = resolve; });
+  // Place in the port queue, or -1. Read from the same `state` event as the
+  // claims, so it cannot disagree with what the server thinks.
+  let place = -1;
   const open = (dc) => {
     dc.binaryType = 'arraybuffer';
     dc.onopen = () => {
@@ -270,8 +382,9 @@ async function pairIfRoom() {
       ENV.MELEE_BOOT_SCENE ??= 'vs';
       window.meleeNet = { dc, player: slot };
       events.close();
-      status(`Paired as P${slot + 1}. Loading engine…`);
-      paired();
+      // The engine is already loading, or already running. Nothing is gated
+      // on this message, so it reports rather than promises.
+      status(`Paired as P${slot + 1}.`);
     };
   };
   let pc = null;
@@ -309,9 +422,17 @@ async function pairIfRoom() {
     }
   };
   events.addEventListener('state', (e) => {
-    const { claims } = JSON.parse(e.data);
-    slot = claims[0] === me ? 0 : claims[1] === me ? 1 : -1;
-    buttons.forEach((b, i) => { b.disabled = claims[i] !== null && claims[i] !== me; });
+    const { claims, queue } = JSON.parse(e.data);
+    place = (queue ?? []).indexOf(me);
+    slot = mySlot(claims, me);
+    // Published out of the handler because the adapter reconnect (#30) needs
+    // to know which port is this page's, and it runs from onRuntimeInitialized
+    // rather than from inside the signalling.
+    mySeat = slot;
+    lobby.render(claims, me);
+    // Holding a port and having a peer is what opens the channel. Neither
+    // this nor the engine boot waits on the other: the engine is already
+    // running, or will be, and pairing catches up.
     if (slot >= 0 && claims[0] && claims[1] && !pc) start();
   });
   events.addEventListener('offer', async (e) => {
@@ -328,13 +449,60 @@ async function pairIfRoom() {
   });
   events.addEventListener('answer', (e) =>
     pc.setRemoteDescription({ type: 'answer', sdp: JSON.parse(e.data).sdp }));
-  buttons.forEach((b, i) => b.addEventListener('click', async () => {
+  // Giving up a port (#23). The tiles are not repainted here: the server
+  // answers with a `state` event, and that one path is what the whole lobby
+  // already renders from, so a release that the server refused never shows as
+  // one that worked. The engine keeps running -- it is not gated on a port --
+  // but this page is no longer paired, so say so rather than implying a match
+  // continues.
+  release = async () => {
+    const r = await post({ type: 'release' });
+    status(r.ok ? 'Port released. Take one again to rejoin.' : 'You hold no port.');
+  };
+  claim = async (i) => {
     const r = await post({ type: 'claim', player: i });
-    if (!r.ok) status(`P${i + 1} is taken.`);
-  }));
-  await done;
+    // A refused claim is not a dead end any more: the server put this page in
+    // line, so report the place rather than only the rejection. The state
+    // event carrying it may not have arrived yet, hence the fallback.
+    if (!r.ok) {
+      return status(place >= 0
+        ? `P${i + 1} is taken. You are ${place + 1} in line for the next free port.`
+        : `P${i + 1} is taken. You are in line for the next free port.`);
+    }
+    // Before the engine is injected a claim needs nothing: preRun has not run,
+    // so the state handler's ENV writes still reach it.
+    if (!injected) return;
+    // After the boot, ENV is closed: preRun copied it when melee_browser.js
+    // loaded, and pc_net_init (net.c:2276) reads MELEE_NET once and returns
+    // early when it is absent. A reload is the stopgap, NOT the only door --
+    // net.h:15 says a session opens "at runtime by pc_net_connect()", and
+    // net_rtc.c:10 and :25 read Module.netChannel at call time rather than at
+    // boot, so the channel does not have to exist when the engine starts.
+    // What is missing is only an export: there is no EMSCRIPTEN_KEEPALIVE
+    // entry for it beside browser_prewarm (main.c:46). #12 carries that work.
+    // Note for whoever writes it: pass no socket. connect_impl refuses a
+    // supplied one under __EMSCRIPTEN__ (net.c:2049), so pc_net_connect_socket
+    // is the wrong seam and browser_net_attach has to find the channel itself.
+    //
+    // A locally picked disc is a File handle and does not survive a reload, so
+    // ask first rather than discarding the player's selection silently. A disc
+    // served by this room survives, so that case reloads with no question.
+    if (!remoteDisc && $('disc').files.length
+        && !confirm('Joining reloads the page, which clears the disc you picked. Pick it again after?')) {
+      return status(`Still holding P${i + 1}. Reload when ready to join.`);
+    }
+    status(`P${i + 1} is yours. Reloading to join the match…`);
+    location.reload();
+  };
 }
-await pairIfRoom();
+
+// Nothing waits for a partner. joinLobby connects the signalling and returns;
+// the engine boots below either way. A player who claims a port is connected
+// into the game that is already running, rather than both sides having to
+// press Start together. See #12, which carries the mechanism and the one
+// cost that cannot be avoided from JS: preRun copies ENV exactly once, so a
+// claim that lands after the engine has booted reloads the page.
+joinLobby();
 
 // Fail with a readable message before the wasm is fetched; otherwise a browser
 // without WebGPU only shows a bare Emscripten abort.
@@ -351,6 +519,7 @@ try {
 // from reloading for ever.
 if (crossOriginIsolated) {
   sessionStorage.removeItem('melee-coi-reload');
+  injected = true;
   const script = document.createElement('script');
   script.src = './melee_browser.js';
   script.onerror = () => status('melee_browser.js is missing: run tools/browser/build.py first.');

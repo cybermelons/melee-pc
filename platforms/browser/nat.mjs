@@ -53,3 +53,32 @@ export function natKind(candidates) {
   }
   return 'unknown';
 }
+
+// Send the offer once gathering has produced something usable, not once it
+// is complete. A STUN server that resolves to an address with no route --
+// every one of them does on an IPv4-only network, because they all publish
+// AAAA records -- leaves gathering open until the browser's own timeout,
+// which is far longer than a player will wait. One srflx candidate is
+// already enough to hole punch, so stop waiting for the rest.
+//
+// "Usable" means a srflx candidate, not merely some candidate. A host
+// candidate is a LAN address: two peers on different networks can do nothing
+// with it, so an offer carrying only host candidates cannot connect and the
+// failure reads as the other player's network. The 3 second cap is therefore
+// a ceiling on the wait, not the thing that decides it -- whichever of the
+// three arrives first wins, and the srflx arrival is the one that means the
+// offer is worth sending.
+export const gathered = (pc) => new Promise((resolve) => {
+  if (pc.iceGatheringState === 'complete') return resolve();
+  const done = () => {
+    clearTimeout(timer);
+    pc.removeEventListener('icecandidate', onCandidate);
+    resolve();
+  };
+  const timer = setTimeout(done, 3000);
+  // Reads the event rather than the shared candidates array, so this does
+  // not depend on the order the two icecandidate listeners run in.
+  const onCandidate = (e) => { if (e.candidate?.candidate.includes(' typ srflx ')) done(); };
+  pc.addEventListener('icecandidate', onCandidate);
+  pc.addEventListener('icegatheringstatechange', () => pc.iceGatheringState === 'complete' && done());
+});

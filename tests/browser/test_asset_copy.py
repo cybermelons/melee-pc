@@ -47,7 +47,36 @@ def main():
         if ext not in cmake:
             fail(f'the BROWSER_ASSETS glob no longer covers {ext}')
 
-    print('ok: browser page assets refresh on every link')
+    # The static check above says the rule is right. It cannot say the served
+    # directory is right, and on 2026-10-09 it was not: POST_BUILD runs on a
+    # LINK, so a change to only .mjs files copies nothing. lobby.mjs and
+    # states.mjs were absent from the served tree for hours while this test
+    # passed, and the page 404'd on the one URL a phone could reach -- the
+    # second wrong diagnosis this file's docstring warns about.
+    #
+    # So compare the directory as well. Skipped when it is absent, because a
+    # checkout with no build is not a failure.
+    served = ROOT / 'build/browser/runtime/platforms/browser'
+    if served.is_dir():
+        missing = []
+        stale = []
+        for src in sorted((ROOT / 'platforms/browser').glob('*.mjs')):
+            dst = served / src.name
+            if not dst.exists():
+                missing.append(src.name)
+            elif dst.read_bytes() != src.read_bytes():
+                stale.append(src.name)
+        if missing:
+            fail(f'the served directory is missing {missing}: the page will 404 '
+                 f'on it. POST_BUILD only copies on a link, so run '
+                 f'tools/browser/build.py or copy the files')
+        if stale:
+            fail(f'the served directory holds an older {stale}: a browser test '
+                 f'against it measures code that is not in the source tree')
+        print('ok: browser page assets refresh on every link, served tree matches')
+        return
+
+    print('ok: browser page assets refresh on every link (no build to compare)')
 
 
 if __name__ == '__main__':

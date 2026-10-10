@@ -8,9 +8,10 @@ code as every other platform.
 Status: desktop Chrome (tested on Apple Silicon; Chromium on Linux with Intel
 Arc graphics as well) holds 60 fps in every scene the tests reach,
 including four CPUs on Final Destination. It needs WebGPU; there is no WebGL
-fallback. Netplay is compiled in but refused at connect (browsers have no UDP),
-and HD texture packs, custom music, the desktop launcher and the updater are
-absent. Replays record to `/saves/slp`, which persists in IndexedDB.
+fallback. Netplay carries its datagrams over a WebRTC data channel rather than
+UDP, which browsers do not have, and two players pair through the lobby; ports
+3 and 4 wait on a transport that carries more than two peers (#6). HD texture
+packs, custom music, the desktop launcher and the updater are absent. Replays record to `/saves/slp`, which persists in IndexedDB.
 
 ## Build and run
 
@@ -102,6 +103,11 @@ optionally `onFrame(frame)`, `onGraphicsPreparation(done, total)` and `onAbort`.
 Environment variables go into `Module.ENV` from `preRun`, which is after
 Emscripten creates `ENV` and before the static constructor that snapshots it.
 Then the page mounts `/saves` and `/cache` and calls `callMain([])`.
+A page that wants the pipeline cache warm before Start can call
+`await Module.ccall('browser_prewarm', null, [], [], { async: true })` once
+`/cache` is populated: it creates the window and the device and builds the
+cached pipelines without the disc and without starting the game. It must
+finish before `callMain`, which then skips that part.
 
 ## Netplay
 

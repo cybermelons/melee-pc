@@ -1,0 +1,298 @@
+{
+  "repo": "cybermelon/melee-pc",
+  "base": "http://noel:4530/cybermelon/melee-pc/issues/",
+  "note": "The board draws the launcher as issue 21 proposes it, not as it is today, and pins each issue to the control that has to exist for that design to be true. A pin whose anchor is not in the mockup fails the build, so the target and the issue list cannot drift apart silently.",
+  "links": {
+    "preview": {
+      "url": "http://100.113.182.40:8120/progress.html",
+      "label": "this board, served from tsunomaki"
+    },
+    "deploy": {
+      "url": "https://cybermelons.github.io/melee-pc/",
+      "play": "https://cybermelons.github.io/melee-pc/play/",
+      "label": "GitHub Pages",
+      "live": false,
+      "blocked": "Pages is not enabled: set Settings > Pages > Source = GitHub Actions. The last 5 runs built the site and failed only at the publish step."
+    },
+    "dev": {
+      "url": "http://100.113.182.40:8121/index.html",
+      "label": "the playable shell, tailnet only (wasm built 2026-10-09 12:56)"
+    }
+  },
+  "issues": [
+    {
+      "n": 21,
+      "anchor": "#menu-panel",
+      "side": "left",
+      "state": "open",
+      "title": "Redesign the launcher UI",
+      "pin": "This panel is the target. Today the same controls are one flat column with no grouping and no first step."
+    },
+    {
+      "n": 6,
+      "anchor": "#room-code",
+      "side": "left",
+      "state": "open",
+      "title": "Shared lobby URL with port claiming",
+      "pin": "The room code is the lobby, top right, and clicking it copies the link. Two players pair for real, and a phone-shaped browser is one of them: measured over the routable tailnet address, both claim a port and the touch overlay draws. Two defects had to go first, and both hid behind loopback. signal.mjs sent claims as an object while lobby.mjs calls .indexOf on it, so every state event threw and no claim ever rendered (9fee67ca). Then crypto.randomUUID, which exists only in a secure context: http://127.0.0.1 is one by exemption and a tailnet IP is not, so the page could mint neither a room nor an identity on the only origin a visitor uses (f303d4a8). A third defect was in the offer itself: gathered() cut ICE gathering off after 3 seconds without checking that a srflx candidate had arrived, so on a slow network the offer went out with LAN addresses only. Measured here the first srflx lands at 11 ms while gathering is still open after 12 s, so the cutoff is now a ceiling and the srflx arrival releases the offer (c51bf783). Also measured over an https origin, which is what a shared link really has and which plain http on an IP is not: both ports claim and the data channel opens there too. Remaining: ports 3 and 4 need a transport for more than two peers, a friend on another network still has to exercise STUN. The link is a private tailnet address, shared privately rather than published, so the server needs no auth gate of its own."
+    },
+    {
+      "n": 22,
+      "anchor": "#ports",
+      "side": "left",
+      "state": "open",
+      "title": "Lobby replaces the mode list",
+      "pin": "One persistent room per URL, shipped in 00480d1b: lobby.mjs mints the room with replaceState and draws four port tiles, 42 tests cover it. The mode links are gone, and the last MELEE_BOOT_SCENE links on the page -- the #perf render-scale row -- are gone too: they duplicated the Video setting and dropped ?room= on every press, which the #35 ruling makes a real bug rather than a cosmetic one. One correction to this issue's text: it says 'the ports stay as they are' across a save-state load. Per #35 a load now mints a NEW room, so the loader keeps its seat through the reload but re-invites instead of rejoining. Still open on gitea; the owner closes it."
+    },
+    {
+      "n": 35,
+      "anchor": "#settings-apply",
+      "side": "right",
+      "state": "open",
+      "title": "Boot flags are bound to the room code, not to the URL",
+      "pin": "Owner ruling landed: a load mints a new room code. Implemented -- states.mjs withRoom now replaces ?room= instead of preserving it, with a test that fails if the old room rides along. Reason: a preset load is a reload (no snapshot path in the browser build), so the old room already saw this player leave and reassigned the port. Rejoining it would make the two sides disagree about the port map. Unblocks #22."
+    },
+    {
+      "n": 12,
+      "anchor": "#port-4",
+      "side": "left",
+      "state": "open",
+      "title": "Drop-in join",
+      "pin": "Taking a free port has to reach a match already running. Blocked, and not on the transport: the browser build defines no MELEE_STATE_SECTIONS, so snapshot_take() refuses every call and netplay is lockstep-only. See #34 and comment 2989 for the prerequisite order."
+    },
+    {
+      "n": 34,
+      "anchor": "#port-4",
+      "side": "left",
+      "state": "open",
+      "title": "Browser bypasses the lockstep guard",
+      "pin": "Why drop-in join is blocked: CMakeLists.txt:374 fails the build on a platform with no snapshot sections, and the browser target never reaches that check. Every online session silently degrades to lockstep."
+    },
+    {
+      "n": 23,
+      "anchor": "#queue",
+      "side": "left",
+      "state": "open",
+      "title": "Spectators and the port queue",
+      "pin": "Past four players everybody watches and queues. Server side shipped: a release message frees a port and the first waiter still subscribed gets it, in claim order. The lobby does not draw the line yet; the place is a status string."
+    },
+    {
+      "n": 17,
+      "anchor": "#ctl-net-relay",
+      "side": "left",
+      "state": "open",
+      "title": "TURN relay for symmetric NAT",
+      "pin": "The fallback this control names. Blocked: this network is cone, so it cannot produce the failing case."
+    },
+    {
+      "n": 24,
+      "anchor": "#states",
+      "side": "left",
+      "state": "open",
+      "title": "Modes become save states",
+      "pin": "Versus and Training stop being places to go. The port-loss bug is fixed: sessionId keyed on sessionStorage survives the reload, so the loader keeps its seat. Per the #35 ruling a load now opens a NEW room, so the loader re-invites rather than rejoining a room that wrote them off."
+    },
+    {
+      "n": 1,
+      "anchor": "#disc-state",
+      "side": "left",
+      "state": "closed",
+      "title": "Verify the port runs on iOS Safari",
+      "pin": "The disc loads and boots. Measured working on iOS Safari."
+    },
+    {
+      "n": 34,
+      "base": "http://noel:4530/cybermelon/melee-web/issues/",
+      "tag": "web#",
+      "anchor": "#disc-state",
+      "side": "left",
+      "state": "open",
+      "title": "Flatten the web disc path",
+      "pin": "What the disc line is waiting on: HTTP Range over a 1.4 GB ISO. The engine reads files by name and fetches blocks on demand, so there is no load percentage; 60% of the disc is FMV that never plays. Gated on measuring the real working set."
+    },
+    {
+      "n": 25,
+      "anchor": "#join-btn",
+      "side": "left",
+      "state": "closed",
+      "title": "Disable Start while the disc loads",
+      "pin": "No disc load exists to wait on: remote-disc.mjs fetches one HTTP Range per block on demand. Start is already gated on a disc being present, at shell.mjs:176."
+    },
+    {
+      "n": 2,
+      "anchor": "#port-1",
+      "side": "left",
+      "state": "closed",
+      "title": "Touch input layer",
+      "pin": "The shared state object every touch control writes to. One per port."
+    },
+    {
+      "n": 5,
+      "anchor": "#port-2",
+      "side": "left",
+      "state": "closed",
+      "title": "Gamepad API for Bluetooth pads",
+      "pin": "A real pad claims a port like any other controller."
+    },
+    {
+      "n": 15,
+      "anchor": "#lobby-bar",
+      "side": "left",
+      "state": "closed",
+      "title": "Mobile CSS: pre-Start controls reachable",
+      "pin": "A test now fails if this bar moves out of thumb reach on a phone."
+    },
+    {
+      "n": 26,
+      "anchor": "#setting-tabs",
+      "side": "right",
+      "state": "open",
+      "title": "Settings into tabs",
+      "pin": "Four tabs of five. Netplay arrived with MELEE_NET_DELAY in #28. Input stays empty because no input setting exists in the engine to put in it -- see #32, measured."
+    },
+    {
+      "n": 27,
+      "anchor": "#ctl-MELEE_20XX",
+      "side": "right",
+      "state": "closed",
+      "title": "20XX as a select-all",
+      "pin": "Landed. The parent follows what env_flag_or_20xx reads: an untouched child follows 20XX, a child set by hand keeps its own value, and the URL carries a child only when it disagrees."
+    },
+    {
+      "n": 28,
+      "anchor": "#ctl-MELEE_UCF",
+      "side": "right",
+      "state": "open",
+      "title": "Port the native launcher settings",
+      "pin": "Measured. Only 3 of 16 have a getenv the query string can reach -- MELEE_UCF, MELEE_FROZEN_STADIUM, MELEE_NET_DELAY. Those 3 shipped. Correction to the earlier pin: prefs does not exist in the web build at all -- launcher.cpp is not in BROWSER_PC_SOURCES (CMakeLists.txt:25 excludes the launcher), so there is no prefs to reach. But 6 of the 12 need no prefs: they have a live setter already compiled in, and want only an -sEXPORTED_FUNCTIONS entry -- pc_widescreen_set_mode (widescreen.c:45), pc_audio_set_volume/_music_volume/_sfx_volume (audio.c:101,107,111), pc_audio_set_reverb (:271), and mute via set_volume(0). The remaining 6 (hud_mode, custom_textures, free_camera, filter_mode, anisotropy, net_name) have neither setter nor getenv and stay out."
+    },
+    {
+      "n": 8,
+      "anchor": "#state-training",
+      "side": "right",
+      "state": "open",
+      "title": "Training scenarios from a URL",
+      "pin": "Training is a state loaded into the lobby. Its tools run outside the player ports, so a scenario needs no seat."
+    },
+    {
+      "n": 3,
+      "anchor": "#ctl-cstick",
+      "side": "right",
+      "state": "open",
+      "title": "On-screen control layout",
+      "pin": "Where the pad layout is chosen. Needs a device in hand: no code decides where a thumb reaches."
+    },
+    {
+      "n": 4,
+      "anchor": "#ctl-tap-jump",
+      "side": "right",
+      "state": "open",
+      "title": "Accessibility defaults for touch",
+      "pin": "Tap-jump off, deadzone, curve, C-stick. Defaults chosen; the issue text still argues with itself. Wording only."
+    },
+    {
+      "n": 10,
+      "anchor": "#phone-frame",
+      "side": "right",
+      "state": "closed",
+      "title": "Mobile layout: full-viewport canvas",
+      "pin": "The launcher fits this box with no page scroll. (pointer: coarse) and touch-action: none ship, and menu-button.mjs holds the controls. The launcher inside it is now #21's."
+    },
+    {
+      "n": 9,
+      "anchor": "#ctl-MELEE_SCALE",
+      "side": "right",
+      "state": "closed",
+      "title": "Optimize the browser build",
+      "pin": "Measured on the phone: 960x720 holds 60 fps. The 17 fps reading was a cold shader cache, not the render size, so this control is headroom rather than a fix."
+    },
+    {
+      "n": 7,
+      "anchor": "#ctl-MELEE_PAUSE_ON_BLUR",
+      "side": "right",
+      "state": "open",
+      "title": "Browser QoL: resume, pause, settings",
+      "pin": "Pause-on-blur landed. Resume after refresh and pause on crash did not. Parked."
+    },
+    {
+      "n": 13,
+      "anchor": "#ctl-MELEE_HITBOXES",
+      "side": "right",
+      "state": "closed",
+      "title": "GC adapter called two missing C functions",
+      "pin": "Two calls into functions that were never defined. Removed."
+    },
+    {
+      "n": 14,
+      "anchor": "#ctl-custom-textures",
+      "side": "right",
+      "state": "closed",
+      "title": "_malloc survived only by accident",
+      "pin": "Not in EXPORTED_FUNCTIONS. It worked until something else changed."
+    },
+    {
+      "n": 20,
+      "anchor": "#settings-apply",
+      "side": "right",
+      "state": "open",
+      "title": "launcher-close-repeat loses the GPU device",
+      "pin": "Apply reloads the page. Doing that repeatedly under the test harness destroys the GPU device on pass 1, so pass 2 finds none."
+    },
+    {
+      "n": 18,
+      "anchor": "#settings-link",
+      "side": "left",
+      "state": "open",
+      "title": "Allow a CPU adapter behind a switch",
+      "pin": "A flag with no control, because it is for the test harness. aurora refuses a CPU adapter, so no browser check can boot the game."
+    },
+    {
+      "n": 19,
+      "anchor": "#log-tab",
+      "side": "left",
+      "state": "open",
+      "title": "Headless runs can draw on the desktop",
+      "pin": "Fixed in melee-pc: the display variables are removed inside cage. melee-web still needs the same line."
+    },
+    {
+      "n": 29,
+      "anchor": "#kids-20xx",
+      "side": "right",
+      "state": "open",
+      "title": "Condense the 20XX children into a closed grid",
+      "pin": "Measured at 390px: the fold is already closed on load and now holds 2 children, not the 5 this was written against. The issue calls one-per-row the right shape for 2, so the grid would save one 50px row and break the Tournament rules hint, which spans full width. Unlock everything stays out: the owner chose to condense the UI rather than add the C env read."
+    },
+    {
+      "n": 30,
+      "anchor": "#port-1-pad",
+      "side": "left",
+      "state": "open",
+      "title": "Controller connect belongs on the port",
+      "pin": "Shipped: every tile has this button, and it offers only the sources this browser can do. The page-level WebHID button is gone, and the picker opens from the press. Picking a source labels the port; only the adapter routes input so far, which is #5 and #2."
+    },
+    {
+      "n": 31,
+      "anchor": "#port-mine",
+      "side": "left",
+      "state": "closed",
+      "title": "Signify which port is you",
+      "pin": "Closed. The tile you hold carries a left bar and the word 'you', because colour alone fails a colour-blind reader and a screenshot. The id moves with a claim and a release, and matching is on the server id, so two players with one display name still mark one tile. The spectator line below is the other half, and the queue on it is #23."
+    },
+    {
+      "n": 32,
+      "anchor": "#ctl-deadzone",
+      "side": "right",
+      "state": "open",
+      "title": "Fill the Input tab, including controller options",
+      "pin": "Measured: none of the 4 rows drawn here exists in the engine. No deadzone, stick curve, tap-jump or C-stick mode anywhere in src/pc, in any of the 60 getenv readers, or among the 28 prefs fields in launcher.cpp. The per-port question is moot until something exists to set. The rows are mockup-only; building them needs native input settings first."
+    },
+    {
+      "n": 33,
+      "anchor": "#load-btn",
+      "side": "right",
+      "state": "open",
+      "title": "Load button and save-state modal, instead of a disc chip",
+      "pin": "The chip read a percentage the browser build cannot measure. The slot becomes a press: Load opens the state menu, which holds the four presets and the states this player saved."
+    }
+  ]
+}
