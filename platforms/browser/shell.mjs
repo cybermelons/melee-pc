@@ -6,7 +6,7 @@ import { openRemoteDisc } from './remote-disc.mjs';
 import { createGCAdapter } from './gcadapter.mjs';
 import { checkGraphics } from './gpu-preflight.mjs';
 import { createTouchOverlay } from './touch.mjs';
-import { iceServers, natKind } from './nat.mjs';
+import { iceServers, natKind, gathered } from './nat.mjs';
 import { addMenuButton } from './menu-button.mjs';
 import { addTierToggle } from './tier.mjs';
 import { showCrash } from './crash.mjs';
@@ -369,18 +369,6 @@ async function joinLobby() {
   const post = (msg) => fetch(base, { method: 'POST', body: JSON.stringify({ ...msg, from: me }) });
   status('Take a port.');
   const events = new EventSource(`${base}/events?me=${me}`);
-  // Send the offer once gathering has produced something usable, not once it
-  // is complete. A STUN server that resolves to an address with no route --
-  // every one of them does on an IPv4-only network, because they all publish
-  // AAAA records -- leaves gathering open until the browser's own timeout,
-  // which is far longer than a player will wait. One srflx candidate is
-  // already enough to hole punch, so stop waiting for the rest.
-  const gathered = (pc) => new Promise((resolve) => {
-    if (pc.iceGatheringState === 'complete') return resolve();
-    const done = () => { clearTimeout(timer); resolve(); };
-    const timer = setTimeout(done, 3000);
-    pc.addEventListener('icegatheringstatechange', () => pc.iceGatheringState === 'complete' && done());
-  });
   let slot = -1;
   // Place in the port queue, or -1. Read from the same `state` event as the
   // claims, so it cannot disagree with what the server thinks.
