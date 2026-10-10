@@ -10,6 +10,10 @@ const require = createRequire(process.env.PLAYWRIGHT_FROM || '/home/kiri/repos/m
 const { chromium } = require('playwright');
 // The page and /signal share one origin, so there is no ?signal= to pass.
 const BASE = process.env.BASE || 'https://botan.tail623785.ts.net:8099';
+// Opt-in: extra query parameters (e.g. icePolicy=relay) and the candidate type
+// the nominated ICE pair must have used. Unset, the run is unchanged.
+const PAIR_QUERY = process.env.PAIR_QUERY;
+const PAIR_EXPECT = process.env.PAIR_EXPECT;
 
 const kids = [];  // live deployment, nothing to spawn
 let browser;
@@ -23,7 +27,7 @@ const check = async (ok, msg) => { if (!ok) await fail(msg); };
 
 try {
   browser = await chromium.launch({ args: ['--ignore-certificate-errors'] });
-  const url = `${BASE}/?room=${randomUUID().slice(0, 8)}`;
+  const url = `${BASE}/?room=${randomUUID().slice(0, 8)}${PAIR_QUERY ? `&${PAIR_QUERY}` : ''}`;
   const [a, b] = await Promise.all([0, 1].map(async () => (await (await browser.newContext()).newPage())));
   for (const p of [a, b]) {
     // Headless has no WebGPU, so the preflight after pairing throws; expected.
@@ -80,13 +84,31 @@ try {
       }
     };
   }));
+  // The type of the local candidate in the nominated pair is the path the
+  // connection really took; the data channel opening alone cannot say whether
+  // it went direct or through a relay.
+  // A deployment older than window.__pc reports 'unknown' rather than
+  // throwing, because this test must stay runnable against whatever is
+  // currently deployed: that is the only thing it exists to measure.
+  const pathOf = (p) => p.evaluate(async () => {
+    if (!window.__pc) return 'unknown';
+    const stats = [...(await window.__pc.getStats()).values()];
+    const pair = stats.find((s) => s.type === 'candidate-pair' && s.nominated && s.state === 'succeeded');
+    return stats.find((s) => s.id === pair?.localCandidateId)?.candidateType;
+  });
+  const [pathA, pathB] = await Promise.all([pathOf(a), pathOf(b)]);
+  console.log(`negotiated candidate type: A=${pathA} B=${pathB}`);
+  if (PAIR_EXPECT) {
+    await check(pathA === PAIR_EXPECT, `A negotiated ${pathA}, expected ${PAIR_EXPECT}`);
+    await check(pathB === PAIR_EXPECT, `B negotiated ${pathB}, expected ${PAIR_EXPECT}`);
+  }
   const [ra, rb] = [run(a), run(b)];
   await Promise.all([a, b].map((p) => p.waitForFunction(() => window.sendAll)));
   await Promise.all([a.evaluate(() => sendAll()), b.evaluate(() => sendAll())]);
   const [gotA, gotB] = await Promise.all([ra, rb]);
   await check(gotA.n === 100 && gotB.n === 100, `datagrams received A=${gotA.n} B=${gotB.n} of 100`);
   const med = [...gotA.lat, ...gotB.lat].sort((x, y) => x - y);
-  console.log(`PASS pair-e2e: P1/P2 claimed, conflict enforced, channel open, 100+100 datagrams delivered, median one-way ${med[med.length >> 1].toFixed(2)} ms`);
+  console.log(`PASS pair-live: P1/P2 claimed, conflict enforced, channel open, 100+100 datagrams delivered, median one-way ${med[med.length >> 1].toFixed(2)} ms`);
 } catch (e) {
   await fail(e.stack || e);
 }

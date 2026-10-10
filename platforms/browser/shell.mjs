@@ -6,7 +6,7 @@ import { openRemoteDisc } from './remote-disc.mjs';
 import { createGCAdapter } from './gcadapter.mjs';
 import { checkGraphics } from './gpu-preflight.mjs';
 import { createTouchOverlay } from './touch.mjs';
-import { iceServers, natKind, gathered } from './nat.mjs';
+import { iceServers, icePolicy, natKind, gathered } from './nat.mjs';
 import { addMenuButton } from './menu-button.mjs';
 import { addTierToggle } from './tier.mjs';
 import { showCrash } from './crash.mjs';
@@ -439,7 +439,8 @@ async function joinLobby() {
     // Symmetric NAT needs a TURN relay, which ?ice= supplies without a
     // rebuild: a JSON array of RTCIceServer, as in
     // ?ice=[{"urls":"turn:host:3478","username":"u","credential":"p"}].
-    pc = new RTCPeerConnection({ iceServers: iceServers() });
+    pc = new RTCPeerConnection({ iceServers: iceServers(), iceTransportPolicy: icePolicy() });
+    window.__pc = pc;  // tests read the live ICE configuration; see tests/browser/pair-live.mjs
     status('Pairing…');
     pc.addEventListener('icecandidate', (e) => e.candidate && candidates.push(e.candidate.candidate));
     pc.addEventListener('connectionstatechange', () => {

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { iceServers, natKind } from '../../platforms/browser/nat.mjs';
+import { iceServers, icePolicy, natKind } from '../../platforms/browser/nat.mjs';
 
 // A real srflx line, as RTCIceCandidate.candidate gives it.
 const srflx = (external, rport) =>
@@ -36,4 +36,11 @@ test('STUN is the default, and ?ice= overrides it', () => {
 test('a malformed or empty ?ice= falls back to STUN rather than failing', () => {
   assert.equal(iceServers('?ice=not-json').length, 2);
   assert.equal(iceServers('?ice=[]').length, 2);
+});
+
+test('icePolicy is relay only for an exact ?icePolicy=relay', () => {
+  assert.equal(icePolicy('?icePolicy=relay'), 'relay');
+  assert.equal(icePolicy(''), 'all');
+  assert.equal(icePolicy('?icePolicy=all'), 'all');
+  assert.equal(icePolicy('?icePolicy=relayed'), 'all');
 });

@@ -28,6 +28,13 @@ export function iceServers(search = typeof location === 'undefined' ? '' : locat
   return STUN;
 }
 
+/** 'relay' only for `?icePolicy=relay`, otherwise 'all'. Forcing relay is how a
+ * test proves a TURN relay is carrying the connection: a relay-only policy
+ * discards host and srflx candidates, so a pass cannot come from a direct path. */
+export function icePolicy(search = typeof location === 'undefined' ? '' : location.search) {
+  return new URLSearchParams(search).get('icePolicy') === 'relay' ? 'relay' : 'all';
+}
+
 /** 'symmetric' when one local port mapped to more than one external port,
  * 'cone' when two or more servers agreed on one mapping, 'unknown' otherwise.
  * One answer alone is 'unknown': a single mapping is what a symmetric NAT and
