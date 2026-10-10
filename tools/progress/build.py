@@ -259,9 +259,11 @@ TEMPLATE = """<!DOCTYPE html>
 
   /* ---- settings tabs: horizontal space instead of one long column ----
      Every pane stays in the markup so a pin can anchor to a control on a tab
-     that is not in front; the hidden panes are moved off-screen rather than
-     display:none, because a display:none element measures 0x0 and the pin
-     placer would stack its label at the top of the column. */
+     that is not in front. A hidden pane gets .pane.off (opacity:0, z-index:-1,
+     pointer-events:none) rather than display:none or being moved off-screen:
+     display:none measures 0x0 and the pin placer would stack its label at the
+     top of the column. The placement script ghosts any pin whose control is
+     inside an off pane (see .pin.ghost below). */
   .tab-heads {{ display:flex; gap:4px; flex-wrap:wrap;
                 border-bottom:1px solid var(--line); }}
   .tab {{ padding:7px 12px; font-size:.82rem; background:none; color:var(--dim);
