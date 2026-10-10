@@ -5,6 +5,7 @@
 import test from 'node:test';
 import assert from 'assert/strict';
 import { readFileSync } from 'fs';
+import http from 'node:http';
 import {
   PORTS, PAIRABLE, SOURCES, ensureRoom, portStates, mySlot, spectating, roomLink,
   addLobby, detectSources, newPortSources, setPortSource, sourceLabel,
@@ -133,6 +134,39 @@ test('a sparse claims array does not read as a held port', () => {
   claims[1] = 'b';
   assert.equal(spectating(claims, 'me'), false);
   assert.equal(portStates(claims, 'me')[0].taken, false);
+});
+
+// Every other test here hands the lobby an array it wrote itself, so none of
+// them could see that the server sent something else. signal.mjs serialised
+// claims as an object literal, mySlot called .indexOf on it, and the throw on
+// every state event meant no claim ever rendered and pairing never started.
+// This test reads the shape off the running server instead of restating it.
+test('the shape the signal server sends is one mySlot can read', { timeout: 10000 }, async () => {
+  const { signalHandler } = await import('../../tools/browser/signal.mjs');
+  const srv = http.createServer(signalHandler);
+  await new Promise((r) => srv.listen(0, '127.0.0.1', r));
+  const base = `http://127.0.0.1:${srv.address().port}/r/shape`;
+  try {
+    const events = await fetch(`${base}/events?me=alice`);
+    const reader = events.body.getReader();
+    const next = async () => {
+      const { value } = await reader.read();
+      return JSON.parse(/data: (.*)/.exec(new TextDecoder().decode(value))[1]);
+    };
+    await next(); // the empty room
+    await fetch(base, { method: 'POST', body: JSON.stringify({ type: 'claim', player: 0, from: 'alice' }) });
+    const { claims } = await next();
+    assert.equal(mySlot(claims, 'alice'), 0, 'alice claimed port 1, so mySlot must say 0');
+    assert.equal(mySlot(claims, 'bob'), -1);
+    assert.equal(portStates(claims, 'alice')[0].mine, true);
+    await reader.cancel();
+  } finally {
+    // closeAllConnections first: the SSE stream is a response the server never
+    // ends, so close() alone waits for it and a failing assertion above would
+    // hang the run instead of reporting.
+    srv.closeAllConnections();
+    srv.close();
+  }
 });
 
 test('the share link carries the room', () => {

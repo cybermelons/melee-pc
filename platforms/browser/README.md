@@ -8,9 +8,10 @@ code as every other platform.
 Status: desktop Chrome (tested on Apple Silicon; Chromium on Linux with Intel
 Arc graphics as well) holds 60 fps in every scene the tests reach,
 including four CPUs on Final Destination. It needs WebGPU; there is no WebGL
-fallback. Netplay is compiled in but refused at connect (browsers have no UDP),
-and HD texture packs, custom music, the desktop launcher and the updater are
-absent. Replays record to `/saves/slp`, which persists in IndexedDB.
+fallback. Netplay carries its datagrams over a WebRTC data channel rather than
+UDP, which browsers do not have, and two players pair through the lobby; ports
+3 and 4 wait on a transport that carries more than two peers (#6). HD texture
+packs, custom music, the desktop launcher and the updater are absent. Replays record to `/saves/slp`, which persists in IndexedDB.
 
 ## Build and run
 

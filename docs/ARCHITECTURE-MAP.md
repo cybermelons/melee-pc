@@ -151,8 +151,10 @@ drift.
 The browser build does not use CMake directly: `tools/browser/build.py` drives
 it, and `tools/browser/build_lower.py` plus `disc_lower.cpp` run a LibTooling
 lowering pass over the disc structs. It needs LLVM 22 with LibTooling and a
-real GCC 12+ as the oracle. Netplay compiles but is refused at connect, because
-browsers have no UDP; `net_rtc.c` is the WebRTC path.
+real GCC 12+ as the oracle. Netplay does not use UDP, which browsers do not
+have: `platforms/browser/net_rtc.c` carries the datagrams over a WebRTC data
+channel instead, and `tests/browser/pair-e2e.mjs` pairs two real browsers and
+exchanges 100 datagrams each way.
 
 ## How JS reaches the C (the two bridges)
 

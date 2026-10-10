@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Two tabs pair through tools/browser/signal.mjs and exchange datagrams over
+// Two tabs pair through tools/browser/serve.mjs's /signal and exchange datagrams over
 // WebRTC. No engine, no GPU. Needs playwright (NODE_PATH or a parent node_modules).
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
@@ -10,11 +10,16 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const require = createRequire(process.env.PLAYWRIGHT_FROM || '/home/kiri/repos/melee-web/');
 const { chromium } = require('playwright');
-const SERVE = process.env.SERVE || '/home/kiri/repos/melee-web/tools/serve.mjs';
+// One server, not two. tools/browser/serve.mjs hosts the page and mounts the
+// signal handler at /signal, and the shell defaults to same-origin signaling,
+// so this is the shape a visitor actually gets: one URL, one origin. Running
+// the page on one port and signalling on another needed a ?signal= the test
+// never passed, so the page looked for /signal on the page's own port and
+// found nothing.
+const SERVE = process.env.SERVE || path.join(root, 'tools/browser/serve.mjs');
 
 const kids = [
   spawn(process.execPath, [SERVE, path.join(root, 'platforms/browser')], { env: { ...process.env, PORT: '8102' }, stdio: 'ignore' }),
-  spawn(process.execPath, [path.join(root, 'tools/browser/signal.mjs')], { env: { ...process.env, PORT: '8101' }, stdio: 'ignore' }),
 ];
 let browser;
 const fail = async (msg) => {
@@ -33,19 +38,36 @@ try {
   for (const p of [a, b]) {
     // Headless has no WebGPU, so the preflight after pairing throws; expected.
     await p.goto(url);
-    await p.waitForFunction(() => !document.getElementById('p1').hidden);
+    // #22 replaced the mode list with port tiles: #p1/#p2 are gone, and the
+    // claim is the .pbtn inside #port-N.
+    await p.waitForFunction(() => !!document.querySelector('#port-1 .pbtn'));
   }
   const engine = (p) => p.evaluate(() => !!document.querySelector('script[src="./melee_browser.js"]'));
   await check(!(await engine(a)) && !(await engine(b)), 'engine script present before pairing');
 
-  await a.click('#p1');
-  await b.waitForFunction(() => document.getElementById('p1').disabled);
-  await check(await a.$eval('#p1', (e) => !e.disabled), "A's own P1 is disabled");
-  await b.click('#p1', { force: true }); // a disabled button never sends the claim
+  await a.click('#port-1 .pbtn');
+  // B sees A's claim: the tile reads taken and its button refuses.
+  await b.waitForFunction(() => document.querySelector('#port-1 .pbtn').disabled);
+  // A's own tile stays enabled, because for A that button is now Release.
+  // Waited for, not read straight after B's: the two pages get their own state
+  // frames and B's can land first, so reading A's tile without this waits on
+  // nothing and fails on a render that was simply one tick away.
+  await a.waitForFunction(() => document.querySelector('#port-1 .pbtn').textContent === 'Release');
+  await check(await a.$eval('#port-1 .pbtn', (e) => !e.disabled && e.textContent === 'Release'),
+    "A's own port 1 should offer Release, not a disabled Take");
+  await check(await a.$eval('#port-1', (e) => e.className.includes('mine')),
+    "A's port 1 should carry the mine class");
+  await b.click('#port-1 .pbtn', { force: true }); // a disabled button never sends the claim
   await check(!(await engine(b)), 'engine injected after a refused claim');
-  await b.click('#p2');
-  await a.waitForFunction(() => document.getElementById('p2').disabled);
-  await check(await a.$eval('#p1', (e) => !e.disabled) && await b.$eval('#p2', (e) => !e.disabled), 'own buttons disabled');
+  await b.click('#port-2 .pbtn');
+  await a.waitForFunction(() => document.querySelector('#port-2 .pbtn').disabled);
+  await check(await a.$eval('#port-1 .pbtn', (e) => !e.disabled)
+    && await b.$eval('#port-2 .pbtn', (e) => !e.disabled), 'own buttons usable');
+  // Ports 3 and 4 are drawn but unreachable until #6 lands a transport that
+  // carries more than two peers (lobby.mjs PAIRABLE = 2). Two players is the
+  // supported case, so the test states it rather than leaving it implied.
+  await check(await a.$eval('#port-3 .pbtn', (e) => e.disabled),
+    'port 3 should be disabled while PAIRABLE is 2');
 
   for (const p of [a, b]) await p.waitForFunction(() => window.meleeNet?.dc.readyState === 'open', null, { timeout: 15000 });
   await check((await a.evaluate(() => meleeNet.player)) === 0 && (await b.evaluate(() => meleeNet.player)) === 1, 'player numbers');

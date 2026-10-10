@@ -8,7 +8,13 @@ const CORS = { 'Access-Control-Allow-Origin': '*', 'Cross-Origin-Resource-Policy
 const send = (room, event, data, except) => {
   for (const [id, res] of room.subs) if (id !== except) res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
 };
-const state = (room) => ({ claims: { 0: room.claims[0], 1: room.claims[1] }, queue: [...room.queue] });
+// claims goes over the wire as an array, because that is what every reader
+// expects: lobby.mjs mySlot() calls .indexOf on it, and an object literal
+// {0:..,1:..} threw "claims.indexOf is not a function" on every state event,
+// which left the lobby unable to render any claim and pairing unable to start.
+// Sliced to PAIRABLE so a reader cannot mistake a port the transport does not
+// carry for a free seat.
+const state = (room) => ({ claims: room.claims.slice(0, 2), queue: [...room.queue] });
 
 // Hand a freed slot to the first in line (#23). The queue is not a waiting
 // room -- under the no-wait ruling on #12 there is no pre-match state to wait

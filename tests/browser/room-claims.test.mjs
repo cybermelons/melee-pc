@@ -43,12 +43,20 @@ test('a claim does not outlive its stream', { timeout: 10000 }, async () => {
 
     assert.equal(await post({ type: 'claim', player: 0, from: 'alice' }), 204, 'alice claims P1');
     await wait(100);
-    assert.ok(states.some((s) => s.includes('"0":"alice"')), 'state shows alice holding P1');
+    // Read the claim out of the parsed frame, not out of its JSON text. An
+    // assertion on the text passes for any shape that spells the id, which is
+    // how an object literal went unnoticed while lobby.mjs mySlot() needed an
+    // array and threw on every state event.
+    const holders = states
+      .filter((s) => s.includes('event: state'))
+      .map((s) => JSON.parse(/data: (.*)/.exec(s)[1]).claims[0]);
+    assert.ok(holders.includes('alice'), 'state shows alice holding P1');
 
     alice.abort(); // alice's page goes away
     await wait(200);
     const freed = states.filter((s) => s.includes('event: state')).pop();
-    assert.match(freed, /"0":null/, 'P1 is freed when alice’s stream closes');
+    assert.equal(JSON.parse(/data: (.*)/.exec(freed)[1]).claims[0], null,
+      'P1 is freed when alice’s stream closes');
     assert.equal(await post({ type: 'claim', player: 0, from: 'bob' }), 204, 'bob can now take P1');
   } finally {
     keeper.abort();
