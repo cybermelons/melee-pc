@@ -17,6 +17,10 @@
     "dev": {
       "url": "http://100.113.182.40:8121/index.html",
       "label": "the playable shell, tailnet only (wasm built 2026-10-09 12:56)"
+    },
+    "session": {
+      "url": "https://claude.ai/code/session_016dpRU1LfcxinVfyKhv81tT",
+      "label": "the Claude Code session that built this"
     }
   },
   "issues": [

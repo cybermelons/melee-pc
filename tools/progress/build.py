@@ -93,7 +93,7 @@ def links_html(links):
     # Fixed order, widest audience first. A key not listed here is a typo or a
     # new link someone forgot to add, and dropping it silently is how a link
     # ends up missing from the board with nothing to show why.
-    order = ('deploy', 'dev', 'preview')
+    order = ('deploy', 'dev', 'preview', 'session')
     unknown = set(links) - set(order)
     if unknown:
         raise SystemExit(f'links has unknown {sorted(unknown)}: '
