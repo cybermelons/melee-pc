@@ -83,6 +83,18 @@ const tabShift = () => {
   return ys.length > 1 ? seen.map((s) => `${s.t}:${s.y}`).join(' ') : '';
 };
 
+// A pin whose control sits on a pane that is not in front must be a ghost,
+// and so must its dot. The expected set is computed from the markup alone
+// (closest('.pane.off')), not from the page's own visibility check.
+const ghostCheck = () => {
+  const stage = document.getElementById('stage');
+  const pins = [...document.querySelectorAll('.pin')];
+  const want = pins.filter((a) => stage.querySelector(a.dataset.anchor)?.closest('.pane.off')).length;
+  const got = pins.filter((a) => a.classList.contains('ghost')).length;
+  const dots = document.querySelectorAll('.dot.ghost').length;
+  return { want, got, dots };
+};
+
 const browser = await pw.chromium.launch();
 let bad = 0;
 for (const [width, height, tag] of SIZES) {
@@ -102,8 +114,49 @@ for (const [width, height, tag] of SIZES) {
         .filter((a) => a.getBoundingClientRect().height > 0).length;
     });
   }
+  const ghostProblems = [];
+  const g0 = await p.evaluate(ghostCheck);
+  if (g0.want === 0) ghostProblems.push('no pins anchored behind an off tab on load: nothing to ghost');
+  if (g0.got !== g0.want) ghostProblems.push(`${g0.got} ghost pins on load, ${g0.want} anchored in an off pane`);
+  if (g0.dots !== g0.want) ghostProblems.push(`${g0.dots} ghost dots on load, ${g0.want} expected`);
+  const tabCount = await p.evaluate(() => document.querySelectorAll('.tab').length);
+  for (let i = 0; i < tabCount; i += 1) {
+    await p.locator('.tab').nth(i).click();
+    const g = await p.evaluate(ghostCheck);
+    if (g.got !== g.want || g.dots !== g.want) {
+      ghostProblems.push(`tab ${i}: ${g.got} ghost pins, ${g.dots} ghost dots, ${g.want} expected`);
+    }
+  }
+  // Back to the default tab so the hover check and tabShift start as before.
+  await p.locator('.tab').first().click();
+
+  if (m.wide) {
+    // Hover the first label that is not a ghost: its dot, its line and its
+    // control light up, and nothing else does.
+    const idx = await p.evaluate(() => [...document.querySelectorAll('.pin')]
+      .findIndex((a) => !a.classList.contains('ghost')));
+    await p.locator('.pin').nth(idx).hover();
+    const hot = await p.evaluate((i) => {
+      const pin = document.querySelectorAll('.pin')[i];
+      const el = document.getElementById('stage').querySelector(pin.dataset.anchor);
+      return {
+        pin: pin.classList.contains('hot'),
+        dot: document.querySelectorAll('.dot')[i].classList.contains('hot'),
+        line: document.querySelectorAll('#leads line')[i].classList.contains('hot'),
+        target: el.classList.contains('hot-target'),
+        targets: document.querySelectorAll('.hot-target').length,
+      };
+    }, idx);
+    if (!hot.pin || !hot.dot || !hot.line) ghostProblems.push(`hover left pin/dot/line hot: ${hot.pin}/${hot.dot}/${hot.line}`);
+    if (!hot.target) ghostProblems.push('hover did not mark the anchored control hot-target');
+    if (hot.targets !== 1) ghostProblems.push(`${hot.targets} hot-target elements while hovering, expected 1`);
+    await p.mouse.move(0, 0);
+    const left = await p.evaluate(() => document.querySelectorAll('.hot, .hot-target').length);
+    if (left) ghostProblems.push(`${left} hot/hot-target elements remain after the mouse left`);
+  }
   const shift = await p.evaluate(tabShift);
   const problems = [
+    ...ghostProblems,
     shift ? `a tab switch moves the panel: ${shift}` : '',
     m.count === 0 ? 'no pins rendered' : '',
     m.orphans.length ? `pins anchored to nothing: ${m.orphans.join(', ')}` : '',
