@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #include "pc/discfont.h"
 #include "pc/launcher.h"
+#include "pc/net.h"
+#include "pc/net_lan.h"
 #include "pc/pc.h"
 #include <SDL3/SDL.h>
 #include <aurora/aurora.h>
@@ -79,6 +81,22 @@ EMSCRIPTEN_KEEPALIVE void browser_prewarm(void) {
     (void)info;
     extern void browser_prepare_graphics(void);
     browser_prepare_graphics();
+}
+/* The page cannot set MELEE_NET: it only learns its slot when the WebRTC data
+ * channel opens, which is after preRun copied ENV into the engine. So the
+ * session is opened from here instead, once dc.onopen has a channel for
+ * browser_net_attach (net_rtc.c) to find. Mirrors pc_net_init's direct-session
+ * setup, which no longer runs in the browser because MELEE_NET stays empty.
+ * The address is inert: the browser transport never dials it, but connect_impl
+ * still wants one it can parse. Game thread only (net_lan.h), which the page's
+ * ccall is, as the engine runs on the main thread. */
+EMSCRIPTEN_KEEPALIVE int browser_net_start(int player, unsigned int seed)
+{
+    if (!pc_net_connect("127.0.0.1", 1, player, (uint32_t)seed)) {
+        return 0;
+    }
+    pc_net_set_direct();
+    return 1;
 }
 int main(int argc, char** argv) {
     (void)argc;

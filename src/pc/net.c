@@ -2273,6 +2273,31 @@ bool pc_net_connect_socket(
     return connect_impl((sock_t)socket, ip, port, player, seed);
 }
 
+/* Exists so the browser can start a session after its data channel opens
+ * (platforms/browser/main.c, browser_net_start): the env-driven pc_net_init
+ * cannot run there, but the session it opens needs the same direct setup. */
+void pc_net_set_direct(void) {
+    /* No lobby agreed this match, so the session agrees it itself: the same
+     * RULES/READY exchange a lobby session runs, hosted by player 1, fired
+     * from the frame loop once the game has filled its own rules in
+     * (handshake_direct, net_handshake.c). Everything match-affecting is
+     * therefore validated rather than assumed, including the seed -- the
+     * host's wins, so MELEE_SEED no longer has to be set, or set equal, on
+     * both peers. */
+    net.direct = true;
+    /* Said plainly rather than left to be inferred from a missing line: the
+     * key arrives with the handshake, so until it completes there is nothing
+     * to authenticate these datagrams with and anything that can reach this
+     * port can inject input, acks, a delay change or a BYE. A shared secret
+     * closes that window from the first packet. */
+    const char* key = getenv("MELEE_NET_KEY");
+    if (key == NULL || key[0] == '\0') {
+        pc_log_line("net: this MELEE_NET session is UNAUTHENTICATED until its handshake "
+                    "completes; set the same MELEE_NET_KEY on both peers to authenticate its "
+                    "datagrams from the first one");
+    }
+}
+
 void pc_net_init(void) {
     s_game_thread = SDL_GetCurrentThreadID(); /* pc_platform_init runs on it */
     const char* peer = getenv("MELEE_NET");
@@ -2294,25 +2319,7 @@ void pc_net_init(void) {
     {
         return;
     }
-    /* No lobby agreed this match, so the session agrees it itself: the same
-     * RULES/READY exchange a lobby session runs, hosted by player 1, fired
-     * from the frame loop once the game has filled its own rules in
-     * (handshake_direct, net_handshake.c). Everything match-affecting is
-     * therefore validated rather than assumed, including the seed -- the
-     * host's wins, so MELEE_SEED no longer has to be set, or set equal, on
-     * both peers. */
-    net.direct = true;
-    /* Said plainly rather than left to be inferred from a missing line: the
-     * key arrives with the handshake, so until it completes there is nothing
-     * to authenticate these datagrams with and anything that can reach this
-     * port can inject input, acks, a delay change or a BYE. A shared secret
-     * closes that window from the first packet. */
-    const char* key = getenv("MELEE_NET_KEY");
-    if (key == NULL || key[0] == '\0') {
-        pc_log_line("net: this MELEE_NET session is UNAUTHENTICATED until its handshake "
-                    "completes; set the same MELEE_NET_KEY on both peers to authenticate its "
-                    "datagrams from the first one");
-    }
+    pc_net_set_direct();
 }
 
 int32_t pc_net_start_frame(void) {
