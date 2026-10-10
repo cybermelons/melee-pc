@@ -1916,7 +1916,7 @@ static void session_reset(void) {
     rel_reset();
     net.hs = HS_IDLE;
     net.hs_host = false;
-    net.direct = false; /* pc_net_init() sets it back for a MELEE_NET session */
+    net.direct = false; /* pc_net_set_direct() sets it back for a lobbyless session */
     net.seed = 0;
     net.start_frame = -1;
     net.ck_from = 0;
