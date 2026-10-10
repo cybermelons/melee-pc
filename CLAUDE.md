@@ -1,6 +1,7 @@
 # melee-pc
 
-Read `docs/architecture.md` and `docs/testing.md` before non-trivial work.
+Read `docs/ARCHITECTURE-MAP.md`, `docs/architecture.md` and `docs/testing.md`
+before non-trivial work.
 
 ## Never put a browser or game window on this host's screen
 
@@ -36,3 +37,29 @@ the copies resolve the sink at source time.
 ninja -C build unit_tests && ctest --test-dir build -L melee --output-on-failure
 python3 tools/check_style.py && python3 tools/compile_check.py
 ```
+
+## Code navigation (LSP)
+
+The `LSP` tool works in this checkout for C (clangd) and for the browser
+`.mjs` files (typescript-language-server). Set up and measured on tsunomaki,
+2026-10-10.
+
+- C: clangd 18 reads `build/compile_commands.json`. CMake writes it
+  (`CMAKE_EXPORT_COMPILE_COMMANDS ON`). The index is in `.cache/clangd/`.
+- JS: the root `jsconfig.json` puts `platforms/browser`, `tests/browser` and
+  `tools/browser` in one project. It is local only (`.git/info/exclude`), as is
+  `.cache/`.
+
+Rules:
+
+1. **Wait for a cold C index.** The first index takes about 6 minutes. Until
+   it is complete, `findReferences` gives only the declaration. Measured:
+   `pc_env_int` gave 1 ref, then 5 refs in 3 files after the index finished.
+2. **Run the first query of a session 2 times.** The first `.mjs` query for
+   `isOn` found 1 file; the second found 2, with the test file.
+3. **For an impact set, use LSP and grep together** (`grep -rlw SYMBOL`).
+   grep also finds comments; LSP does not.
+4. **A worktree has no `build/` and no `jsconfig.json`.** Configure CMake
+   there, copy `jsconfig.json`, or use grep.
+5. **Restart the session** after a change to `jsconfig.json` or to the LSP
+   plugins.
