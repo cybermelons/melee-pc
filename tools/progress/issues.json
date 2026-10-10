@@ -34,7 +34,7 @@
       "side": "left",
       "state": "open",
       "title": "Shared lobby URL with port claiming",
-      "pin": "The room code is the lobby, top right, and clicking it copies the link. Signalling, claims and the data channel all measured working. Last gap: a browser on a second network."
+      "pin": "The room code is the lobby, top right, and clicking it copies the link. Two players now pair for real, measured in 9fee67ca: the previous pin said claims and the data channel were working, and they were not. signal.mjs sent claims as an object literal, lobby.mjs mySlot() calls .indexOf on it, and the throw on every state event meant no claim ever rendered, so the trigger that needs both ports held could never start WebRTC. tests/browser/pair-e2e.mjs now pairs two browsers and exchanges 100 datagrams each way, median one-way 0.13 ms. Phone input is ready too: touch.mjs draws the pad and _pc_touch_set_pad is exported. Last gaps: ports 3 and 4 need a transport carrying more than two peers, and a public URL for the friend is the owner's call."
     },
     {
       "n": 22,
