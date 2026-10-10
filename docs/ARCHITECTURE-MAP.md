@@ -156,6 +156,46 @@ have: `platforms/browser/net_rtc.c` carries the datagrams over a WebRTC data
 channel instead, and `tests/browser/pair-e2e.mjs` pairs two real browsers and
 exchanges 100 datagrams each way.
 
+## The disc: who needs one, and what it is
+
+**A visitor needs no disc image. Only the server holds one.** Read this before
+you tell anyone they need their own ISO.
+
+`tools/browser/serve.mjs` reads `MELEE_DISC`. If it names a file, the server
+serves that file at `/disc` with `Accept-Ranges: bytes`, and answers a range
+request with `206` and a `Content-Range` header. `/disc` is the one path the
+server serves from outside its document root.
+
+`platforms/browser/shell.mjs` probes `/disc` with a `HEAD` request through
+`openRemoteDisc` in `remote-disc.mjs`, **before** the engine reports ready. On
+a hit it sets `$('disc').hidden = true` and keeps the handle in `remoteDisc`.
+The local file picker is therefore the fallback, not the normal path: it is
+offered only when the server has no disc. `openRemoteDisc` returns `null` when
+`/disc` is absent, and throws when the server answers a range request with
+`200` instead of `206`, because a server that ignores `Range` would make the
+engine read the start of the image for every block.
+
+**The image is a backing store addressed by byte offset. Nothing mounts it and
+nothing parses a filesystem in JS.** `shell.mjs` wraps whichever handle it got
+in `createDiscCache` (`disc-cache.mjs`) and hands the C a single
+`Module.readDisc(offset, size)`. The cache keeps 512 KiB blocks up to 32 MiB
+and returns synchronously on a full hit, so a hit never suspends the wasm.
+`remote-disc.mjs` turns one block miss into one HTTP range request. The image
+is never fetched as a unit, so there is no total-loaded percentage to show.
+
+Two results follow:
+
+- The engine reads real game data on demand for as long as it runs. The disc is
+  not a cache of the game; the cache is how the engine reaches the disc.
+- **Which image matters, because the offsets must match.** The build is vanilla
+  1.02. A different image puts different bytes at the offsets the C asks for.
+  Do not use a 20XX image: the 20XX features in this repo are reimplemented
+  here, so they need no 20XX disc, and the mismatched layout would return
+  wrong bytes rather than extra features.
+
+The landmine index below covers the disc *structs* (`DISC_STRUCT`, `DISC_PTR(T)`, `DP(T,slot)`). Those describe the layout
+of bytes inside the image. This section describes how the bytes arrive.
+
 ## How JS reaches the C (the two bridges)
 
 There are exactly two routes from the browser shell into the engine. Reaching
@@ -222,6 +262,7 @@ replaces `?room=` rather than preserving it.
 | the unit suite | `ninja -C build unit_tests && ctest --test-dir build -L melee --output-on-failure` |
 | style and compile gates (CI runs both) | `python3 tools/check_style.py`, `python3 tools/compile_check.py` |
 | the browser build | `tools/browser/build.py` |
+| the browser build served to a visitor | `MELEE_DISC=/path/to/melee_1.02.iso MELEE_BIND=0.0.0.0 PORT=8099 node tools/browser/serve.mjs <build dir>`. Without `MELEE_DISC` the visitor is asked for their own image |
 | the pc unit tests | `tests/pc`, and `tests/browser` for the web build |
 | a netplay check | the `tools/net_*.py` and `tools/test_net_*.c` family. `docs/testing.md` says which proves what |
 
@@ -231,6 +272,12 @@ replaces `?room=` rather than preserving it.
 `net_state_compare.py` already exist.
 
 ## Landmine index
+
+**A visitor does not need a disc image.** The server does. `MELEE_DISC` makes
+`serve.mjs` serve it at `/disc`, `shell.mjs` probes for it and hides the file
+picker, and the engine reads it by byte offset through a block cache. See "The
+disc: who needs one, and what it is". Telling a player to bring their own ISO
+is wrong whenever the server was started with `MELEE_DISC`.
 
 Before you touch X, know Y. The porting bug classes in
 `docs/porting-notes.md` are not repeated here; read that file before bringing
