@@ -34,6 +34,9 @@ extern "C" {
  * free camera off, which an older peer does not. */
 #define PC_NET_PROTO_VERSION 9
 void pc_net_init(void);
+/* Marks the session just opened as one with no lobby (handshake_direct) and
+ * warns while it is unauthenticated; for callers that open it themselves. */
+void pc_net_set_direct(void);
 void pc_net_set_input_delay(int frames);
 bool pc_net_active(void);
 /* Presentation-only quick chat is available in connected noncombat scenes. */
