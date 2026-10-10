@@ -378,7 +378,7 @@ async function joinLobby() {
     dc.binaryType = 'arraybuffer';
     dc.onopen = () => {
       // First, in both paths: browser_net_attach reads Module.netChannel when
-      // the session opens (net_rtc.c:25), so it has to be in place before
+      // the session opens (net_rtc.c:9), so it has to be in place before
       // either ENV or browser_net_start can lead the engine to it.
       Module.netChannel = dc;
       window.meleeNet = { dc, player: slot };
@@ -493,12 +493,11 @@ async function joinLobby() {
 }
 
 // Nothing waits for a partner. joinLobby connects the signalling and returns;
-// the engine boots below either way. A player who claims a port is connected
-// into the game that is already running, rather than both sides having to
-// press Start together. See #12, which carries the mechanism and the one
-// cost that cannot be avoided from JS: preRun copies ENV exactly once, so a
-// claim that lands after the engine has booted opens its session through
-// browser_net_start rather than ENV.
+// the engine boots below either way. preRun copies ENV exactly once, so a
+// claim landing after the boot opens its session through browser_net_start
+// rather than ENV -- which is why claiming a port no longer reloads.
+// Both peers still have to start their own match: joining one already in
+// progress needs the simulation state transferred, which is #12.
 joinLobby();
 
 // Fail with a readable message before the wasm is fetched; otherwise a browser
