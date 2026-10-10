@@ -32,11 +32,13 @@ export PULSE_SINK=alsa_output.pci-0000_0b_00.1.hdmi-stereo-extra2
 # "No free output buffer slot" with two clients, and the second instance's p99
 # drifts up over 30 s. If a long two-player run degrades, suspect the
 # compositor's buffer count before the netcode.
-# `env -u` removes the session's own display variables inside cage. Cage sets
-# WAYLAND_DISPLAY for its children, so removing the inherited one changes
-# nothing while cage is healthy. It matters when cage is absent, or when its
-# compositor has exited: the child then finds the desktop socket still named in
-# its environment, connects to it, and opens a window on the user's screen. The
+# `env -u` removes the session's own display variables BEFORE cage starts, so
+# the only socket names a child ever sees are the ones cage sets (its Wayland
+# socket and its Xwayland DISPLAY). Removing them inside cage instead strips
+# cage's own values too, and the child then falls back to the default socket
+# wayland-0, which is cage only by luck of socket order. If the compositor
+# exits, the child holds a dead socket name and fails, rather than finding the
+# desktop socket in its environment and opening a window on the user's screen. The
 # run still passes, so only the person at the machine ever sees the problem.
 # This was measured: `launcher-close-repeat` lost cage's device at the end of
 # pass 1 ("Device lost ... Device was destroyed"), and pass 2 reached the
@@ -45,7 +47,10 @@ export PULSE_SINK=alsa_output.pci-0000_0b_00.1.hdmi-stereo-extra2
 # DISPLAY goes too. It names the X server, which an SDL or Chromium fallback
 # will take once Wayland fails, and that window lands on the same screen.
 run_headless() {
+  # WLR_BACKENDS (plural) is the wlroots variable. WLR_BACKEND is ignored, and
+  # cage then picks the Wayland backend and opens a window on the desktop.
+  env -u WAYLAND_DISPLAY -u DISPLAY \
   XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}" \
-  WLR_BACKEND=headless WLR_LIBINPUT_NO_DEVICES=1 \
-    cage -- env -u WAYLAND_DISPLAY -u DISPLAY "PULSE_SINK=$PULSE_SINK" "$@"
+  WLR_BACKENDS=headless WLR_LIBINPUT_NO_DEVICES=1 \
+    cage -- env "PULSE_SINK=$PULSE_SINK" "$@"
 }
