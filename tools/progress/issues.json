@@ -34,7 +34,7 @@
       "side": "left",
       "state": "open",
       "title": "Shared lobby URL with port claiming",
-      "pin": "The room code is the lobby, top right, and clicking it copies the link. Two players now pair for real, measured in 9fee67ca: the previous pin said claims and the data channel were working, and they were not. signal.mjs sent claims as an object literal, lobby.mjs mySlot() calls .indexOf on it, and the throw on every state event meant no claim ever rendered, so the trigger that needs both ports held could never start WebRTC. tests/browser/pair-e2e.mjs now pairs two browsers and exchanges 100 datagrams each way, median one-way 0.13 ms. Phone input is ready too: touch.mjs draws the pad and _pc_touch_set_pad is exported. Last gaps: ports 3 and 4 need a transport carrying more than two peers, and a public URL for the friend is the owner's call."
+      "pin": "The room code is the lobby, top right, and clicking it copies the link. Two players pair for real, and a phone-shaped browser is one of them: measured over the routable tailnet address, both claim a port and the touch overlay draws. Two defects had to go first, and both hid behind loopback. signal.mjs sent claims as an object while lobby.mjs calls .indexOf on it, so every state event threw and no claim ever rendered (9fee67ca). Then crypto.randomUUID, which exists only in a secure context: http://127.0.0.1 is one by exemption and a tailnet IP is not, so the page could mint neither a room nor an identity on the only origin a visitor uses (f303d4a8). Remaining: ports 3 and 4 need a transport for more than two peers, a friend on another network still has to exercise STUN, and a public URL is the owner's call."
     },
     {
       "n": 22,
