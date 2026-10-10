@@ -345,8 +345,9 @@ const states = addStates(document.body);
 let claim = null;
 let release = null;
 // True once melee_browser.js has been added to the page, which is the moment
-// preRun copies ENV into the engine. After that a new MELEE_NET_PLAYER cannot
-// reach the engine, so a port claimed later has to reload the page.
+// preRun copies ENV into the engine. It selects how a paired channel starts a
+// session: before it, ENV writes still reach preRun; after it, ENV is closed
+// and the session is opened through browser_net_start instead.
 let injected = false;
 
 // Joining the lobby must not block the engine. Before #22 the page waited on
@@ -376,15 +377,32 @@ async function joinLobby() {
   const open = (dc) => {
     dc.binaryType = 'arraybuffer';
     dc.onopen = () => {
+      // First, in both paths: browser_net_attach reads Module.netChannel when
+      // the session opens (net_rtc.c:25), so it has to be in place before
+      // either ENV or browser_net_start can lead the engine to it.
       Module.netChannel = dc;
-      ENV.MELEE_NET = '127.0.0.1:1';
-      ENV.MELEE_NET_PLAYER = String(slot);
-      ENV.MELEE_BOOT_SCENE ??= 'vs';
       window.meleeNet = { dc, player: slot };
       events.close();
-      // The engine is already loading, or already running. Nothing is gated
-      // on this message, so it reports rather than promises.
-      status(`Paired as P${slot + 1}.`);
+      if (!injected) {
+        ENV.MELEE_NET = '127.0.0.1:1';
+        ENV.MELEE_NET_PLAYER = String(slot);
+        ENV.MELEE_BOOT_SCENE ??= 'vs';
+        // The engine is not loaded yet. Nothing is gated on this message, so
+        // it reports rather than promises.
+        status(`Paired as P${slot + 1}.`);
+        return;
+      }
+      // ENV is closed: preRun copied it when melee_browser.js loaded, and
+      // pc_net_init reads MELEE_NET once. browser_net_start (main.c) opens the
+      // session on the live engine instead. The seed is the page's own
+      // MELEE_SEED when the URL set one, else 0, which the handshake replaces
+      // with the host's. The export returns 0 when the engine refuses, and
+      // then no match is running, so say that rather than claiming a pairing.
+      const seed = (Number(ENV.MELEE_SEED) || 0) >>> 0;
+      const ok = Module.ccall('browser_net_start', 'number', ['number', 'number'], [slot, seed]);
+      status(ok
+        ? `Paired as P${slot + 1}.`
+        : `Paired as P${slot + 1}, but the engine could not open the session.`);
     };
   };
   let pc = null;
@@ -469,30 +487,8 @@ async function joinLobby() {
         ? `P${i + 1} is taken. You are ${place + 1} in line for the next free port.`
         : `P${i + 1} is taken. You are in line for the next free port.`);
     }
-    // Before the engine is injected a claim needs nothing: preRun has not run,
-    // so the state handler's ENV writes still reach it.
-    if (!injected) return;
-    // After the boot, ENV is closed: preRun copied it when melee_browser.js
-    // loaded, and pc_net_init (net.c:2276) reads MELEE_NET once and returns
-    // early when it is absent. A reload is the stopgap, NOT the only door --
-    // net.h:15 says a session opens "at runtime by pc_net_connect()", and
-    // net_rtc.c:10 and :25 read Module.netChannel at call time rather than at
-    // boot, so the channel does not have to exist when the engine starts.
-    // What is missing is only an export: there is no EMSCRIPTEN_KEEPALIVE
-    // entry for it beside browser_prewarm (main.c:46). #12 carries that work.
-    // Note for whoever writes it: pass no socket. connect_impl refuses a
-    // supplied one under __EMSCRIPTEN__ (net.c:2049), so pc_net_connect_socket
-    // is the wrong seam and browser_net_attach has to find the channel itself.
-    //
-    // A locally picked disc is a File handle and does not survive a reload, so
-    // ask first rather than discarding the player's selection silently. A disc
-    // served by this room survives, so that case reloads with no question.
-    if (!remoteDisc && $('disc').files.length
-        && !confirm('Joining reloads the page, which clears the disc you picked. Pick it again after?')) {
-      return status(`Still holding P${i + 1}. Reload when ready to join.`);
-    }
-    status(`P${i + 1} is yours. Reloading to join the match…`);
-    location.reload();
+    // No reload: dc.onopen attaches the channel at runtime through
+    // browser_net_start (main.c), so the claim only has to reach the server.
   };
 }
 
@@ -501,7 +497,8 @@ async function joinLobby() {
 // into the game that is already running, rather than both sides having to
 // press Start together. See #12, which carries the mechanism and the one
 // cost that cannot be avoided from JS: preRun copies ENV exactly once, so a
-// claim that lands after the engine has booted reloads the page.
+// claim that lands after the engine has booted opens its session through
+// browser_net_start rather than ENV.
 joinLobby();
 
 // Fail with a readable message before the wasm is fetched; otherwise a browser
