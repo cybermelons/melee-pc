@@ -31,8 +31,24 @@
 export const PORTS = 4;
 export const PAIRABLE = 2;
 
+/**
+ * Random hex, from getRandomValues rather than randomUUID.
+ *
+ * randomUUID exists only in a secure context. http://127.0.0.1 is one by
+ * exemption, so every local test passed, but the tailnet address a phone
+ * actually opens is plain http on a routable IP and is not: both callers below
+ * threw "crypto.randomUUID is not a function", which left the page unable to
+ * mint a room or an identity -- the whole lobby, dead on the one origin a
+ * visitor uses.
+ *
+ * getRandomValues carries no such requirement. Uniqueness within a room is all
+ * either id needs, and 8 hex digits is 32 bits of it, so nothing is lost.
+ */
+const randomHex = (bytes) => Array.from(crypto.getRandomValues(new Uint8Array(bytes)))
+  .map((b) => b.toString(16).padStart(2, '0')).join('');
+
 /** A room id short enough to read aloud and type from a phone. */
-export const mintRoom = () => crypto.randomUUID().slice(0, 8);
+export const mintRoom = () => randomHex(4);
 
 /**
  * This page's signaling identity, stable across a reload (#24).
@@ -57,7 +73,7 @@ export const mintRoom = () => crypto.randomUUID().slice(0, 8);
  * the old behaviour -- worse, but not fatal, and better than no identity.
  */
 export const ME_KEY = 'melee.me';
-export function sessionId(store = globalThis.sessionStorage, mint = () => crypto.randomUUID()) {
+export function sessionId(store = globalThis.sessionStorage, mint = () => randomHex(16)) {
   try {
     const held = store?.getItem(ME_KEY);
     if (held) return held;

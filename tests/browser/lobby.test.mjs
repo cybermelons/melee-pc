@@ -7,7 +7,7 @@ import assert from 'assert/strict';
 import { readFileSync } from 'fs';
 import http from 'node:http';
 import {
-  PORTS, PAIRABLE, SOURCES, ensureRoom, portStates, mySlot, spectating, roomLink,
+  PORTS, PAIRABLE, SOURCES, ensureRoom, portStates, mySlot, spectating, roomLink, mintRoom,
   addLobby, detectSources, newPortSources, setPortSource, sourceLabel,
   sessionId, ME_KEY,
 } from '../../platforms/browser/lobby.mjs';
@@ -166,6 +166,32 @@ test('the shape the signal server sends is one mySlot can read', { timeout: 1000
     // hang the run instead of reporting.
     srv.closeAllConnections();
     srv.close();
+  }
+});
+
+// A phone opens the tailnet address, which is plain http on a routable IP and
+// therefore not a secure context. randomUUID does not exist there. Every test
+// and every manual check ran on http://127.0.0.1, which IS a secure context by
+// exemption, so the lobby passed everywhere and then could not mint a room or
+// an identity on the one origin a visitor uses.
+test('minting works without randomUUID, which a plain-http origin lacks', () => {
+  // defineProperty, not assignment: globalThis.crypto is getter-only in node.
+  const real = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
+  // A secure context is the only place randomUUID exists. Removing it is what
+  // the phone sees; getRandomValues stays, because it has no such requirement.
+  Object.defineProperty(globalThis, 'crypto', {
+    configurable: true,
+    value: {
+      getRandomValues: (a) => { for (let i = 0; i < a.length; i += 1) a[i] = (i * 37 + 11) & 0xff; return a; },
+    },
+  });
+  try {
+    const room = mintRoom();
+    assert.match(room, /^[0-9a-f]{8}$/, `a room id must be 8 hex digits, got ${room}`);
+    const me = sessionId(null);
+    assert.match(me, /^[0-9a-f]{32}$/, `an identity must be 32 hex digits, got ${me}`);
+  } finally {
+    Object.defineProperty(globalThis, 'crypto', real);
   }
 });
 
