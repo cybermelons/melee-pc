@@ -26,14 +26,14 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-24.04
-    # The image is built with botan's own Docker daemon, so the job needs its
-    # socket. act_runner refuses a mount the runner config does not list, so
-    # /home/kiri/gitea-runner/data/config.yaml names this one path under
-    # valid_volumes and nothing else.
-    container:
-      image: node:20-bookworm
-      volumes:
-        - /var/run/docker.sock:/var/run/docker.sock
+    # No container.volumes here on purpose. The runner's own compose file
+    # already binds /var/run/docker.sock into every job container, so asking
+    # for it again fails the job before the first step:
+    #   Binds:[/var/run/docker.sock:/var/run/docker.sock
+    #          /var/run/docker.sock:/var/run/docker.sock]
+    #   failed to create container: Duplicate mount point: /var/run/docker.sock
+    # The socket is therefore already present, and the valid_volumes entry in
+    # the runner config is what permits that existing bind, not an extra one.
     env:
       IMAGE: melee-web
       CONTAINER: melee-web
