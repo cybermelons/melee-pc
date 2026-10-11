@@ -3206,17 +3206,18 @@ static void fresh_tick(PADStatus* head, bool raw) {
         /* The rx counters are the receive thread's: read and cleared under
          * its lock, which it waits out for one log line every 10 s. */
         SDL_LockMutex(s_rx_lock);
-        pc_log_line("net: frame %d, rollbacks %u (max depth %d, lost %u), stalls %u (worst "
-                    "%.1f ms, total %.0f ms), skips %u, advances %u, ping %u ms (avg %.0f, min %u, max %u, "
-                    "jitter %.1f), loss %d%% (%u tx %u rx), offset %+.1f ms, remote behind %d, "
-                    "barrier %d, quality %d, dup %u reorder %u sock_err %u resim_eat %u red %d, "
-                    "drops (bad_src %u bad_sess %u bad_player %u bad_mac %u malformed %u "
-                    "would_block %u rx_full %u), "
-                    "pad reuse %u empty %u, audio replayed %u over %u, seed out-of-tick %u draws "
-                    "in %u frames, pad slips %u (queue worst %u, full at write %u), idle ticks %u, "
-                    "audio liveness asked %u (engine would say yes %u)",
-            net.frame, s_rollbacks, s_rb_depth_max, s_rb_lost, s_stalls, s_stall_ns_max / 1e6, s_stall_ns_sum / 1e6,
-            net.skips, s_advances, net.ping_us / 1000,
+        pc_log_line(
+            "net: frame %d, rollbacks %u (max depth %d, lost %u), stalls %u (worst "
+            "%.1f ms, total %.0f ms), skips %u, advances %u, ping %u ms (avg %.0f, min %u, max %u, "
+            "jitter %.1f), loss %d%% (%u tx %u rx), offset %+.1f ms, remote behind %d, "
+            "barrier %d, quality %d, dup %u reorder %u sock_err %u resim_eat %u red %d, "
+            "drops (bad_src %u bad_sess %u bad_player %u bad_mac %u malformed %u "
+            "would_block %u rx_full %u), "
+            "pad reuse %u empty %u, audio replayed %u over %u, seed out-of-tick %u draws "
+            "in %u frames, pad slips %u (queue worst %u, full at write %u), idle ticks %u, "
+            "audio liveness asked %u (engine would say yes %u)",
+            net.frame, s_rollbacks, s_rb_depth_max, s_rb_lost, s_stalls, s_stall_ns_max / 1e6,
+            s_stall_ns_sum / 1e6, net.skips, s_advances, net.ping_us / 1000,
             s_ping_n ? s_ping_sum / 1000.0 / s_ping_n : 0.0, s_rtt_min / 1000, s_rtt_max / 1000,
             jitter_us() / 1000.0, s_loss_pct, net.tx_pkts, s_rx_pkts, net.offset_last / 1000.0,
             net.frame - 1 - s_remote_have, net.rb_barrier, pc_net_quality(), s_rx_dups,
