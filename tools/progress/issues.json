@@ -295,9 +295,10 @@
       "n": 32,
       "anchor": "#ctl-deadzone",
       "side": "right",
-      "state": "open",
+      "state": "closed",
       "title": "Fill the Input tab, including controller options",
-      "pin": "Measured: none of the 4 rows drawn here exists in the engine. No deadzone, stick curve, tap-jump or C-stick mode anywhere in src/pc, in any of the 60 getenv readers, or among the 28 prefs fields in launcher.cpp. The per-port question is moot until something exists to set. The rows are mockup-only; building them needs native input settings first."
+      "pin": "Measured: none of the 4 rows drawn here exists in the engine. No deadzone, stick curve, tap-jump or C-stick mode anywhere in src/pc, in any of the 60 getenv readers, or among the 28 prefs fields in launcher.cpp. The per-port question is moot until something exists to set. The rows are mockup-only; building them needs native input settings first.",
+      "proof": "cd /home/kiri/wt-mp-parity && N=/home/kiri/.nvm/versions/node/v20.5.1/bin/node && $N --test --test-name-pattern 'the four Input rows exist with class setting, inside the Input pane' tests/browser/settings.test.mjs 2>&1 | grep -qx '# pass 1' && $N --test --test-name-pattern 'the Input tab head exists and switching to it brings the rows forward' tests/browser/settings.test.mjs 2>&1 | grep -qx '# pass 1' && $N --test --test-name-pattern 'a Wide deadzone reads a 0.25 deflection as centred, Default does not' tests/browser/settings.test.mjs 2>&1 | grep -qx '# pass 1' && $N --test --test-name-pattern 'Linear and Eased differ at mid travel and agree at full deflection' tests/browser/settings.test.mjs 2>&1 | grep -qx '# pass 1' && $N --test --test-name-pattern 'Tap to jump lets the upward axis reach full in one frame, off takes several' tests/browser/settings.test.mjs 2>&1 | grep -qx '# pass 1'"
     },
     {
       "n": 33,
