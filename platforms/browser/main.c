@@ -8,6 +8,8 @@
 #include <aurora/aurora.h>
 #include <aurora/dvd.h>
 #include <dolphin/card.h>
+#include <melee/gm/forward.h>
+#include <melee/gm/gmboot.h>
 #include <emscripten.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -96,6 +98,18 @@ EMSCRIPTEN_KEEPALIVE int browser_net_start(int player, unsigned int seed)
         return 0;
     }
     pc_net_set_direct();
+    return 1;
+}
+/* The page cannot pick the VS scene through MELEE_BOOT_SCENE for the same
+ * reason it cannot set MELEE_NET: ENV closed at preRun, and a port claimed
+ * after injection has nowhere to put it. A peer in that position boots through
+ * GM_BOOT into the memory-card prompt and stalls. This asks the live engine to
+ * go to GM_DEBUG_VS, the mode MELEE_BOOT_SCENE=vs maps to, instead: the
+ * running scene ends at its next frame and the mode loop routes to it. Game
+ * thread only, like browser_net_start. */
+EMSCRIPTEN_KEEPALIVE int browser_boot_scene_vs(void)
+{
+    pc_set_boot_scene(GM_DEBUG_VS);
     return 1;
 }
 int main(int argc, char** argv) {

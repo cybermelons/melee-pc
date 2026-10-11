@@ -1,5 +1,6 @@
 #include "gmscene.h"
 #ifdef TARGET_PC
+#include "gmboot.h"
 #include "pc/net.h"
 #include "pc/pc.h"
 #include "pc/slp.h"
@@ -418,6 +419,22 @@ void gm_801A4D34(void (*on_frame)(void), GameSceneInfo* info)
             s_scene_end_held = 0;
             temp_r25->unk_C = 1;
             break;
+        }
+        /* A runtime boot-scene request (pc_set_boot_scene, from the browser)
+         * ends whatever scene is running, the same way as above. Asking for
+         * the mode already running is satisfied as it stands, so it is
+         * consumed here rather than left to reroute the next mode change.
+         * Otherwise the request stays pending and gm_1A3F.c consumes it
+         * after this scene returns, which is what stops this from firing on
+         * every frame. */
+        if (pc_boot_scene_request() != GM_COUNT) {
+            if (pc_boot_scene_request() == gm_GetCurrentGameMode()) {
+                pc_boot_scene_consume();
+            } else {
+                s_scene_end_held = 0;
+                temp_r25->unk_C = 1;
+                break;
+            }
         }
 #endif
 
