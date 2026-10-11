@@ -1,0 +1,10 @@
+#!/bin/sh
+# Board gate as a git pre-commit hook. NOT active until you install it:
+#   ln -s ../../tools/progress/pre-commit "$(git rev-parse --git-common-dir)/hooks/pre-commit"
+# or: git config core.hooksPath tools/progress   (hook must be named pre-commit)
+# Both are shared by EVERY worktree of this clone, so install only on purpose.
+cd "$(git rev-parse --show-toplevel)" || exit 1
+python3 tools/progress/build.py --gate || {
+  echo "pre-commit: board gate failed; fix, or 'build.py --ack N' for unread, or commit with --no-verify" >&2
+  exit 1
+}

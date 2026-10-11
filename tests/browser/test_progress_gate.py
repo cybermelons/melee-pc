@@ -95,6 +95,12 @@ def main():
 
         rc, out = gate(env)
         assert f'UNREAD #{a}' not in out and 'unread=1' in out, out
+
+        # Stop hook re-entry guard: exits silently without running the gate.
+        r = subprocess.run([os.path.join(ROOT, 'tools/progress/stop-hook.sh')],
+                           input=json.dumps({'stop_hook_active': True, 'cwd': ROOT}),
+                           capture_output=True, text=True)
+        assert r.stdout == '' and r.returncode == 0, (r.returncode, r.stdout, r.stderr)
     finally:
         srv.shutdown()
         shutil.rmtree(tmp)
