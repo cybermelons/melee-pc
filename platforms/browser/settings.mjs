@@ -56,6 +56,12 @@ export const SETTINGS = [
   { key: 'MELEE_20XX_RULES', tab: 'Game', kind: 'flag', parent: 'MELEE_20XX',
     label: 'Tournament rules',
     hint: '4 stock, 8 min, no items, no pause.' },
+  // platforms/browser/pc_stubs.c:51 reads MELEE_UNLOCK_ALL and falls back to
+  // pc_is_20xx_enabled, so 20XX already implies this and an explicit setting
+  // still wins. gm_1601.c consumes it at 2451, 2562 and 2620.
+  { key: 'MELEE_UNLOCK_ALL', tab: 'Game', kind: 'flag', parent: 'MELEE_20XX',
+    label: 'Unlock everything',
+    hint: '20XX turns this on.' },
   { key: 'MELEE_HITBOXES', tab: 'Video', kind: 'flag', label: 'Show hitboxes' },
   { key: 'MELEE_PAUSE', tab: 'Game', kind: 'flag', label: 'Allow pausing',
     hint: 'Tournament rules turn pausing off.' },

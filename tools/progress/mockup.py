@@ -53,11 +53,14 @@ TABS = {
         ('ctl-MELEE_BOOT_CSS', 'Character select', 'child', ''),
         ('ctl-MELEE_20XX_RULES', 'Tournament rules', 'child',
          '4 stock, 8 min, no items, no pause.'),
-        # Drawn as a child because that is the target (#29). It is not one
-        # yet: pc_is_unlock_all_enabled reads prefs.unlock_all, a native field
-        # with no env var, so #29 has to add the env read in C before a web
-        # control can follow MELEE_20XX.
-        ('ctl-unlock-all', 'Unlock everything', 'child', ''),
+        # A child because 20XX implies it, and the browser target already
+        # honours it: platforms/browser/pc_stubs.c:51 reads MELEE_UNLOCK_ALL and
+        # falls back to pc_is_20xx_enabled, pc_stubs.c is in the link at
+        # platforms/browser/CMakeLists.txt:46, and gm_1601.c consumes it at
+        # 2451, 2562 and 2620. So the row needs no C work, only a SETTINGS
+        # entry. An earlier note here said the C env read did not exist; that
+        # was read off launcher.cpp, which the browser target never builds.
+        ('ctl-MELEE_UNLOCK_ALL', 'Unlock everything', 'child', ''),
         ('ctl-MELEE_UCF', 'Controller fix', _chk(True), ''),
         ('ctl-MELEE_FROZEN_STADIUM', 'Hazardless stadium', _chk(), ''),
         ('ctl-MELEE_PAUSE', 'Allow pausing', _chk(True),

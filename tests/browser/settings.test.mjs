@@ -384,7 +384,7 @@ test('the 20XX family stays condensed, and keeps the pausing fact', () => {
   // short phrase is the bloat the user asked to be rid of.
   const family = SETTINGS.filter(
     (s) => s.key === 'MELEE_20XX' || s.parent === 'MELEE_20XX');
-  assert.equal(family.length, 3, '20XX plus its two children');
+  assert.ok(family.length >= 3, '20XX and its children');
   for (const s of family) {
     const words = (s.hint ?? '').split(/\s+/).filter(Boolean).length;
     assert.ok(words <= 8, `${s.key} hint is ${words} words, budget is 8`);
@@ -398,21 +398,55 @@ test('the 20XX family stays condensed, and keeps the pausing fact', () => {
     'nothing tells the player that tournament rules and pausing interact');
 });
 
-test('boot settings need a real env reader (#28)', () => {
-  // The web launcher writes a query string that becomes Module.ENV and is read
-  // by std::getenv. These keys are `prefs` fields with no getenv in src/ and no
-  // exported C setter, so neither route reaches them. The five audio/widescreen
-  // ones that used to be listed here are reachable through exported setters and
-  // are LIVE controls now; the next test checks that claim against the link line.
-  const keys = new Set(SETTINGS.map((s) => s.key));
-  for (const reachable of ['MELEE_UCF', 'MELEE_FROZEN_STADIUM', 'MELEE_NET_DELAY']) {
-    assert.ok(keys.has(reachable), `${reachable} has an env reader and needs a control`);
-  }
-  for (const unreachable of ['MELEE_HUD_MODE', 'MELEE_CUSTOM_TEXTURES',
-    'MELEE_FREE_CAMERA', 'MELEE_FILTER_MODE', 'MELEE_ANISOTROPY', 'MELEE_MUTE',
-    'MELEE_NET_NAME', 'MELEE_UNLOCK_ALL']) {
-    assert.equal(keys.has(unreachable), false,
-      `${unreachable} has no getenv in src/ and no exported setter, so a control cannot reach it`);
+test('every boot setting has a real env reader the browser compiles (#28)', async () => {
+  // A boot control reaches the engine only through Module.ENV and getenv, so a
+  // row for a key no compiled file reads does nothing at all.
+  //
+  // This used to be two hardcoded lists, and it stayed green for three waves on
+  // a false fact: it said MELEE_UNLOCK_ALL had no getenv while pc_stubs.c read
+  // it, because the list was written off launcher.cpp, which the browser target
+  // replaces. So the reader is grepped out of the tree now, and only the files
+  // the browser does not compile are excluded. A key that gains or loses a
+  // reader moves this test on its own.
+  const { execFileSync } = await import('node:child_process');
+  const root = new URL('../../', import.meta.url).pathname;
+
+  // pc_stubs.c stands in for these two, so an env read that lives only here
+  // never runs in the browser. Keep in step with the comment at
+  // platforms/browser/CMakeLists.txt:24-30.
+  const NOT_COMPILED = ['src/pc/launcher.cpp', 'src/pc/file_cache.cpp'];
+
+  const readers = (key) => {
+    let out;
+    try {
+      out = execFileSync('grep', ['-rl', `"${key}"`, '--include=*.c', '--include=*.cpp',
+        'src', 'platforms'], { cwd: root, encoding: 'utf8' });
+    } catch {
+      return [];  // grep exits 1 on no match
+    }
+    return out.split('\n').filter(Boolean).filter((f) => !NOT_COMPILED.includes(f));
+  };
+
+  // MELEE_SCALE never reaches C: shell.mjs reads it off the query string to size
+  // the canvas before the runtime starts. A boot control is satisfied by either
+  // reader, so the shell counts too.
+  const shellText = await import('node:fs/promises').then((fs) =>
+    fs.readFile(new URL('../../platforms/browser/shell.mjs', import.meta.url), 'utf8'));
+
+  // Prove the grep and the exclusion both work before trusting a verdict from
+  // them: a key with a known reader must be found, and a key read only in an
+  // excluded file must not count as reachable.
+  assert.ok(readers('MELEE_UNLOCK_ALL').some((f) => f.endsWith('pc_stubs.c')),
+    'the grep found no reader for a key pc_stubs.c demonstrably reads');
+  assert.deepEqual(readers('MELEE_CACHE_MAX_MB'), [],
+    'a key read only in an excluded file must not count as reachable');
+
+  const live = new Set(LIVE.map((d) => d.key));
+  for (const setting of SETTINGS) {
+    if (live.has(setting.key)) continue;  // a live control uses its setter, not getenv
+    assert.ok(readers(setting.key).length > 0 || shellText.includes(setting.key),
+      `${setting.key} has a control but neither a compiled file nor shell.mjs reads it, `
+      + 'so the row does nothing');
   }
 });
 
@@ -518,8 +552,11 @@ test('the new settings are not children, so the parent logic is untouched', () =
   for (const key of ['MELEE_UCF', 'MELEE_FROZEN_STADIUM', 'MELEE_NET_DELAY']) {
     assert.equal(parents.has(key), false, `${key} must not be a child`);
   }
-  // Still exactly one fold's worth of children: the 20XX family.
-  assert.equal(parents.size, 2);
+  // Still exactly one group: every child hangs off MELEE_20XX. A count of the
+  // children would move with each row added; the invariant is the single group,
+  // because addSettings makes one .kids box per distinct parent.
+  const groups = new Set(SETTINGS.filter((s) => s.parent).map((s) => s.parent));
+  assert.deepEqual([...groups], ['MELEE_20XX']);
 });
 
 test('the shell pushes stored live values once the runtime is up', async () => {
