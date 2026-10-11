@@ -418,6 +418,16 @@ void gm_801A4510(void)
 
     while (true) {
         u8 next_mode = runGameMode(state_machine.routing.curr_mode);
+#ifdef TARGET_PC
+        /* A runtime boot-scene request ended the scene above early (gmscene.c)
+         * without choosing a successor, so the request is the successor. A
+         * request that arrives while no mode is running is picked up the same
+         * way once the mode ends. */
+        if (pc_boot_scene_request() != GM_COUNT) {
+            next_mode = pc_boot_scene_request();
+            pc_boot_scene_consume();
+        }
+#endif
         if (gmMainLib_8046B0F0.resetting) {
             gmMainLib_8046B0F0.resetting = false;
         }

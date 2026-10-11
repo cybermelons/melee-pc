@@ -38,6 +38,17 @@ static struct loadData load_data;
 static struct leaveData leave_data;
 
 #ifdef TARGET_PC
+/* File scope rather than function-local so pc_set_boot_scene can answer for
+ * the browser. */
+static int s_boot_done;
+static u8 s_boot_scene = GM_COUNT;
+
+/* A runtime request is separate state from the cache above, because the init
+ * path in gm_1A3F.c reads pc_boot_scene() once and is done with it, whereas a
+ * request has to survive until the running scene ends. GM_COUNT means none
+ * pending. */
+static u8 s_requested_scene = GM_COUNT;
+
 /* MELEE_BOOT_SCENE=<title|vs|classic|training|event|unranked|direct|ranked>: skip the whole menu walk and
  * boot into one scene with a fixed setup. Menu navigation here can only be
  * driven by synthetic input, which misses keypresses often enough that an
@@ -49,12 +60,9 @@ static struct leaveData leave_data;
  * seed the pick and jump past it. */
 u8 pc_boot_scene(void)
 {
-    static int done;
-    static u8 scene = GM_COUNT;
-
-    if (!done) {
+    if (!s_boot_done) {
         const char* want = getenv("MELEE_BOOT_SCENE");
-        done = 1;
+        s_boot_done = 1;
         if (want == NULL || want[0] == '\0') {
             /* MELEE_BOOT_CSS=1 (and so MELEE_20XX=1): the 20XX "boot to CSS"
              * behaviour, which bootOnLeave describes as a Gekko code that
@@ -67,30 +75,30 @@ u8 pc_boot_scene(void)
              * appears. GM_VS keeps its own first state, so the character
              * select is reached normally and fills the preload cache. */
             if (pc_is_boot_css_enabled()) {
-                scene = GM_VS;
+                s_boot_scene = GM_VS;
             }
         } else if (strcmp(want, "title") == 0) {
-            scene = GM_TITLE;
+            s_boot_scene = GM_TITLE;
         } else if (strcmp(want, "vs") == 0) {
-            scene = GM_DEBUG_VS;
+            s_boot_scene = GM_DEBUG_VS;
         } else if (strcmp(want, "classic") == 0) {
-            scene = GM_CLASSIC;
+            s_boot_scene = GM_CLASSIC;
         } else if (strcmp(want, "training") == 0) {
-            scene = GM_TRAINING;
+            s_boot_scene = GM_TRAINING;
         } else if (strcmp(want, "event") == 0) {
             /* The event scene needs no character select: onEnterVs in
              * gmevent.c builds the whole match from the level table, so the
              * only thing to choose is which level. pc_boot_event_level reads
              * that, and gmEvent_ApplyBootLevel applies it. */
-            scene = GM_EVENT;
+            s_boot_scene = GM_EVENT;
         } else if (strcmp(want, "unranked") == 0) {
-            scene = GM_ONLINE;
+            s_boot_scene = GM_ONLINE;
             gmOnline_SetKind(ONLINE_KIND_UNRANKED);
         } else if (strcmp(want, "direct") == 0) {
-            scene = GM_ONLINE;
+            s_boot_scene = GM_ONLINE;
             gmOnline_SetKind(ONLINE_KIND_DIRECT);
         } else if (strcmp(want, "ranked") == 0) {
-            scene = GM_ONLINE;
+            s_boot_scene = GM_ONLINE;
             gmOnline_SetKind(ONLINE_KIND_RANKED);
         } else {
             OSReport("MELEE_BOOT_SCENE: unknown scene '%s'; valid values are "
@@ -99,7 +107,31 @@ u8 pc_boot_scene(void)
                      want);
         }
     }
-    return scene;
+    return s_boot_scene;
+}
+
+/* The browser cannot set MELEE_BOOT_SCENE: ENV was copied into the engine at
+ * preRun, and a netplay port is only claimed after that. Overwriting the
+ * cache and marking it resolved is what lets pc_boot_scene() answer for a
+ * caller that never had the env var, and stops a later first call from
+ * re-reading ENV over the top of it. The scene running right now ends at its
+ * next frame (gmscene.c) and the mode loop in gm_1A3F.c routes to this one
+ * instead of the mode the scene chose. */
+void pc_set_boot_scene(u8 mode)
+{
+    s_boot_done = 1;
+    s_boot_scene = mode;
+    s_requested_scene = mode;
+}
+
+u8 pc_boot_scene_request(void)
+{
+    return s_requested_scene;
+}
+
+void pc_boot_scene_consume(void)
+{
+    s_requested_scene = GM_COUNT;
 }
 
 /* MELEE_EVENT=<0..50>: which event match MELEE_BOOT_SCENE=event starts on.
