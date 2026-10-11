@@ -6,6 +6,13 @@ has to produce.
     python3 tools/progress/build.py            # writes docs/site/progress.html
     python3 tools/progress/build.py --check    # exit 1 if the page is stale
     python3 tools/progress/build.py --audit    # compare against the tracker
+    python3 tools/progress/build.py --gate     # check + audit + proofs + unread
+    python3 tools/progress/build.py --ack N    # mark issue N's comments read
+    python3 tools/progress/build.py --gate --ack N
+
+Optional per-issue fields (never read by render): proof (shell command, exit 0
+= the pin is done) and seen (last Gitea comment id folded in). Optional top
+level: comments_since (ISO time), inbox ({"n", "seen"}), pinnotate (URL).
 
 The board is not a screenshot. mockup.py builds the proposed launcher as real
 markup, and each pin measures its own anchor in the browser, so a control that
@@ -15,18 +22,23 @@ Every anchor must exist in the mockup. A pin over empty background still looks
 authoritative, so a missing anchor fails the build instead.
 """
 import argparse
+import datetime
+import functools
 import html
+import http.server
 import json
 import os
 import re
 import subprocess
 import sys
+import threading
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import mockup  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-DATA = os.path.join(ROOT, 'tools/progress/issues.json')
+DATA = os.environ.get('PROGRESS_DATA') or os.path.join(ROOT, 'tools/progress/issues.json')
 OUT = os.path.join(ROOT, 'docs/site/progress.html')
 
 
@@ -61,7 +73,7 @@ def render(data):
                              f"a pin nobody can read is worse than no pin")
         pins.append((i['side'],
             f'<a class="pin {i["state"]} {i["side"]}" '
-            f'data-anchor="{e(i["anchor"])}" '
+            f'data-anchor="{e(i["anchor"])}" data-issue="{i["n"]}" '
             f'href="{e(i.get("base", data["base"]))}{i["n"]}" '
             f'target="_blank" rel="noopener">'
             f'<span class="pin-n">{e(i.get("tag", ""))}{i["n"]}</span>'
@@ -75,6 +87,8 @@ def render(data):
         pins_right='\n  '.join(h for side, h in pins if side == 'right'),
         done=done, total=total, pct=pct, open_count=total - done,
         note=e(data.get('note', '')), base=e(data['base']),
+        pinnotate=(f'<script src="{e(data["pinnotate"].rstrip("/"))}/annotate.js" defer></script>\n'
+                   if data.get('pinnotate') else ''),
     )
 
 
@@ -665,7 +679,7 @@ for (const tab of document.querySelectorAll('.tab')) {{
   }});
 }}
 </script>
-</body>
+{pinnotate}</body>
 </html>
 """
 
@@ -680,7 +694,7 @@ def audit(data):
     while True:
         try:
             raw = subprocess.run(
-                ['tea', 'issues', 'list', '--login', 'noel',
+                [os.environ.get('TEA', 'tea'), 'issues', 'list', '--login', 'noel',
                  '--repo', data['repo'], '--state', 'all', '--output', 'json',
                  '--limit', '50', '--page', str(page)],
                 capture_output=True, text=True, timeout=60, check=True).stdout
@@ -717,33 +731,200 @@ def audit(data):
     return bad
 
 
+def check(data):
+    """0 if the written page matches the data, else 1."""
+    page = render(data)
+    try:
+        with open(OUT) as f:
+            current = f.read()
+    except FileNotFoundError:
+        print(f'{OUT} does not exist; run without --check')
+        return 1
+    if current != page:
+        print(f'{OUT} is stale; run tools/progress/build.py')
+        return 1
+    print(f'{OUT} is up to date')
+    return 0
+
+
+# Prints {selector: bool} for every selector, from ONE page load.
+PROBE = """
+import { createRequire } from 'node:module';
+const pw = createRequire(process.env.PLAYWRIGHT_FROM || '/home/kiri/repos/melee-web/')('playwright');
+const [url, sels] = [process.argv[1], JSON.parse(process.argv[2])];
+const b = await pw.chromium.launch({ headless: true });
+const p = await b.newPage();
+await p.goto(url, { waitUntil: 'load' });
+// ponytail: fixed 1000ms for the shell JS to build the launcher DOM; no ready
+// signal exists. Raise it if a slow host reports false REGRESSED.
+await p.waitForTimeout(1000);
+const out = await p.evaluate((l) => Object.fromEntries(l.map((s) => [s, !!document.querySelector(s)])), sels);
+await b.close();
+console.log(JSON.stringify(out));
+"""
+
+
+def probe(selectors):
+    """{selector: exists} in the real artifact, or raise RuntimeError."""
+    url, srv = os.environ.get('PROGRESS_ARTIFACT_URL'), None
+    if not url:
+        class Quiet(http.server.SimpleHTTPRequestHandler):
+            def log_message(self, *a):
+                pass
+        h = functools.partial(Quiet, directory=os.path.join(ROOT, 'platforms/browser'))
+        srv = http.server.ThreadingHTTPServer(('127.0.0.1', 0), h)
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        url = f'http://127.0.0.1:{srv.server_address[1]}/index.html'
+    node = os.environ.get('NODE') or (
+        '/home/kiri/.local/bin/node' if os.path.exists('/home/kiri/.local/bin/node') else 'node')
+    try:
+        r = subprocess.run([node, '--input-type=module', '-e', PROBE, url, json.dumps(selectors)],
+                           capture_output=True, text=True, timeout=120)
+        if r.returncode:
+            raise RuntimeError(f'node exit {r.returncode}: {(r.stderr or r.stdout)[-300:]}')
+        return json.loads(r.stdout)
+    except (OSError, subprocess.SubprocessError, json.JSONDecodeError) as err:
+        raise RuntimeError(str(err))
+    finally:
+        if srv:
+            srv.shutdown()
+
+
+def proofs(data):
+    """Run every pin's proof. Returns (hard, ready)."""
+    issues = data['issues']
+    need = sorted({i['anchor'] for i in issues if 'proof' not in i and i['anchor'].startswith('#')})
+    found = {}
+    if need:
+        try:
+            found = probe(need)
+        except RuntimeError as err:
+            print(f'gate: probe failed: {err}')
+            return 1, 0
+    hard = ready = 0
+    for i in issues:
+        label = f"{i.get('tag', '#')}{i['n']}"
+        if 'proof' in i:
+            try:
+                ok = subprocess.run(i['proof'], shell=True, cwd=ROOT, timeout=60).returncode == 0
+            except subprocess.SubprocessError:
+                ok = False
+            why = i['proof']
+        elif i['anchor'] in found:
+            ok, why = found[i['anchor']], f"{i['anchor']} not in artifact"
+        else:
+            continue
+        if i['state'] == 'closed' and not ok:
+            print(f'REGRESSED {label} ({why})')
+            hard += 1
+        elif i['state'] == 'open' and ok:
+            print(f"READY {label} ({i['anchor'] if 'proof' not in i else why})")
+            ready += 1
+    return hard, ready
+
+
+def unread(data, ack=None):
+    """Print UNREAD lines for Gitea comments newer than each issue's seen.
+
+    Returns (hard, unread). With ack=N, N's counted comments are marked seen
+    (issues.json is rewritten) and no longer count.
+    """
+    now = datetime.datetime.now(datetime.timezone.utc)
+    # ponytail: 7-day default window, so older unfolded comments are not seen;
+    # set comments_since in issues.json to widen it.
+    since = data.get('comments_since') or (now - datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%SZ')
+    if len(since) == 10:  # bare date; Gitea wants RFC 3339
+        since += 'T00:00:00Z'
+    comments = []
+    try:
+        for page in range(1, 21):
+            cmd = [os.environ.get('TEA', 'tea'), 'api', '--login', 'noel',
+                   f"/repos/{data['repo']}/issues/comments?since={since}&limit=50&page={page}"]
+            raw = subprocess.run(cmd, capture_output=True, text=True, timeout=60).stdout
+            got = json.loads(raw)
+            if not isinstance(got, list):
+                raise ValueError(raw)
+            comments += got
+            if len(got) != 50:
+                break
+        else:
+            print('gate: comments: 20 pages read, newer ones may be cut off; advance comments_since')
+    except (OSError, subprocess.SubprocessError, ValueError) as err:
+        print(f'gate: comments: {str(err)[:200]}')
+        return 1, 0
+
+    inbox = data.get('inbox')
+    seen = {}
+    for i in data['issues']:
+        if 'base' not in i:
+            seen[i['n']] = max(seen.get(i['n'], 0), i.get('seen', 0))
+    if inbox:
+        seen[inbox['n']] = inbox.get('seen', 0)
+    count, top = {}, {}
+    for c in comments:
+        n = int(c['issue_url'].rsplit('/', 1)[1])
+        body = c.get('body', '')
+        if n not in seen or c['id'] <= seen[n]:
+            continue
+        if '<!-- wave -->' in body and '<!-- pinnotate:' not in body:
+            continue
+        count[n] = count.get(n, 0) + 1
+        top[n] = max(top.get(n, 0), c['id'])
+
+    if ack is not None:
+        if ack not in top:
+            print(f'ack: nothing unread on #{ack}')
+        else:
+            recs = [inbox] if inbox and inbox['n'] == ack else [
+                i for i in data['issues'] if i['n'] == ack and 'base' not in i]
+            top_id = top.pop(ack)
+            for rec in recs:
+                rec['seen'] = top_id
+            count.pop(ack)
+            with open(DATA, 'w') as f:
+                f.write(json.dumps(data, indent=2, ensure_ascii=False) + '\n')
+            print(f'acked #{ack} seen={top_id}')
+    for n, k in count.items():
+        print(f'UNREAD #{n} ({k})' + (' inbox: notes to triage' if inbox and inbox['n'] == n else ''))
+    return 0, sum(1 for _ in count)
+
+
+def gate(data, ack=None):
+    t0 = time.monotonic()
+    hard = check(data) + audit(data)
+    h, ready = proofs(data)
+    h2, nunread = unread(data, ack)
+    hard += h + h2
+    bad = hard or nunread
+    print(f"gate: {'FAIL' if bad else 'ok'} hard={hard} unread={nunread} ready={ready} "
+          f"{time.monotonic() - t0:.1f}s")
+    return 1 if bad else 0
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--check', action='store_true',
                     help='exit 1 if the written page differs from the data')
     ap.add_argument('--audit', action='store_true',
                     help='compare the board against the tracker')
+    ap.add_argument('--gate', action='store_true',
+                    help='check + audit + proofs; exit 1 on any failure')
+    ap.add_argument('--ack', type=int, metavar='N',
+                    help="mark issue N's unread comments as seen")
     args = ap.parse_args()
 
     with open(DATA) as f:
         data = json.load(f)
     if args.audit:
         return audit(data)
+    if args.gate:
+        return gate(data, args.ack)
+    if args.ack is not None:
+        return unread(data, args.ack)[0]
+    if args.check:
+        return check(data)
 
     page = render(data)
-    if args.check:
-        try:
-            with open(OUT) as f:
-                current = f.read()
-        except FileNotFoundError:
-            print(f'{OUT} does not exist; run without --check')
-            return 1
-        if current != page:
-            print(f'{OUT} is stale; run tools/progress/build.py')
-            return 1
-        print(f'{OUT} is up to date')
-        return 0
-
     with open(OUT, 'w') as f:
         f.write(page)
     print(f'wrote {OUT}: {len(data["issues"])} pins on the launcher mockup')
