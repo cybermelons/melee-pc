@@ -28,7 +28,7 @@
       "n": 6,
       "anchor": "#room-code",
       "side": "left",
-      "state": "open",
+      "state": "closed",
       "title": "Shared lobby URL with port claiming",
       "pin": "The room code is the lobby, top right, and clicking it copies the link. Two players pair for real, and a phone-shaped browser is one of them: measured over the routable tailnet address, both claim a port and the touch overlay draws. Two defects had to go first, and both hid behind loopback. signal.mjs sent claims as an object while lobby.mjs calls .indexOf on it, so every state event threw and no claim ever rendered (9fee67ca). Then crypto.randomUUID, which exists only in a secure context: http://127.0.0.1 is one by exemption and a tailnet IP is not, so the page could mint neither a room nor an identity on the only origin a visitor uses (f303d4a8). A third defect was in the offer itself: gathered() cut ICE gathering off after 3 seconds without checking that a srflx candidate had arrived, so on a slow network the offer went out with LAN addresses only. Measured here the first srflx lands at 11 ms while gathering is still open after 12 s, so the cutoff is now a ceiling and the srflx arrival releases the offer (c51bf783). Also measured over an https origin, which is what a shared link really has and which plain http on an IP is not: both ports claim and the data channel opens there too. On the two-seat path this is done: two players pair over a real shared link and both claim a port. Ports 3 and 4 are no longer counted here -- they are not a transport gap but an engine one (#40, out of goal), and the lobby now says so on the tile instead of promising a fix: an unreachable tile reads \"2P only\" (lobby.mjs:347) and the spec's P3/P4 are drawn unavailable to match. The link is a private tailnet address, shared privately rather than published, so the server needs no auth gate of its own. The two requests on this issue are split out so the board can pin them separately: #44 (the \"copy link\" text, comment 3076) and #45 (a list of open lobbies, comment 3101).",
       "proof": "/home/kiri/.nvm/versions/node/v20.5.1/bin/node --test --test-name-pattern 'an unreachable tile reads \"2P only\" on screen, not \"free\" or a pending issue' tests/browser/lobby.test.mjs 2>&1 | grep -qx '# pass 1' && /home/kiri/.nvm/versions/node/v20.5.1/bin/node --test --test-name-pattern 'minting works without randomUUID, which a plain-http origin lacks' tests/browser/lobby.test.mjs 2>&1 | grep -qx '# pass 1' && /home/kiri/.nvm/versions/node/v20.5.1/bin/node --test --test-name-pattern 'the share link carries the room' tests/browser/lobby.test.mjs 2>&1 | grep -qx '# pass 1'"
@@ -37,7 +37,7 @@
       "n": 22,
       "anchor": "#ports",
       "side": "left",
-      "state": "open",
+      "state": "closed",
       "title": "Lobby replaces the mode list",
       "pin": "One persistent room per URL, shipped in 00480d1b: lobby.mjs mints the room with replaceState and draws four port tiles, 42 tests cover it. The mode links are gone, and the last MELEE_BOOT_SCENE links on the page -- the #perf render-scale row -- are gone too: they duplicated the Video setting and dropped ?room= on every press, which the #35 ruling makes a real bug rather than a cosmetic one. One correction to this issue's text: it says 'the ports stay as they are' across a save-state load. Per #35 a load now mints a NEW room, so the loader keeps its seat through the reload but re-invites instead of rejoining. Still open on gitea; the owner closes it.",
       "proof": "/home/kiri/.nvm/versions/node/v20.5.1/bin/node --test --test-name-pattern 'a URL with no room gets one, without reloading the page' tests/browser/lobby.test.mjs 2>&1 | grep -qx '# pass 1' && /home/kiri/.nvm/versions/node/v20.5.1/bin/node --test --test-name-pattern 'four tiles are drawn, and the ones past the pairable count say so' tests/browser/lobby.test.mjs 2>&1 | grep -qx '# pass 1' && ! grep -rqn 'render-scale\\|renderScale' platforms/browser/ && grep -q 'history.replaceState' platforms/browser/lobby.mjs"
@@ -46,7 +46,7 @@
       "n": 35,
       "anchor": "#settings-apply",
       "side": "right",
-      "state": "open",
+      "state": "closed",
       "title": "Boot flags are bound to the room code, not to the URL",
       "pin": "Owner ruling landed: a load mints a new room code. Implemented -- states.mjs withRoom mints a room onto the state search, with a test that fails if a stored room rides along. The strip happens earlier, in saveSearch, so no state this build writes carries a room at all; withRoom overrides the one a hand-edited or older store can still hold. Reason: a preset load is a reload (no snapshot path in the browser build), so the old room already saw this player leave and reassigned the port. Rejoining it would make the two sides disagree about the port map. Unblocks #22.",
       "proof": "/home/kiri/.nvm/versions/node/v20.5.1/bin/node --test --test-name-pattern 'a preset press loads that preset in a new room, not the old one' tests/browser/states.test.mjs 2>&1 | grep -qx '# pass 1' && /home/kiri/.nvm/versions/node/v20.5.1/bin/node --test --test-name-pattern 'a load mints a room even when the player was in none' tests/browser/states.test.mjs 2>&1 | grep -qx '# pass 1' && /home/kiri/.nvm/versions/node/v20.5.1/bin/node --test --test-name-pattern 'a stored state that carries a room is overridden, not joined' tests/browser/states.test.mjs 2>&1 | grep -qx '# pass 1'"
@@ -71,7 +71,7 @@
       "n": 23,
       "anchor": "#here",
       "side": "left",
-      "state": "open",
+      "state": "closed",
       "title": "Spectators and the room roster",
       "pin": "The owner ruled the port queue out: \"there's no 'up next'. it's just a lobby that people can take ports on. like a living room with people and a gamecube, anyone can do whatever\" (comment 3880). So the ordering is gone from all four layers -- the server keeps no queue and promotes nobody, a freed port is takeable by anyone, a taken one answers 409 and enrols the claimant in nothing, and the lobby draws no #queue line. What remains is the half the ruling keeps: #here lists who is in the room, read off the signalling server's subscriber map, which the close handler already prunes. The demo's old \"2 watching\" count is gone, since no message carried it and the list says more anyway. Measured over three real subscriptions: the server publishes here:[kiri,guest-4f,mango] and the lobby draws \"In the room: kiri, guest-4f, mango\". Past the seat count everybody simply watches: #no-port tells a portless visitor \"Spectating - you hold no port - take a free one\", and #31 marks the tile of whoever does hold one. The transport for more peers is #40 and out of goal.",
       "proof": "grep -q \"roster.id = 'here'\" platforms/browser/lobby.mjs && ! grep -rq \"id = 'queue'\" platforms/browser/lobby.mjs",
@@ -89,7 +89,7 @@
       "n": 24,
       "anchor": "#states",
       "side": "left",
-      "state": "open",
+      "state": "closed",
       "title": "Modes become save states",
       "pin": "Versus and Training stop being places to go. The port-loss bug is fixed: sessionId keyed on sessionStorage survives the reload, so the loader keeps its seat. Per the #35 ruling a load now opens a NEW room, so the loader re-invites rather than rejoining a room that wrote them off.",
       "proof": "/home/kiri/.nvm/versions/node/v20.5.1/bin/node --test --test-name-pattern 'loading a state keeps the port it was loaded from' tests/browser/room-claims.test.mjs 2>&1 | grep -qx '# pass 1' && /home/kiri/.nvm/versions/node/v20.5.1/bin/node --test --test-name-pattern 'sessionId is stable across reloads in the same tab' tests/browser/lobby.test.mjs 2>&1 | grep -qx '# pass 1' && /home/kiri/.nvm/versions/node/v20.5.1/bin/node --test --test-name-pattern 'sessionId defaults to the per-tab store, not the shared one' tests/browser/lobby.test.mjs 2>&1 | grep -qx '# pass 1'"
@@ -148,7 +148,7 @@
       "n": 26,
       "anchor": "#setting-tabs",
       "side": "right",
-      "state": "open",
+      "state": "closed",
       "title": "Settings into tabs",
       "pin": "Four tabs of five. Netplay arrived with MELEE_NET_DELAY in #28. Input stays empty because no input setting exists in the engine to put in it -- see #32, measured.",
       "proof": "/home/kiri/.nvm/versions/node/v20.5.1/bin/node --test --test-name-pattern 'the rows are grouped into tabs, one head per pane' tests/browser/settings.test.mjs 2>&1 | grep -qx '# pass 1' && /home/kiri/.nvm/versions/node/v20.5.1/bin/node --test --test-name-pattern 'exactly one pane is in front, and a head switches it' tests/browser/settings.test.mjs 2>&1 | grep -qx '# pass 1' && /home/kiri/.nvm/versions/node/v20.5.1/bin/node --test --test-name-pattern 'the Netplay tab exists and holds the net delay row' tests/browser/settings.test.mjs 2>&1 | grep -qx '# pass 1'"
@@ -165,7 +165,7 @@
       "n": 28,
       "anchor": "#ctl-MELEE_UCF",
       "side": "right",
-      "state": "open",
+      "state": "closed",
       "title": "Port the native launcher settings",
       "pin": "Boot-time env route only. Of the 22 demo rows that are not live controls, 10 are built (MELEE_20XX, _BOOT_CSS, _20XX_RULES, UCF, FROZEN_STADIUM, PAUSE, PAUSE_ON_BLUR, SCALE, HITBOXES, NET_DELAY), so 10 of 22. Each is a query param read once in preRun, so changing one costs a page reload. The other 12 are not done: six have no getenv anywhere in src/ and no exported setter, so there is no route to the engine at all (hud_mode, texture filter, custom_textures, free_camera, mute, net_name); the rest are owned by #29 (unlock-all), #32 (four input rows) and #17 (relay). The five audio and aspect controls are not counted here: they went in by a different mechanism, see #42.",
       "seen": 3680,
@@ -216,7 +216,7 @@
       "n": 7,
       "anchor": "#ctl-MELEE_PAUSE_ON_BLUR",
       "side": "right",
-      "state": "open",
+      "state": "closed",
       "title": "Browser QoL: resume, pause, settings",
       "pin": "Pause-on-blur landed. Resume after refresh and pause on crash did not. Parked.",
       "proof": "python3 tests/browser/test_pause_on_blur.py && grep -q \"key: 'MELEE_PAUSE_ON_BLUR'\" platforms/browser/settings.mjs"
@@ -258,7 +258,7 @@
       "n": 19,
       "anchor": "#log-tab",
       "side": "left",
-      "state": "open",
+      "state": "closed",
       "title": "Headless runs can draw on the desktop",
       "pin": "Fixed in melee-pc: the display variables are removed inside cage. melee-web still needs the same line.",
       "proof": "grep -q 'env -u WAYLAND_DISPLAY -u DISPLAY' tools/display.sh && grep -q 'WLR_BACKENDS=headless' tools/display.sh && ! grep -qE 'WLR_BACKEND=' tools/display.sh"
@@ -267,7 +267,7 @@
       "n": 29,
       "anchor": "#kids-20xx",
       "side": "right",
-      "state": "open",
+      "state": "closed",
       "title": "Condense the 20XX children into a closed grid",
       "pin": "Ruled twice and now built that way (comments 3181 and 3809): the children sit open under the parent with no fold, and a hint is a tooltip rather than a row. The <details> and its \"Individual settings\" summary are gone -- the summary was itself the text bloat the ruling removes, and the fold cost a click on every visit to save one row. #kids-20xx is now a plain div and keeps the id, so the board still pins it. Hints move to title, so the Tournament rules line no longer spends a row. Correction to this pin: it said Unlock everything stays out because the C env read does not exist. That is wrong for the browser target. platforms/browser/pc_stubs.c:51 reads MELEE_UNLOCK_ALL and falls back to pc_is_20xx_enabled; pc_stubs.c is in the link at CMakeLists.txt:46, launcher.cpp is not in the browser build at all, and gm_1601.c consumes it at 2451, 2562 and 2620. So the control needs a SETTINGS row and no C work. The row is in as a third 20XX child, ctl-MELEE_UNLOCK_ALL. The spec had declared it as ctl-unlock-all, which no build could have produced -- an env-backed row is ctl- plus the env name -- so the mockup is renamed to match and the two sources agree.",
       "seen": 3809,
@@ -277,7 +277,7 @@
       "n": 30,
       "anchor": "#port-1-pad",
       "side": "left",
-      "state": "open",
+      "state": "closed",
       "title": "Controller connect belongs on the port",
       "pin": "Shipped: every tile has this button, and it offers only the sources this browser can do. The page-level WebHID button is gone, and the picker opens from the press. Picking a source labels the port; only the adapter routes input so far, which is #5 and #2.",
       "proof": "grep -q \"cbtn.id = 'port-1-pad'\" platforms/browser/lobby.mjs"
@@ -303,7 +303,7 @@
       "n": 33,
       "anchor": "#load-btn",
       "side": "right",
-      "state": "open",
+      "state": "closed",
       "title": "Load button and save-state modal, instead of a disc chip",
       "pin": "The chip read a percentage the browser build cannot measure. The slot becomes a press: Load opens the state menu, which holds the four presets and the states this player saved.",
       "proof": "/home/kiri/.nvm/versions/node/v20.5.1/bin/node --test --test-name-pattern 'the Load button in the lobby bar is what opens it' tests/browser/states.test.mjs 2>&1 | grep -qx '# pass 1' && /home/kiri/.nvm/versions/node/v20.5.1/bin/node --test --test-name-pattern 'no chip is left in the lobby bar' tests/browser/states.test.mjs 2>&1 | grep -qx '# pass 1' && /home/kiri/.nvm/versions/node/v20.5.1/bin/node --test --test-name-pattern 'the modal holds both groups and the save action, not only presets' tests/browser/states.test.mjs 2>&1 | grep -qx '# pass 1' && /home/kiri/.nvm/versions/node/v20.5.1/bin/node --test --test-name-pattern 'the modal is shut until Load is pressed, and shuts again on Close' tests/browser/states.test.mjs 2>&1 | grep -qx '# pass 1'"
@@ -371,7 +371,7 @@
       "n": 45,
       "anchor": "#join-btn",
       "side": "left",
-      "state": "open",
+      "state": "closed",
       "title": "Lobby: list open lobbies to join",
       "pin": "Built. Join lists the open lobbies and a press goes to one. The three halves the last pin named as missing all landed: the signal server enumerates rooms (GET /rooms, signal.mjs:46, returning name/here/free per room), the button has a handler (lobby.mjs:267, the same onJoin shape as onLoad), and the list itself is platforms/browser/join.mjs, a <dialog> mirroring the save-state modal. free counts the two pairable slots the transport actually carries, not all four ports, so a tile cannot report a seat netplay would refuse. A full room is listed disabled and says \"(full)\" rather than vanishing, because a room that silently leaves the list reads as a fault. The modal shows itself on the press and fills afterwards: awaiting the fetch first left Join looking dead for as long as the signal server took, and an unreachable server is the normal case for a visitor who was sent a link, so that path renders a line and never throws out of open(). Seven tests in tests/browser/join.test.mjs, two of them against a real http server. What is NOT built: no room has a name a human chose, so the list shows the minted hex, and nothing filters or sorts it -- fine while a room lives only as long as a stream.",
       "proof": "cd /home/kiri/wt-mp-parity && N=/home/kiri/.nvm/versions/node/v20.5.1/bin/node && $N --test --test-name-pattern 'the modal is shut until Join is pressed, and shuts again on Close' tests/browser/join.test.mjs 2>&1 | grep -qx '# pass 1' && $N --test --test-name-pattern 'pressing a room navigates to that room and to no other' tests/browser/join.test.mjs 2>&1 | grep -qx '# pass 1' && $N --test --test-name-pattern 'a room with no free seat is disabled and says so, a room with one is pressable' tests/browser/join.test.mjs 2>&1 | grep -qx '# pass 1' && $N --test --test-name-pattern 'the rooms endpoint reports occupancy and free seats' tests/browser/join.test.mjs 2>&1 | grep -qx '# pass 1' && $N --test --test-name-pattern 'the modal opens on the press, before the room list has arrived' tests/browser/join.test.mjs 2>&1 | grep -qx '# pass 1' && grep -q 'if (onJoin) join.addEventListener' platforms/browser/lobby.mjs"
