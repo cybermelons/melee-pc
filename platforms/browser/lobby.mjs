@@ -329,7 +329,13 @@ export function addLobby(host, {
   seat.id = 'no-port';
   seat.hidden = true;
 
-  host.append(bar, ports, roster, seat);
+  // The demo's titled card, as on #settings. The bar stays above the heading,
+  // as the demo's #lobby-bar sits outside its <section id="lobby">.
+  host.className = 'group';
+  const title = el('h2', 'group-h', 'Lobby ');
+  title.append(el('span', 'sub-h', 'everyone at this link is in this room'));
+
+  host.append(bar, title, ports, roster, seat);
 
   // The per-port source record lives here, because nothing else holds it: the
   // signal server tracks claims only, and C keeps no map back from a port.

@@ -423,6 +423,21 @@
   #load-modal::backdrop, #join-modal::backdrop { background: #000000b0; }
   #load-modal .sheet, #join-modal .sheet { display: grid; gap: 10px; }
   #load-modal .group-h, #join-modal .group-h { margin: 0; font-size: 15px; }
+  /* The demo's titled cards. Scoped to the two panels: the modals above have
+     their own .group-h sizing and an unscoped rule would restyle them. The
+     demo's var(--dim) is #a4a6b3; this page has no custom properties. */
+  #lobby.group, #settings.group { display: grid; gap: 10px; }
+  #lobby .group-h, #settings .group-h {
+    margin: 0; font-size: 13px; letter-spacing: .09em;
+    text-transform: uppercase; color: #a4a6b3; font-weight: 600;
+  }
+  #lobby .sub-h, #settings .sub-h {
+    text-transform: none; letter-spacing: 0; font-weight: 400; color: #6f7280;
+  }
+  @media (max-width: 560px) {
+    #lobby .group-h, #settings .group-h { font-size: 12px; }
+    #lobby .sub-h, #settings .sub-h { display: none; }
+  }
   #load-modal .sub-h { margin-left: 6px; color: #999; font-size: 12px; font-weight: 400; }
   .states { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .state { text-align: left; display: grid; gap: 2px; min-height: 44px;

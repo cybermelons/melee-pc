@@ -578,3 +578,14 @@ test('the lobby identity is not minted fresh per page load', () => {
   assert.ok(!/const me = crypto\.randomUUID\(\)/.test(src),
     'shell.mjs must not mint a fresh id for `me`; a state load would drop the port');
 });
+
+test('the lobby is a titled .group card with a .sub-h', () => {
+  const { host } = buildLobby({});
+  assert.equal(host.className.split(' ').includes('group'), true);
+  const h = host.find('.group-h');
+  assert.equal(h.length, 1);
+  assert.equal(h[0].tagName, 'h2');
+  assert.equal(h[0].textContent, 'Lobby ');
+  assert.equal(h[0].children[0].className, 'sub-h');
+  assert.equal(h[0].children[0].textContent, 'everyone at this link is in this room');
+});

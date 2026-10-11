@@ -716,3 +716,18 @@ test('the demo wrapper classes the stylesheet targets are all emitted', async ()
   const ids = apply.parent.children.map((c) => c.id);
   assert.deepEqual(ids, ['settings-link', 'settings-apply', 'settings-note']);
 });
+
+// The demo wraps each panel in a titled card. The .group-h rules were added for
+// CSS only, so nothing read them; this fails when the heading goes missing.
+test('the settings form is a titled .group card with a .sub-h', async () => {
+  const host = stubDom('');
+  const { addSettings } = await import('../../platforms/browser/settings.mjs');
+  const form = addSettings(host, { reload: () => {} });
+  assert.equal(form.className.split(' ').includes('group'), true);
+  const h = form.querySelectorAll('.group-h');
+  assert.equal(h.length, 1);
+  assert.equal(h[0].tagName, 'h2');
+  assert.equal(h[0].textContent, 'Settings ');
+  assert.equal(h[0].children[0].className, 'sub-h');
+  assert.equal(h[0].children[0].textContent, 'applied at boot, so Apply reloads the page');
+});

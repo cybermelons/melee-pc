@@ -227,6 +227,16 @@ export function addSettings(host, { reload = (search) => location.assign(search 
   const values = readSearch(location.search);
   const form = document.createElement('form');
   form.id = 'settings';
+  // The demo's titled card: .group lays the heading and the body out as a grid.
+  form.className = 'group';
+  const title = document.createElement('h2');
+  title.className = 'group-h';
+  title.textContent = 'Settings ';
+  const sub = document.createElement('span');
+  sub.className = 'sub-h';
+  sub.textContent = 'applied at boot, so Apply reloads the page';
+  title.append(sub);
+  form.append(title);
   // Not a submit: a GET submit would serialize every control, including the
   // defaults this deliberately omits from the URL.
   form.addEventListener('submit', (event) => event.preventDefault());
