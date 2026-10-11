@@ -36,6 +36,7 @@
 // no std::getenv anywhere, so the query string has nothing to write into.
 // Only UCF, frozen stadium and net delay have a real env reader, and those
 // are the three controls below. See issue #28.
+import { SETTING_IDS } from './setting-ids.mjs';
 export const TABS = ['Game', 'Video', 'Audio', 'Netplay'];
 
 export const SETTINGS = [
@@ -153,8 +154,12 @@ export function addSettings(host, { reload = (search) => location.assign(search 
   const touched = new Set();
   const kids = new Map();
   const folds = new Map();
+  // The row id comes from the manifest: that is what lets --parity prove a
+  // loop-built row by data instead of by grep.
+  const manifest = new Set(SETTING_IDS);
   for (const setting of SETTINGS) {
     const row = document.createElement('label');
+    if (manifest.has(`ctl-${setting.key}`)) row.id = `ctl-${setting.key}`;
     row.className = setting.parent ? 'setting child'
       : (SETTINGS.some((s) => s.parent === setting.key) ? 'setting parent' : 'setting');
     let input;

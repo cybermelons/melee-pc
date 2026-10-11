@@ -31,6 +31,7 @@ DATA = os.path.join(ROOT, 'tools/progress/issues.json')
 OUT = os.path.join(ROOT, 'docs/site/progress.html')
 LAUNCHER_HTML = os.path.join(ROOT, 'platforms/browser/index.html')
 LAUNCHER_JS = os.path.join(ROOT, 'platforms/browser')
+SETTING_IDS = os.path.join(ROOT, 'platforms/browser/setting-ids.mjs')
 
 
 def html_ids(markup):
@@ -614,7 +615,7 @@ def audit(data):
     return bad
 
 
-def parity(data, mock_html=None, real_html=None, js=None):
+def parity(data, mock_html=None, real_html=None, js=None, manifest=None):
     """Compare the mockup's ids to the real launcher; fail on a false close.
 
     Each mockup id is `markup` (in platforms/browser/index.html), `js-only`
@@ -638,6 +639,9 @@ def parity(data, mock_html=None, real_html=None, js=None):
         for path in sorted(glob.glob(os.path.join(LAUNCHER_JS, '*.mjs'))):
             with open(path) as f:
                 js += f.read() + '\n'
+    if manifest is None:
+        with open(SETTING_IDS) as f:
+            manifest = re.findall(r"'(ctl-[^']+)'", f.read())
     mock_ids, real_ids = html_ids(mock_html), html_ids(real_html)
     print(f'parity: {len(mock_ids)} mockup ids, {len(real_ids)} real launcher ids, '
           f'{len(js)} bytes of js')
@@ -645,6 +649,12 @@ def parity(data, mock_html=None, real_html=None, js=None):
         print('parity: an input set is empty, so this check cannot report '
               'anything; refusing to call it a pass')
         return 1
+    mock_ctl = {i for i in mock_ids if i.startswith('ctl-')}
+    if set(manifest) != mock_ctl:
+        print('parity: setting-ids.mjs and the mockup disagree: '
+              f'{sorted(set(manifest) ^ mock_ctl)}')
+        return 1
+    print(f'parity: {len(mock_ctl)} manifest setting ids, matching the mockup')
 
     def classify(i):
         if i in real_ids:

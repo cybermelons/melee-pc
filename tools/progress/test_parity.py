@@ -14,10 +14,10 @@ REAL = '<div id="have"></div>'
 JS = 'document.getElementById("dyn")'
 
 
-def run(state, anchor, mock=MOCK, real=REAL, js=JS):
+def run(state, anchor, mock=MOCK, real=REAL, js=JS, manifest=()):
     data = {'issues': [{'n': 1, 'state': state, 'anchor': anchor}]}
     with redirect_stdout(io.StringIO()):
-        return build.parity(data, mock, real, js)
+        return build.parity(data, mock, real, js, list(manifest))
 
 
 tests = 0
@@ -36,6 +36,10 @@ check(run('closed', '#dyn'), 1, 'closed pin, js-only anchor')
 check(run('open', '#dyn'), 0, 'open pin, js-only anchor')
 check(run('open', '#have', mock=''), 1, 'empty mockup set')
 check(run('open', '#have', real=''), 1, 'empty real set')
+CTL = MOCK + '<div id="ctl-a"></div><div id="ctl-b"></div>'
+check(run('open', '#have', mock=CTL, manifest=['ctl-a', 'ctl-b']), 0, 'manifest matches mockup')
+check(run('open', '#have', mock=CTL, manifest=['ctl-a']), 1, 'manifest missing an id')
+check(run('open', '#have', mock=CTL, manifest=['ctl-a', 'ctl-b', 'ctl-c']), 1, 'manifest extra id')
 
-assert tests == 7, f'ran {tests} tests, expected 7'
+assert tests == 10, f'ran {tests} tests, expected 10'
 print(f'{tests} passed')
