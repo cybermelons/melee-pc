@@ -352,7 +352,7 @@ test('the children sit open under the parent, in one box and with no fold', asyn
     const row = form.querySelector(`[name=${setting.key}]`).parent;
     assert.equal(row.parent, boxes[0], `${setting.key} is not directly in the box`);
   }
-  assert.equal(boxes[0].parent.className.split(' ').includes('pane'), true);
+  assert.equal(boxes[0].parent.parent.className.split(' ').includes('pane'), true);
 });
 
 test('a hint is a tooltip, so it costs no row', async () => {
@@ -553,7 +553,7 @@ test('the Netplay tab exists and holds the net delay row', async () => {
   const { addSettings } = await import('../../platforms/browser/settings.mjs');
   const form = addSettings(host, { reload: () => {} });
   const row = form.querySelector('[name=MELEE_NET_DELAY]').parent;
-  assert.equal(row.parent.className.split(' ').includes('pane'), true,
+  assert.equal(row.parent.parent.className.split(' ').includes('pane'), true,
     'the row must be a loose row in a pane, not folded under a parent');
   const heads = form.querySelector('.tab-heads');
   assert.ok(heads.children.some((h) => h.textContent === 'Netplay'));
@@ -618,7 +618,7 @@ test('the four Input rows exist with class setting, inside the Input pane', asyn
     assert.ok(row, `${id} missing`);
     assert.ok(row.className.split(' ').includes('setting'), `${id} lacks class setting`);
     assert.ok(row.children.some((c) => c.className === 'setting-label'), `${id} lacks setting-label`);
-    assert.equal(row.parent.className.split(' ').includes('pane'), true, `${id} not a loose row in a pane`);
+    assert.equal(row.parent.parent.className.split(' ').includes('pane'), true, `${id} not a loose row in a pane`);
   }
   const pane = form.querySelector('#ctl-tap-jump').parent;
   for (const id of INPUT_IDS) assert.equal(form.querySelector(`#${id}`).parent, pane, `${id} in another pane`);
@@ -633,8 +633,8 @@ test('the Input tab head exists and switching to it brings the rows forward', as
   const at = heads.children.findIndex((h) => h.textContent === 'Input');
   assert.equal(at, 3, 'Input sits between Audio and Netplay');
   heads.children[at].handlers.get('click')();
-  assert.equal(form.querySelector('#ctl-deadzone').parent.className, 'pane');
-  assert.equal(form.querySelector('#ctl-volume').parent.className, 'pane off');
+  assert.equal(form.querySelector('#ctl-deadzone').parent.parent.className, 'pane');
+  assert.equal(form.querySelector('#ctl-volume').parent.parent.className, 'pane off');
 });
 
 test('an Input control stores under melee.input and inputPref reads it back', async () => {
@@ -692,4 +692,27 @@ test('Tap to jump lets the upward axis reach full in one frame, off takes severa
     assert.equal(frames[0], 8, 'unchecked: first frame is a tenth');
     assert.equal(frames.indexOf(80), 9, 'unchecked: ten frames to full');
   } finally { delete globalThis.localStorage; }
+});
+
+// The demo styles rows through .pane-grid, the Apply row through .apply-row and
+// the Apply button through .primary. All three were added for CSS only, so
+// nothing else in this suite reads them: deleting all three left 170/170 green.
+// This is the gate that fails when one goes missing.
+test('the demo wrapper classes the stylesheet targets are all emitted', async () => {
+  const host = stubDom('');
+  const { addSettings } = await import('../../platforms/browser/settings.mjs');
+  const form = addSettings(host, { reload: () => {} });
+
+  // Every row sits in a .pane-grid, which is itself in a .pane.
+  const row = form.querySelector('#ctl-MELEE_PAUSE');
+  assert.equal(row.parent.className, 'pane-grid', 'a row must sit in .pane-grid');
+  assert.equal(row.parent.parent.className.split(' ').includes('pane'), true);
+
+  // The Apply row wraps the link, the button and the note, in that order.
+  const apply = form.querySelector('#settings-apply');
+  assert.equal(apply.parent.className, 'apply-row', 'Apply must sit in .apply-row');
+  assert.equal(apply.className.split(' ').includes('primary'), true,
+    'the Apply button carries .primary, which is what colours it');
+  const ids = apply.parent.children.map((c) => c.id);
+  assert.deepEqual(ids, ['settings-link', 'settings-apply', 'settings-note']);
 });

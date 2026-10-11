@@ -377,7 +377,26 @@
   /* 44px targets and 16px text: the same minimums the rest of the panel uses,
      so a tap lands and iOS does not zoom the page on focus. */
   #settings select, #settings input, #settings button { min-height: 44px; font-size: 16px; }
-  #settings-link { width: 100%; max-width: 46ch; font-family: ui-monospace, monospace; font-size: 13px; }
+  /* Ported from the board's mockup (docs/site/progress.html). The page has no
+     custom properties, so the demo's literals stand in: accent #e4b04a, fg
+     #e8e8ec, dim #a4a6b3, line #2a2c36. Colour and layout only; the 44px/16px
+     minimums above stay. */
+  #settings .pane-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px 18px; justify-items: start; }
+  #settings .kids { grid-column: 1 / -1; }
+  #settings .setting.parent { font-weight: 600; grid-column: 1 / -1; }
+  #settings .setting-label { color: #e8e8ec; }
+  #settings .setting select { background: #191b24; color: #e8e8ec; border: 1px solid #2a2c36; border-radius: 6px; max-width: 11rem; }
+  #settings .setting input[type=range] { width: 92px; accent-color: #e4b04a; }
+  #settings .apply-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-self: stretch; }
+  #settings .apply-row button { padding: 9px 14px; border-radius: 8px; border: 1px solid #2a2c36; background: #191b24; color: #e8e8ec; }
+  #settings .primary { background: #e4b04a !important; color: #1a1405 !important; border-color: #e4b04a !important; font-weight: 600; }
+  #settings-link { flex: 1; min-width: 14rem; width: 100%; max-width: 46ch; background: #0c0d12; color: #a4a6b3; border: 1px solid #2a2c36; border-radius: 6px; padding: 8px 10px; font-family: ui-monospace, monospace; font-size: 13px; }
+  @media (max-width: 560px) {
+    #settings .pane-grid { grid-template-columns: 1fr; gap: 4px; }
+    #settings .setting select { max-width: 8.5rem; }
+    #settings .apply-row { gap: 6px; }
+    #settings-link { min-width: 0; }
+  }
   #settings-note { margin: 0; color: #999; font-size: 12px; }
 
   /* The Load button and the save-state modal (#33). Ids and class names match

@@ -233,14 +233,21 @@ export function addSettings(host, { reload = (search) => location.assign(search 
 
   const inputs = new Map();
   const panes = new Map();
+  // Rows go in .pane-grid inside the .pane, as on the board's mockup: the pane
+  // is what a tab shows or hides, the grid is what lays the rows out.
+  const grids = new Map();
   const pane = (name) => {
     let found = panes.get(name);
     if (!found) {
       found = document.createElement('div');
       found.className = panes.size ? 'pane off' : 'pane';
       panes.set(name, found);
+      const grid = document.createElement('div');
+      grid.className = 'pane-grid';
+      found.append(grid);
+      grids.set(name, grid);
     }
-    return found;
+    return grids.get(name);
   };
   // A child the URL does not name follows its parent, so it shows the parent's
   // state rather than a bare unchecked box that would misreport the engine.
@@ -418,6 +425,7 @@ export function addSettings(host, { reload = (search) => location.assign(search 
 
   const apply = document.createElement('button');
   apply.id = 'settings-apply';
+  apply.className = 'primary';
   apply.type = 'button';
   apply.textContent = 'Apply & reload';
 
@@ -433,7 +441,10 @@ export function addSettings(host, { reload = (search) => location.assign(search 
   refresh();
   apply.addEventListener('click', () => reload(buildSearch(current())));
 
-  form.append(link, apply, note);
+  const applyRow = document.createElement('div');
+  applyRow.className = 'apply-row';
+  applyRow.append(link, apply, note);
+  form.append(applyRow);
   host.append(form);
   return form;
 }
