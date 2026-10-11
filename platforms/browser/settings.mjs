@@ -212,6 +212,11 @@ export function addSettings(host, { reload = (search) => location.assign(search 
   const folds = new Map();
   for (const setting of SETTINGS) {
     const row = document.createElement('label');
+    // The board pins each control by this id, and the spec names it: an
+    // env-backed row is ctl- plus the env name (tools/progress/mockup.py).
+    // Without it a built control reads as missing to a parity check, which is
+    // how four shipped rows were reported REGRESSED.
+    row.id = `ctl-${setting.key}`;
     row.className = setting.parent ? 'setting child'
       : (SETTINGS.some((s) => s.parent === setting.key) ? 'setting parent' : 'setting');
     let input;

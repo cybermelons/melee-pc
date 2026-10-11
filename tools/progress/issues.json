@@ -198,7 +198,8 @@
       "side": "right",
       "state": "closed",
       "title": "Mobile layout: full-viewport canvas",
-      "pin": "The launcher fits this box with no page scroll. (pointer: coarse) and touch-action: none ship, and menu-button.mjs holds the controls. The launcher inside it is now #21's."
+      "pin": "The launcher fits this box with no page scroll. (pointer: coarse) and touch-action: none ship, and menu-button.mjs holds the controls. The launcher inside it is now #21's. The anchor #phone-frame is the demo's own phone bezel, so it is in the spec and never in the page; the proof reads the three facts this pin claims instead of querying an id the artifact does not own.",
+      "proof": "grep -q 'pointer: coarse' platforms/browser/index.html && grep -q 'touch-action: none' platforms/browser/index.html && test -f platforms/browser/menu-button.mjs"
     },
     {
       "n": 9,
@@ -230,7 +231,8 @@
       "side": "right",
       "state": "closed",
       "title": "_malloc survived only by accident",
-      "pin": "Not in EXPORTED_FUNCTIONS. It worked until something else changed."
+      "pin": "Not in EXPORTED_FUNCTIONS. It worked until something else changed. The anchor is a settings row and this issue is about an export, so a DOM query could never prove it; the proof reads EXPORTED_FUNCTIONS.",
+      "proof": "grep -q '_malloc' platforms/browser/CMakeLists.txt"
     },
     {
       "n": 20,
@@ -278,7 +280,8 @@
       "side": "left",
       "state": "closed",
       "title": "Signify which port is you",
-      "pin": "Closed. The tile you hold carries a left bar and the word 'you', because colour alone fails a colour-blind reader and a screenshot. The id moves with a claim and a release, and matching is on the server id, so two players with one display name still mark one tile. The spectator line below is the other half, and the queue on it is #23."
+      "pin": "Closed. The tile you hold carries a left bar and the word 'you', because colour alone fails a colour-blind reader and a screenshot. The id moves with a claim and a release, and matching is on the server id, so two players with one display name still mark one tile. The spectator line below is the other half, and the queue on it is #23. #port-mine only exists once a port is claimed, so a plain page load cannot see it; the proof reads the assignment that puts it there.",
+      "proof": "grep -q \"tag.id = 'port-mine'\" platforms/browser/lobby.mjs"
     },
     {
       "n": 32,

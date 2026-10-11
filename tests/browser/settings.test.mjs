@@ -133,6 +133,28 @@ const isLive = (el) => el.className.split(' ').includes('live');
 const bootRows = (form) => form.querySelectorAll('.setting').filter((r) => !isLive(r));
 const liveRows = (form) => form.querySelectorAll('.setting').filter(isLive);
 
+test('every built row carries the ctl- id the board pins it by', async () => {
+  // The board's --gate proves a closed pin by querying its anchor in the real
+  // page, so a row with no id reads as a control that was never built. Four
+  // shipped controls were reported REGRESSED for exactly that reason. The ids
+  // are read out of the spec rather than listed here, so a spec rename cannot
+  // leave this green.
+  const host = stubDom('');
+  const { addSettings } = await import('../../platforms/browser/settings.mjs');
+  const form = addSettings(host);
+  const built = new Set([...form.querySelectorAll('.setting')].map((r) => r.id).filter(Boolean));
+  const spec = await import('node:fs/promises').then((fs) =>
+    fs.readFile(new URL('../../tools/progress/mockup.py', import.meta.url), 'utf8'));
+  for (const setting of SETTINGS) {
+    const id = `ctl-${setting.key}`;
+    assert.ok(built.has(id), `${setting.key} is built but carries no #${id}, so the board cannot pin it`);
+    assert.ok(spec.includes(`'${id}'`), `${id} is not declared in mockup.py, so the demo and the page disagree`);
+  }
+  for (const d of LIVE) {
+    assert.ok(built.has(d.ctl), `${d.ctl} is not in the built form`);
+  }
+});
+
 test('the form renders one row per setting, with the URL applied', async () => {
   const host = stubDom('?MELEE_20XX=1&MELEE_BOOT_SCENE=training');
   const { addSettings } = await import('../../platforms/browser/settings.mjs');
