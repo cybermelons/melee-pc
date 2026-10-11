@@ -740,6 +740,87 @@ def check(data):
     return 0
 
 
+SETTINGS_MJS = os.path.join(ROOT, 'platforms/browser/settings.mjs')
+
+
+def spec_controls():
+    """({ctl id: tab}, [tab names]) read from mockup.TABS row tuples, not text."""
+    rows = {rid: tab for tab, rs in mockup.TABS.items() for rid, *_ in rs}
+    return rows, list(mockup.TABS)
+
+
+def artifact_controls(path=SETTINGS_MJS):
+    """({ctl id: tab}, [tab names]) from settings.mjs SETTINGS, LIVE and TABS.
+
+    Both row patterns are anchored to a line that opens an object literal, so a
+    key named in a comment does not count as built. ponytail: assumes the key
+    or ctl and its tab share a line, which holds for all rows today.
+
+    The tab list is read from the exported TABS array, never from the tabs the
+    rows happen to use. A tab the artifact builds and leaves empty would
+    otherwise be invisible, which is the blind spot #39 exists to close.
+    """
+    ctls, tabs = {}, []
+    with open(path) as f:
+        for line in f:
+            m = (re.match(r"\s*\{\s*key: '(MELEE_\w+)', tab: '(\w+)'", line)
+                 or re.match(r"\s*\{\s*(?:[^{}]*?,\s*)?ctl: '(ctl-[\w-]+)', tab: '(\w+)'", line))
+            if m:
+                cid = m.group(1) if m.group(1).startswith('ctl-') else 'ctl-' + m.group(1)
+                ctls[cid] = m.group(2)
+                continue
+            t = re.match(r"export const TABS = \[([^\]]*)\]", line)
+            if t:
+                tabs = re.findall(r"'([^']+)'", t.group(1))
+    assert tabs, f'no exported TABS array in {path}'
+    return ctls, tabs
+
+
+def parity_selftest():
+    """The harness check: both extractions must find something known."""
+    spec, stabs = spec_controls()
+    art, _ = artifact_controls()
+    assert 'ctl-MELEE_UCF' in spec, 'spec walk found no ctl-MELEE_UCF'
+    assert 'Input' in stabs, 'spec walk found no Input tab'
+    assert 'ctl-MELEE_UCF' in art, 'artifact extraction found no boot key MELEE_UCF'
+    assert 'ctl-volume' in art, 'artifact extraction found no live ctl-volume'
+    _, atabs = artifact_controls()
+    assert 'Game' in atabs, 'artifact TABS read found no Game tab'
+    print('parity selftest: ok')
+    return 0
+
+
+def parity(data):
+    """Spec (mockup.TABS) vs artifact (settings.mjs). Returns mismatch count.
+
+    Static on both sides: a rendered DOM lists what exists and cannot show
+    what is missing.
+    """
+    parity_selftest()
+    spec, stabs = spec_controls()
+    art, atabs = artifact_controls()
+    missing = sorted(set(spec) - set(art))
+    extra = sorted(set(art) - set(spec))
+    print(f'parity: spec rows={len(spec)} artifact rows={len(art)} '
+          f'built={len(set(spec) & set(art))}')
+    for c in missing:
+        print(f'MISSING {c}')
+    for c in extra:
+        print(f'UNDECLARED {c}')
+    print(f'parity: spec tabs {", ".join(stabs)} ({len(stabs)}); '
+          f'artifact tabs {", ".join(atabs)} ({len(atabs)})')
+    tabdiff = [t for t in stabs if t not in atabs] + [t for t in atabs if t not in stabs]
+    for t in stabs:
+        if t not in atabs:
+            print(f'MISSING tab {t}')
+    for t in atabs:
+        if t not in stabs:
+            print(f'UNDECLARED tab {t}')
+    bad = len(missing) + len(extra) + len(tabdiff)
+    print(f'parity: {bad} mismatches')
+    return bad
+
+
 # Prints {selector: bool} for every selector, from ONE page load.
 PROBE = """
 import { createRequire } from 'node:module';
@@ -888,8 +969,12 @@ def gate(data, ack=None):
     h, ready = proofs(data)
     h2, nunread = unread(data, ack)
     hard += h + h2
+    # Reported, not enforced: the missing rows are tracked engine work (pins
+    # #3, #4, #32 and others), so a red gate would be permanent and would
+    # train everyone to ignore it.
+    nparity = parity(data)
     bad = hard or nunread
-    print(f"gate: {'FAIL' if bad else 'ok'} hard={hard} unread={nunread} ready={ready} "
+    print(f"gate: {'FAIL' if bad else 'ok'} hard={hard} unread={nunread} ready={ready} parity={nparity} "
           f"{time.monotonic() - t0:.1f}s")
     return 1 if bad else 0
 
@@ -902,6 +987,10 @@ def main():
                     help='compare the board against the tracker')
     ap.add_argument('--gate', action='store_true',
                     help='check + audit + proofs; exit 1 on any failure')
+    ap.add_argument('--parity', action='store_true',
+                    help='compare mockup.TABS rows against settings.mjs controls')
+    ap.add_argument('--parity-selftest', action='store_true',
+                    help='prove both parity extractions find known controls')
     ap.add_argument('--ack', type=int, metavar='N',
                     help="mark issue N's unread comments as seen")
     args = ap.parse_args()
@@ -910,6 +999,14 @@ def main():
         data = json.load(f)
     if args.audit:
         return audit(data)
+    if args.parity:
+        # The count is reported, not returned: 11 mismatches is not an exit
+        # code, and the 10 missing rows are tracked engine work. A nonzero
+        # exit here would mean the extraction broke, and that asserts.
+        parity(data)
+        return 0
+    if args.parity_selftest:
+        return parity_selftest()
     if args.gate:
         return gate(data, args.ack)
     if args.ack is not None:
