@@ -314,9 +314,10 @@
       "n": 38,
       "anchor": "#log-tab",
       "side": "left",
-      "state": "open",
+      "state": "closed",
       "title": "Document the progress board in the architecture map",
-      "pin": "This board is undocumented in the repo that owns it. docs/ARCHITECTURE-MAP.md (264 lines) and platforms/browser/README.md mention tools/progress/ zero times, so an agent reading the index never learns the board exists, let alone that it is the spec."
+      "pin": "The architecture map now documents the board. Its authority table routes \"what the launcher is supposed to be\" here, and a section states the three jobs (spec, tracker, demo) and what each of --check, --audit and --parity does not tell you. Two rules are written down with the measurement behind them: read source to source, and check a claim about the C against pc_stubs.c and the browser source list rather than launcher.cpp, which the browser never compiles. platforms/browser/README.md points at it from its Testing section.",
+      "proof": "grep -q \"^## The progress board\" docs/ARCHITECTURE-MAP.md && grep -q \"tools/progress/mockup.py\" docs/ARCHITECTURE-MAP.md && grep -q \"build.py --gate\" docs/ARCHITECTURE-MAP.md && grep -q \"tools/progress\" platforms/browser/README.md"
     },
     {
       "n": 39,

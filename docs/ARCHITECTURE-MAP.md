@@ -16,6 +16,7 @@ This repo already has good per-topic docs. This file does not repeat them.
 | what is verified and how | `docs/testing.md`, `docs/netplay-verification.md` |
 | diagnostic environment variables | `docs/debugging.md` |
 | the browser target | `platforms/browser/README.md`, and the **melee-web** repo |
+| what the launcher is supposed to be, and what is left | the **progress board**, `tools/progress/` — see below |
 
 ## What this repo is
 
@@ -214,6 +215,69 @@ the browser build has no snapshot path, so the old room has already written
 this player off and reassigned the port. `states.mjs`'s `withRoom` therefore
 replaces `?room=` rather than preserving it.
 
+## The progress board — the spec for the browser launcher
+
+`tools/progress/` builds `docs/site/progress.html`. It is not a status page.
+It is three things at once, and the second two are the reason it exists:
+
+- **the spec.** `tools/progress/mockup.py` draws the launcher as it is meant to
+  be, control by control, and that markup is the target. A control the mockup
+  declares and the artifact does not build is missing work, not a styling
+  difference.
+- **the tracker.** `tools/progress/issues.json` mirrors the gitea issues and
+  pins each one to the id of the control that has to exist for its design to be
+  true. Done means pins closed, not gates green.
+- **a working demo.** The page renders, so a design can be judged while changing
+  it is still cheap.
+
+| Want | Run |
+|---|---|
+| rebuild the board | `python3 tools/progress/build.py` |
+| is the board stale | `--check` |
+| does the board agree with the tracker | `--audit` |
+| does the artifact match the spec | `--parity` |
+| everything, plus pin proofs and unread comments | `--gate` |
+| mark issue N's comments read | `--ack N` |
+
+Three checks, three different questions. Do not read one as the others:
+
+- `--audit` compares pins to tracker state and **never opens the artifact**. A
+  green `--audit` says the board is honest about the issue list. It says nothing
+  about whether anything was built.
+- `--parity` compares the spec's declared controls to the artifact's. It is
+  reported, not enforced: the rows still missing are tracked engine work, and a
+  permanently red gate trains everyone to ignore it. A broken extraction
+  asserts instead of reporting, because a dead walk reports every control as
+  undeclared and looks alarming while meaning nothing.
+- `--gate` runs the pin proofs. A pin either carries a `proof` shell command or
+  falls back to a Playwright DOM probe for its anchor id, served over HTTP —
+  never `file://`, where the shell's ES module imports are CORS-blocked and so
+  every control reads as absent.
+
+### Reading parity: two rules learned the hard way
+
+**Read source to source, not from a rendered page.** A DOM probe, a screenshot
+or a live query enumerates what exists and **cannot show what is missing**. 12
+rows look like success until they sit beside the demo's 29. Measured
+2026-10-11: a DOM probe reported the launcher's tabs and rows present while the
+deployed page's HTML held `class="setting"` zero times, because JS built a
+subset at runtime. The board was called done four times on that reading.
+
+**Check a claim about the C against the file the browser links.** `mockup.py`
+carried a comment saying `MELEE_UNLOCK_ALL` had no env reader in C, so the row
+was held back for three waves. The reader was in
+`platforms/browser/pc_stubs.c` the whole time. The claim had been read off
+`src/pc/launcher.cpp`, which is the native launcher: the browser target
+replaces it and never compiles it. The browser stubs out the launcher, the
+updater and the file cache this way. Before you call an env var unsupported,
+grep `platforms/browser/pc_stubs.c`, and read the source list in
+`platforms/browser/CMakeLists.txt` for what is actually in the link.
+
+Comments in `mockup.py` now cite a file and a line for each such claim, so the
+next reader can check one instead of trusting it. The citations are prose, and
+nothing enforces them: a line number goes stale when the file above it moves.
+Treat a cited line as a place to look, not as a fact.
+
 ## Build and test entry points
 
 | Want | Run |
@@ -222,6 +286,7 @@ replaces `?room=` rather than preserving it.
 | the unit suite | `ninja -C build unit_tests && ctest --test-dir build -L melee --output-on-failure` |
 | style and compile gates (CI runs both) | `python3 tools/check_style.py`, `python3 tools/compile_check.py` |
 | the browser build | `tools/browser/build.py` |
+| the launcher's spec and what is left in it | `python3 tools/progress/build.py --gate` (see **The progress board** above) |
 | the pc unit tests | `tests/pc`, and `tests/browser` for the web build |
 | a netplay check | the `tools/net_*.py` and `tools/test_net_*.c` family. `docs/testing.md` says which proves what |
 

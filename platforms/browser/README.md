@@ -154,6 +154,13 @@ keyboard), `vs`, `vs-cpu4`, `classic` and `training`, and fails any case below
 58.5 fps or above a 33.4 ms p99 frame time. Boot-scene cases must also log the
 scene they asked for, so holding 60 fps on the wrong screen cannot pass.
 
+The launcher's settings form has a second check. `tools/progress/` holds the
+spec for that form, control by control, and
+`python3 tools/progress/build.py --parity` reports which controls the spec
+declares that `settings.mjs` does not build. `--gate` runs it with the issue
+pin proofs. See **The progress board** in `docs/ARCHITECTURE-MAP.md`: it is the
+spec for this launcher, not a status page.
+
 Known limitations: SDL's Emscripten audio backend uses the deprecated
 `ScriptProcessorNode`;
 Safari and mobile browsers are untested here; the first launch on a machine
