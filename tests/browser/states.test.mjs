@@ -172,6 +172,30 @@ test('a preset press loads that preset in a new room, not the old one', () => {
     `the old room must not ride along: ${loads[0]}`);
 });
 
+test('a stored state that carries a room is overridden, not joined', () => {
+  // saveSearch strips room= at save time, so no state this build writes can
+  // carry one. A store is a string a visitor can edit, and an older build or a
+  // hand-edited entry can hold one. withRoom must override it rather than send
+  // this player into a lobby that already reassigned their port.
+  //
+  // This is the only input that tells withRoom's set() apart from "add a room
+  // when absent". Without it, replacing set() with a when-absent guard keeps
+  // every other test in this file green.
+  const { host, api, loads } = build({
+    mint: () => 'MINTED1',
+    store: memStore(JSON.stringify(
+      [{ label: 'hand-edited', search: '?room=STALE99&MELEE_20XX=1' }])),
+  });
+  api.open();
+  host.byId('state-own-1').click();
+  assert.equal(loads.length, 1);
+  assert.ok(loads[0].includes('room=MINTED1'), loads[0]);
+  assert.ok(!loads[0].includes('STALE99'),
+    `the stored room must not ride along: ${loads[0]}`);
+  assert.ok(loads[0].includes('MELEE_20XX=1'),
+    `the state's own flags must survive: ${loads[0]}`);
+});
+
 test('a load mints a room even when the player was in none', () => {
   // Opening the modal from a bare URL still produces a room, so the loaded
   // page is a lobby someone can be invited to rather than a dead end.

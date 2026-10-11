@@ -51,7 +51,8 @@
       "side": "right",
       "state": "open",
       "title": "Boot flags are bound to the room code, not to the URL",
-      "pin": "Owner ruling landed: a load mints a new room code. Implemented -- states.mjs withRoom now replaces ?room= instead of preserving it, with a test that fails if the old room rides along. Reason: a preset load is a reload (no snapshot path in the browser build), so the old room already saw this player leave and reassigned the port. Rejoining it would make the two sides disagree about the port map. Unblocks #22."
+      "pin": "Owner ruling landed: a load mints a new room code. Implemented -- states.mjs withRoom mints a room onto the state search, with a test that fails if a stored room rides along. The strip happens earlier, in saveSearch, so no state this build writes carries a room at all; withRoom overrides the one a hand-edited or older store can still hold. Reason: a preset load is a reload (no snapshot path in the browser build), so the old room already saw this player leave and reassigned the port. Rejoining it would make the two sides disagree about the port map. Unblocks #22.",
+      "proof": "/home/kiri/.nvm/versions/node/v20.5.1/bin/node --test --test-name-pattern 'a preset press loads that preset in a new room, not the old one' tests/browser/states.test.mjs 2>&1 | grep -qx '# pass 1' && /home/kiri/.nvm/versions/node/v20.5.1/bin/node --test --test-name-pattern 'a load mints a room even when the player was in none' tests/browser/states.test.mjs 2>&1 | grep -qx '# pass 1' && /home/kiri/.nvm/versions/node/v20.5.1/bin/node --test --test-name-pattern 'a stored state that carries a room is overridden, not joined' tests/browser/states.test.mjs 2>&1 | grep -qx '# pass 1'"
     },
     {
       "n": 12,
@@ -93,7 +94,8 @@
       "side": "left",
       "state": "open",
       "title": "Modes become save states",
-      "pin": "Versus and Training stop being places to go. The port-loss bug is fixed: sessionId keyed on sessionStorage survives the reload, so the loader keeps its seat. Per the #35 ruling a load now opens a NEW room, so the loader re-invites rather than rejoining a room that wrote them off."
+      "pin": "Versus and Training stop being places to go. The port-loss bug is fixed: sessionId keyed on sessionStorage survives the reload, so the loader keeps its seat. Per the #35 ruling a load now opens a NEW room, so the loader re-invites rather than rejoining a room that wrote them off.",
+      "proof": "/home/kiri/.nvm/versions/node/v20.5.1/bin/node --test --test-name-pattern 'loading a state keeps the port it was loaded from' tests/browser/room-claims.test.mjs 2>&1 | grep -qx '# pass 1' && /home/kiri/.nvm/versions/node/v20.5.1/bin/node --test --test-name-pattern 'sessionId is stable across reloads in the same tab' tests/browser/lobby.test.mjs 2>&1 | grep -qx '# pass 1' && /home/kiri/.nvm/versions/node/v20.5.1/bin/node --test --test-name-pattern 'sessionId defaults to the per-tab store, not the shared one' tests/browser/lobby.test.mjs 2>&1 | grep -qx '# pass 1'"
     },
     {
       "n": 1,
@@ -151,7 +153,8 @@
       "side": "right",
       "state": "open",
       "title": "Settings into tabs",
-      "pin": "Four tabs of five. Netplay arrived with MELEE_NET_DELAY in #28. Input stays empty because no input setting exists in the engine to put in it -- see #32, measured."
+      "pin": "Four tabs of five. Netplay arrived with MELEE_NET_DELAY in #28. Input stays empty because no input setting exists in the engine to put in it -- see #32, measured.",
+      "proof": "/home/kiri/.nvm/versions/node/v20.5.1/bin/node --test --test-name-pattern 'the rows are grouped into tabs, one head per pane' tests/browser/settings.test.mjs 2>&1 | grep -qx '# pass 1' && /home/kiri/.nvm/versions/node/v20.5.1/bin/node --test --test-name-pattern 'exactly one pane is in front, and a head switches it' tests/browser/settings.test.mjs 2>&1 | grep -qx '# pass 1' && /home/kiri/.nvm/versions/node/v20.5.1/bin/node --test --test-name-pattern 'the Netplay tab exists and holds the net delay row' tests/browser/settings.test.mjs 2>&1 | grep -qx '# pass 1'"
     },
     {
       "n": 27,
@@ -275,7 +278,8 @@
       "side": "left",
       "state": "open",
       "title": "Controller connect belongs on the port",
-      "pin": "Shipped: every tile has this button, and it offers only the sources this browser can do. The page-level WebHID button is gone, and the picker opens from the press. Picking a source labels the port; only the adapter routes input so far, which is #5 and #2."
+      "pin": "Shipped: every tile has this button, and it offers only the sources this browser can do. The page-level WebHID button is gone, and the picker opens from the press. Picking a source labels the port; only the adapter routes input so far, which is #5 and #2.",
+      "proof": "grep -q \"cbtn.id = 'port-1-pad'\" platforms/browser/lobby.mjs"
     },
     {
       "n": 31,
