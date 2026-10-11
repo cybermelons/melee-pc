@@ -26,6 +26,14 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-24.04
+    # The image is built with botan's own Docker daemon, so the job needs its
+    # socket. act_runner refuses a mount the runner config does not list, so
+    # /home/kiri/gitea-runner/data/config.yaml names this one path under
+    # valid_volumes and nothing else.
+    container:
+      image: node:20-bookworm
+      volumes:
+        - /var/run/docker.sock:/var/run/docker.sock
     env:
       IMAGE: melee-web
       CONTAINER: melee-web
