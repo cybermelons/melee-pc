@@ -40,6 +40,15 @@ def _chk(on=False):
 
 TABS = {
     'Game': [
+        # Both ship and the engine honours both: MELEE_BOOT_SCENE is read in
+        # src/melee/gm/gm_1A3F.c:337,401 and MELEE_DEBUG_VS in
+        # src/melee/gm/gmvsmode.c:199. The demo owes them a row for that
+        # reason alone -- a working control the spec does not draw cannot be
+        # measured by a parity read.
+        ('ctl-MELEE_BOOT_SCENE', 'Boot to',
+         _sel('Title screen', 'Versus', 'Training', 'Event match'),
+         'Event starts on event match 1. Add &MELEE_EVENT=<0-50> to pick another.'),
+        ('ctl-MELEE_DEBUG_VS', 'Versus opponent', _sel('Human', 'CPU'), ''),
         ('ctl-MELEE_20XX', '20XX', 'parent', ''),
         ('ctl-MELEE_BOOT_CSS', 'Character select', 'child', ''),
         ('ctl-MELEE_20XX_RULES', 'Tournament rules', 'child',
