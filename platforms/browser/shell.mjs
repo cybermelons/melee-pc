@@ -480,14 +480,14 @@ async function joinLobby() {
     }
   };
   events.addEventListener('state', (e) => {
-    const { claims, queue } = JSON.parse(e.data);
+    const { claims, queue, here } = JSON.parse(e.data);
     place = (queue ?? []).indexOf(me);
     slot = mySlot(claims, me);
     // Published out of the handler because the adapter reconnect (#30) needs
     // to know which port is this page's, and it runs from onRuntimeInitialized
     // rather than from inside the signalling.
     mySeat = slot;
-    lobby.render(claims, me, queue ?? []);
+    lobby.render(claims, me, queue ?? [], here ?? []);
     // Holding a port and having a peer is what opens the channel. Neither
     // this nor the engine boot waits on the other: the engine is already
     // running, or will be, and pairing catches up.

@@ -319,11 +319,15 @@ export function addLobby(host, {
   line.id = 'queue';
   line.hidden = true;
 
+  const roster = el('p', 'sub');
+  roster.id = 'here';
+  roster.hidden = true;
+
   const seat = el('p', 'sub seat-none');
   seat.id = 'no-port';
   seat.hidden = true;
 
-  host.append(bar, ports, line, seat);
+  host.append(bar, ports, roster, line, seat);
 
   // The per-port source record lives here, because nothing else holds it: the
   // signal server tracks claims only, and C keeps no map back from a port.
@@ -331,7 +335,7 @@ export function addLobby(host, {
 
   const api = {
     /** Paint the claims array onto the tiles. */
-    render(claims, me, queue = []) {
+    render(claims, me, queue = [], here = []) {
       for (const s of portStates(claims, me)) {
         const { tile, who, act, tag, src } = tiles[s.port];
         src.textContent = sourceLabel(portSources[s.port]);
@@ -363,6 +367,12 @@ export function addLobby(host, {
         line.textContent = `${queue.length} in line · next up: `;
         line.append(next);
       }
+      // A room of one has nobody to list, so the line hides when the roster is
+      // empty or holds only this user. Ids are joined plain, this user's
+      // included, as the mockup draws them.
+      const others = here.filter((id) => id !== me);
+      roster.hidden = others.length === 0;
+      if (others.length > 0) roster.textContent = `In the room: ${here.join(', ')}`;
     },
     setRoom(value) { code.firstChild.textContent = value; },
     /**

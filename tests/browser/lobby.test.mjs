@@ -466,6 +466,33 @@ test('the queue line reports its length and who is next, not your place (#23)', 
   assert.ok(!/in line for/.test(line().textContent));
 });
 
+test('the roster lists who is in the room, and hides for a room of one', () => {
+  // `here` is the server's participant ids. A hidden element and an absent one
+  // look the same from a rendered-DOM probe, so this asserts the #here element.
+  const { host, api } = buildLobby({ getGamepads: () => [] });
+  const roster = () => host.descendants().find((n) => n.id === 'here');
+  const claims = ['a', 'b', null, null];
+
+  api.render(claims, 'me', [], []);
+  assert.equal(roster().hidden, true);
+
+  // Callers that pass no roster must keep working.
+  api.render(claims, 'me');
+  assert.equal(roster().hidden, true);
+
+  // Only this user: nobody to list.
+  api.render(claims, 'me', [], ['me']);
+  assert.equal(roster().hidden, true);
+
+  api.render(claims, 'me', [], ['me', 'guest-4f', 'mango']);
+  assert.equal(roster().hidden, false);
+  assert.equal(roster().textContent, 'In the room: me, guest-4f, mango');
+
+  // It hides again when the others leave.
+  api.render(claims, 'me', [], ['me']);
+  assert.equal(roster().hidden, true);
+});
+
 test('a spectator is told to take a free port or queue (#23)', () => {
   // The exact wording the issue asks for, middle dots and all. It drifted
   // once already -- the page said "wait for one to free up" while the mockup

@@ -75,7 +75,7 @@
       "side": "left",
       "state": "open",
       "title": "Spectators and the port queue",
-      "pin": "Past four players everybody watches and queues. Server side shipped: a release message frees a port and the first waiter still subscribed gets it, in claim order. The lobby draws the line now: #queue reports how long the queue is and who is next, hidden when nobody waits. It deliberately does not repeat where this user stands -- that is already in the status string, and a second copy of one fact is a second thing to drift. Still open: ports 3 and 4 need a transport for more than two peers before a real queue can form."
+      "pin": "Past four players everybody watches and queues. Server side shipped: a release message frees a port and the first waiter still subscribed gets it, in claim order. The lobby draws the line now: #queue reports how long the queue is and who is next, hidden when nobody waits. It deliberately does not repeat where this user stands -- that is already in the status string, and a second copy of one fact is a second thing to drift. The roster beside it is the other half of this issue: #here lists who is in the room, read off the signalling server's subscriber map, which the close handler already prunes. It is a separate element because membership and queue order are separate facts -- the demo's old \"2 watching\" count is gone, since no message carried it and the list says more anyway. Measured over three real subscriptions: the server publishes here:[kiri,guest-4f,mango] and the lobby draws \"In the room: kiri, guest-4f, mango\". Still open: ports 3 and 4 need a transport for more than two peers before a real queue can form, and #37 blocks that."
     },
     {
       "n": 17,

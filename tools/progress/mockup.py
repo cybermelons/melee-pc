@@ -152,7 +152,10 @@ PORTS = """
       <div class="port cpu" id="port-3"><b>P3</b><i>CPU lv 9</i><span class="psrc">cpu</span><button class="cbtn" title="Connect a controller to this port">⌘</button><button class="pbtn">Take</button></div>
       <div class="port free" id="port-4"><b>P4</b><i>free</i><span class="psrc">—</span><button class="cbtn" title="Connect a controller to this port">⌘</button><button class="pbtn">Take</button></div>
     </div>
-    <p id="queue" class="sub">2 watching · <b>mango</b> next up</p>
+    <!-- The roster is who is in the room; the queue is an ordering within it.
+         Two facts, two elements, so neither has to restate the other. -->
+    <p id="here" class="sub">In the room: kiri, guest-4f, mango, armada</p>
+    <p id="queue" class="sub"><b>mango</b> next up</p>
     <!-- The other half of #31: what a visitor holding no port is told. Drawn
          here because the mockup shows you holding P1, so the state cannot be
          shown on the tiles at the same time. -->
