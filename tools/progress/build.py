@@ -107,7 +107,7 @@ def links_html(links):
     # Fixed order, widest audience first. A key not listed here is a typo or a
     # new link someone forgot to add, and dropping it silently is how a link
     # ends up missing from the board with nothing to show why.
-    order = ('deploy', 'dev', 'preview')
+    order = ('deploy', 'dev')
     unknown = set(links) - set(order)
     if unknown:
         raise SystemExit(f'links has unknown {sorted(unknown)}: '
@@ -131,6 +131,45 @@ def links_html(links):
             row = f'<span class="dead">{name}: {e(it.get("blocked", "not live"))}</span>'
         out.append(f'<span><b>{e(key)}</b> {row}</span>')
     return f'<div class="links">{"".join(out)}</div>' if out else ''
+
+
+def links_probe(links):
+    """Fetch every live link and fail if one does not answer.
+
+    links_html already refuses a not-live entry that gives no reason. It
+    cannot tell whether a live URL resolves, so the board published
+    http://100.113.182.40:8121/index.html for days: a port that never had a
+    listener. A reader clicked the board's own link and got nothing.
+
+    This is a separate flag rather than part of render() on purpose. The build
+    is otherwise offline, and a board that cannot be rebuilt because a dev
+    server is down would be a worse failure than a stale link. It runs with
+    the other gates, where a network failure is a result and not a blocker.
+    """
+    import urllib.error
+    import urllib.request
+    bad = []
+    for key, it in sorted(links.items()):
+        if not it.get('live', True):
+            continue
+        url = it['url']
+        try:
+            req = urllib.request.Request(url, method='HEAD')
+            with urllib.request.urlopen(req, timeout=10) as r:
+                code = r.status
+        except urllib.error.HTTPError as exc:
+            code = exc.code
+        except OSError as exc:
+            bad.append(f'links.{key} {url}: {exc}')
+            continue
+        # A 403 is an answer: the host is there and refuses us. A 404 is not.
+        if code >= 400 and code != 403:
+            bad.append(f'links.{key} {url}: HTTP {code}')
+        else:
+            print(f'links.{key} {url}: HTTP {code}')
+    for line in bad:
+        print(f'DEAD {line}')
+    return 1 if bad else 0
 
 
 TEMPLATE = """<!DOCTYPE html>
@@ -1008,6 +1047,8 @@ def main():
                     help='compare mockup.TABS rows against settings.mjs controls')
     ap.add_argument('--parity-selftest', action='store_true',
                     help='prove both parity extractions find known controls')
+    ap.add_argument('--links', action='store_true',
+                    help='fetch every live link and exit 1 if one is dead')
     ap.add_argument('--ack', type=int, metavar='N',
                     help="mark issue N's unread comments as seen")
     args = ap.parse_args()
@@ -1024,6 +1065,8 @@ def main():
         return 0
     if args.parity_selftest:
         return parity_selftest()
+    if args.links:
+        return links_probe(data.get('links', {}))
     if args.gate:
         return gate(data, args.ack)
     if args.ack is not None:
