@@ -40,7 +40,7 @@
 // The rest of the launcher's prefs (hud_mode, custom_textures, free_camera,
 // filter_mode, anisotropy, mute, net_name) have neither an env reader nor an
 // exported setter, so they are not reachable from here. See issue #28.
-export const TABS = ['Game', 'Video', 'Audio', 'Netplay'];
+export const TABS = ['Game', 'Video', 'Audio', 'Input', 'Netplay'];
 
 export const SETTINGS = [
   { key: 'MELEE_BOOT_SCENE', tab: 'Game', kind: 'choice', label: 'Boot to',
@@ -155,6 +155,35 @@ export const LIVE = [
     options: [[0, 'Original (73:60)'], [1, 'Widescreen 16:9'], [2, 'Fill the window']] },
 ];
 
+// Browser-side input preferences. Unlike LIVE they call no wasm export: touch.mjs
+// reads them through inputPref() at the point of use, so a change takes effect
+// on the next touch without a reload. Stored under `melee.input.<ctl>`. A flag
+// is stored as '1'|'0' and read back as a boolean; a choice as its option value.
+// Defaults keep the behaviour touch.mjs had before these existed.
+export const INPUT_PREFS = [
+  { ctl: 'ctl-tap-jump', tab: 'Input', label: 'Tap to jump', control: 'flag', default: false,
+    hint: 'Off by default: a tap meant for an attack reads as a jump.' },
+  { ctl: 'ctl-deadzone', tab: 'Input', label: 'Stick deadzone', control: 'choice',
+    default: 'default', options: [['default', 'Default'], ['wide', 'Wide']] },
+  { ctl: 'ctl-curve', tab: 'Input', label: 'Stick curve', control: 'choice',
+    default: 'eased', options: [['linear', 'Linear'], ['eased', 'Eased']] },
+  { ctl: 'ctl-cstick', tab: 'Input', label: 'C-stick', control: 'choice',
+    default: 'stick', options: [['stick', 'Stick'], ['buttons', 'Buttons']] },
+];
+
+const prefKey = (d) => `melee.input.${d.ctl}`;
+
+// The stored value or the default; never throws, so touch.mjs works with
+// storage blocked or empty.
+export function inputPref(ctl) {
+  const d = INPUT_PREFS.find((p) => p.ctl === ctl);
+  if (!d) return undefined;
+  let v = null;
+  try { v = localStorage.getItem(prefKey(d)); } catch { /* blocked: default */ }
+  if (v == null) return d.default;
+  return d.control === 'flag' ? v === '1' : v;
+}
+
 const liveKey = (d) => `melee.live.${d.fn}`;
 
 function liveArg(d, raw) {
@@ -223,6 +252,9 @@ export function addSettings(host, { reload = (search) => location.assign(search 
   const touched = new Set();
   const kids = new Map();
   const folds = new Map();
+  // Panes in TABS order, whatever order the rows below arrive in.
+  for (const name of TABS) pane(name);
+
   for (const setting of SETTINGS) {
     const row = document.createElement('label');
     // The board pins each control by this id, and the spec names it: an
@@ -281,15 +313,17 @@ export function addSettings(host, { reload = (search) => location.assign(search 
 
   // Live rows. Deliberately not added to `inputs`: current() iterates only that
   // Map, so these can never reach buildSearch(). They have no `name` either.
-  for (const d of LIVE) {
+  // INPUT_PREFS share the renderer: same row shape, no engine call.
+  for (const d of [...LIVE, ...INPUT_PREFS]) {
+    const pref = !d.fn;
     const row = document.createElement('label');
-    row.className = 'setting live';
+    row.className = pref ? 'setting input' : 'setting live';
     row.id = d.ctl;
     const label = document.createElement('span');
     label.className = 'setting-label';
     label.textContent = d.label;
-    const saved = storedLive(d);
-    const start = saved ?? d.default;
+    if (d.hint) row.title = d.hint;
+    const start = pref ? inputPref(d.ctl) : (storedLive(d) ?? d.default);
     let input;
     let event = 'change';
     if (d.control === 'range') {
@@ -303,7 +337,7 @@ export function addSettings(host, { reload = (search) => location.assign(search 
     } else if (d.control === 'flag') {
       input = document.createElement('input');
       input.type = 'checkbox';
-      input.checked = Number(start) !== 0;
+      input.checked = pref ? start === true : Number(start) !== 0;
     } else {
       input = document.createElement('select');
       for (const [value, text] of d.options) {
@@ -314,8 +348,11 @@ export function addSettings(host, { reload = (search) => location.assign(search 
         input.append(option);
       }
     }
-    input.addEventListener(event, () => applyLive(
-      d, d.control === 'flag' ? (input.checked ? 1 : 0) : input.value));
+    input.addEventListener(event, () => {
+      const raw = d.control === 'flag' ? (input.checked ? 1 : 0) : input.value;
+      if (!pref) { applyLive(d, raw); return; }
+      try { localStorage.setItem(prefKey(d), String(raw)); } catch { /* storage blocked: lasts until reload */ }
+    });
     row.append(label, input);
     pane(d.tab).append(row);
   }

@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+import { inputPref } from './settings.mjs';
 // Touch overlay for phones: an analog stick, a C-stick with the face buttons
 // on it, the two shoulders and Start, drawn as DOM elements over the canvas.
 //
@@ -33,6 +34,8 @@ const STICK_MAX = 80;
 // resting on glass never sits still, and without a deadzone that drift is a
 // constant slow walk.
 const DEADZONE = 0.2;
+// The Input tab's Wide deadzone.
+const WIDE_DEADZONE = 0.3;
 
 // Melee applies its own absolute stick deadzone of 0.28 on both axes
 // (ftCommonData.horizontal_stick_deadzone and vertical, PlCo.dat), and it is
@@ -68,6 +71,30 @@ const UP_RAMP_PER_FRAME = 0.1 * STICK_MAX;
 
 // The pad state the engine sees. Rebuilt from the live pointers every change
 // rather than accumulated, so a touch that ends can never leave a button set.
+// Maps a unit-disc stick position (screen axes) to raw units, honouring the
+// Input tab's deadzone and curve. Preferences are read per call, not cached.
+export function shapeStick(ux, uy) {
+  const magnitude = Math.hypot(ux, uy);
+  const dead = inputPref('ctl-deadzone') === 'wide' ? WIDE_DEADZONE : DEADZONE;
+  if (magnitude < dead) return { x: 0, y: 0 };
+  const live = (magnitude - dead) / (1 - dead);
+  // Eased remaps onto the engine's deadzone, see ENGINE_DEADZONE. Linear does not.
+  const out = inputPref('ctl-curve') === 'linear'
+    ? live : ENGINE_DEADZONE + live * (1 - ENGINE_DEADZONE);
+  const gain = out / magnitude;
+  return { x: Math.round(ux * gain * STICK_MAX), y: Math.round(uy * gain * STICK_MAX) };
+}
+
+// Upward-rise limiter, see UP_RAMP_PER_FRAME. Tap to jump ON lets it rise at once.
+export function createUpRamp() {
+  let risen = 0;
+  return (y) => {
+    if (y <= 0) { risen = 0; return y; }
+    risen = inputPref('ctl-tap-jump') ? y : Math.min(y, risen + UP_RAMP_PER_FRAME);
+    return Math.round(risen);
+  };
+}
+
 const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
 
 const pressed = new Map(); // pointerId -> control
@@ -211,20 +238,10 @@ export function createTouchOverlay(Module, log) {
   // Last upward Y actually reported, so the ramp is per game frame rather than
   // per pointer event. Only the main stick needs it: the C-stick's up is an
   // up-smash, which is a deliberate press and not a tap jump input.
-  let rampedUpY = 0;
-
-  // Rate-limit the rise of the upward main stick, leaving every other
-  // direction alone. See UP_RAMP_PER_FRAME.
-  function rampUp(y) {
-    if (y <= 0) {
-      // Downward or centred: no limit, and the ramp resets so the next upward
-      // flick starts from neutral and gets the full 6 frames again.
-      rampedUpY = 0;
-      return y;
-    }
-    rampedUpY = Math.min(y, rampedUpY + UP_RAMP_PER_FRAME);
-    return Math.round(rampedUpY);
-  }
+  // Rate-limits the rise of the upward main stick, leaving every other
+  // direction alone. Downward or centred resets it, so the next upward flick
+  // gets the full 6 frames again.
+  const rampUp = createUpRamp();
 
   // The touch handlers only mark the state dirty. The engine reads it once per
   // game frame through sample() below, so input arrives at the simulation's
@@ -278,6 +295,7 @@ export function createTouchOverlay(Module, log) {
   }
 
   function moveStick(stick, clientX, clientY) {
+    if (stick.fixed) return;
     const dx = (clientX - stick.cx) / stick.radius;
     const dy = (clientY - stick.cy) / stick.radius;
     const length = Math.hypot(dx, dy);
@@ -287,23 +305,14 @@ export function createTouchOverlay(Module, log) {
     const scale = length > 1 ? 1 / length : 1;
     let ux = dx * scale;
     let uy = dy * scale;
-    const magnitude = Math.hypot(ux, uy);
-    if (magnitude < DEADZONE) {
-      ux = 0;
-      uy = 0;
-    } else {
-      // Rescale the magnitude, not each axis: scaling the axes separately
-      // moves the angle, and a stick that reports 43 degrees when the thumb
-      // is at 45 breaks every angle-sensitive move. See ENGINE_DEADZONE.
-      const live = (magnitude - DEADZONE) / (1 - DEADZONE);
-      const gain = (ENGINE_DEADZONE + live * (1 - ENGINE_DEADZONE)) / magnitude;
-      ux *= gain;
-      uy *= gain;
-    }
-    stick.dx = Math.round(ux * STICK_MAX);
+    // Rescale the magnitude, not each axis: scaling the axes separately moves
+    // the angle, and a stick that reports 43 degrees when the thumb is at 45
+    // breaks every angle-sensitive move. See shapeStick.
+    const shaped = shapeStick(ux, uy);
+    stick.dx = shaped.x;
     // Screen Y grows downwards and the pad's grows upwards. The | 0 turns the
     // -0 that negating a zero produces back into 0.
-    stick.dy = -Math.round(uy * STICK_MAX) | 0;
+    stick.dy = -shaped.y | 0;
     stick.el.classList.add('on');
     const nub = stick.control.nub;
     // The nub follows the thumb, not the rescaled value: the dot has to stay
@@ -337,16 +346,26 @@ export function createTouchOverlay(Module, log) {
         box.left + box.width / 2 + limit);
       const cy = clamp(event.clientY, box.top + box.height / 2 - limit,
         box.top + box.height / 2 + limit);
+      // C-stick set to Buttons: the ring becomes four zones, each sending a fixed
+      // full deflection. Read at touch time so a change needs no reload.
+      let fixed = null;
+      if (control.kind === 'cstick' && inputPref('ctl-cstick') === 'buttons') {
+        const ox = event.clientX - (box.left + box.width / 2);
+        const oy = event.clientY - (box.top + box.height / 2);
+        fixed = Math.abs(ox) > Math.abs(oy)
+          ? { dx: Math.sign(ox) * STICK_MAX, dy: 0 } : { dx: 0, dy: -Math.sign(oy) * STICK_MAX };
+      }
       const stick = {
         control,
+        fixed: !!fixed,
         el: control.el,
         kind: control.kind,
         cx,
         cy,
         // The travel left between the floating centre and the rim.
         radius: radius - limit,
-        dx: 0,
-        dy: 0,
+        dx: fixed ? fixed.dx : 0,
+        dy: fixed ? fixed.dy : 0,
       };
       sticks.set(event.pointerId, stick);
       // Not moveStick: the thumb is at the origin it just defined, so the

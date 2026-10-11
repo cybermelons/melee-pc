@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import test from 'node:test';
 import assert from 'assert/strict';
-import { SETTINGS, LIVE, TABS, isOn, buildSearch, readSearch } from '../../platforms/browser/settings.mjs';
+import { SETTINGS, LIVE, INPUT_PREFS, TABS, isOn, buildSearch, readSearch } from '../../platforms/browser/settings.mjs';
 
 test('a default-valued setting stays out of the URL', () => {
   assert.equal(buildSearch({ MELEE_20XX: '', MELEE_BOOT_SCENE: '' }), '');
@@ -130,7 +130,8 @@ function stubDom(search) {
 // Rows come in two kinds: boot rows (query-string settings) and live rows
 // (class "setting live"). Both carry .setting, so a count must say which.
 const isLive = (el) => el.className.split(' ').includes('live');
-const bootRows = (form) => form.querySelectorAll('.setting').filter((r) => !isLive(r));
+const isInput = (el) => el.className.split(' ').includes('input');
+const bootRows = (form) => form.querySelectorAll('.setting').filter((r) => !isLive(r) && !isInput(r));
 const liveRows = (form) => form.querySelectorAll('.setting').filter(isLive);
 
 test('every built row carries the ctl- id the board pins it by', async () => {
@@ -162,7 +163,7 @@ test('the form renders one row per setting, with the URL applied', async () => {
   assert.equal(form.id, 'settings');
   assert.equal(bootRows(form).length, SETTINGS.length);
   assert.equal(liveRows(form).length, LIVE.length);
-  assert.equal(form.querySelectorAll('.setting').length, SETTINGS.length + LIVE.length);
+  assert.equal(form.querySelectorAll('.setting').length, SETTINGS.length + LIVE.length + INPUT_PREFS.length);
   assert.equal(form.querySelector('[name=MELEE_20XX]').checked, true);
   assert.equal(form.querySelector('[name=MELEE_HITBOXES]').checked, false);
   // The select reflects the URL by selecting the matching option.
@@ -207,11 +208,11 @@ test('the rows are grouped into tabs, one head per pane', async () => {
   const { addSettings } = await import('../../platforms/browser/settings.mjs');
   const form = addSettings(host, { reload: () => {} });
   const heads = form.querySelectorAll('.tab').concat(form.querySelectorAll('.tab on'));
-  const used = new Set([...SETTINGS.map((s) => s.tab ?? TABS[0]), ...LIVE.map((d) => d.tab)]);
+  const used = new Set([...SETTINGS.map((s) => s.tab ?? TABS[0]), ...LIVE.map((d) => d.tab), ...INPUT_PREFS.map((d) => d.tab)]);
   assert.equal(heads.length, used.size, 'one head per tab that has a row');
   // Every row still reaches the form, so no setting is lost in a pane.
   assert.equal(bootRows(form).length, SETTINGS.length);
-  assert.equal(form.querySelectorAll('.setting').length, SETTINGS.length + LIVE.length);
+  assert.equal(form.querySelectorAll('.setting').length, SETTINGS.length + LIVE.length + INPUT_PREFS.length);
 });
 
 test('exactly one pane is in front, and a head switches it', async () => {
@@ -247,7 +248,7 @@ test('a setting that names no tab still gets a control', async () => {
   try {
     const form = mod.addSettings(host, { reload: () => {} });
     assert.equal(bootRows(form).length, SETTINGS.length);
-    assert.equal(form.querySelectorAll('.setting').length, SETTINGS.length + LIVE.length);
+    assert.equal(form.querySelectorAll('.setting').length, SETTINGS.length + LIVE.length + INPUT_PREFS.length);
     assert.ok(form.querySelector('[name=MELEE_NO_TAB]'), 'the untabbed row is missing');
   } finally {
     SETTINGS.pop();
@@ -594,4 +595,101 @@ test('the shell pushes stored live values once the runtime is up', async () => {
   assert.ok(hook, 'shell.mjs no longer defines onRuntimeInitialized as expected');
   assert.match(hook[1], /\bapplyStoredLive\(\)/,
     'onRuntimeInitialized does not call applyStoredLive()');
+});
+
+// ---- Input tab (board pin 32) ----
+const INPUT_IDS = ['ctl-tap-jump', 'ctl-deadzone', 'ctl-curve', 'ctl-cstick'];
+
+function stubStorage(initial = {}) {
+  const store = new Map(Object.entries(initial));
+  globalThis.localStorage = {
+    getItem: (k) => (store.has(k) ? store.get(k) : null),
+    setItem: (k, v) => { store.set(k, String(v)); },
+  };
+  return store;
+}
+
+test('the four Input rows exist with class setting, inside the Input pane', async () => {
+  const host = stubDom('');
+  const { addSettings } = await import('../../platforms/browser/settings.mjs');
+  const form = addSettings(host, { reload: () => {} });
+  for (const id of INPUT_IDS) {
+    const row = form.querySelector(`#${id}`);
+    assert.ok(row, `${id} missing`);
+    assert.ok(row.className.split(' ').includes('setting'), `${id} lacks class setting`);
+    assert.ok(row.children.some((c) => c.className === 'setting-label'), `${id} lacks setting-label`);
+    assert.equal(row.parent.className.split(' ').includes('pane'), true, `${id} not a loose row in a pane`);
+  }
+  const pane = form.querySelector('#ctl-tap-jump').parent;
+  for (const id of INPUT_IDS) assert.equal(form.querySelector(`#${id}`).parent, pane, `${id} in another pane`);
+  assert.equal(TABS.join(), 'Game,Video,Audio,Input,Netplay');
+});
+
+test('the Input tab head exists and switching to it brings the rows forward', async () => {
+  const host = stubDom('');
+  const { addSettings } = await import('../../platforms/browser/settings.mjs');
+  const form = addSettings(host, { reload: () => {} });
+  const heads = form.querySelector('.tab-heads');
+  const at = heads.children.findIndex((h) => h.textContent === 'Input');
+  assert.equal(at, 3, 'Input sits between Audio and Netplay');
+  heads.children[at].handlers.get('click')();
+  assert.equal(form.querySelector('#ctl-deadzone').parent.className, 'pane');
+  assert.equal(form.querySelector('#ctl-volume').parent.className, 'pane off');
+});
+
+test('an Input control stores under melee.input and inputPref reads it back', async () => {
+  const host = stubDom('');
+  const store = stubStorage();
+  try {
+    const { addSettings, inputPref } = await import('../../platforms/browser/settings.mjs');
+    assert.equal(inputPref('ctl-tap-jump'), false);
+    assert.equal(inputPref('ctl-curve'), 'eased');
+    const form = addSettings(host, { reload: () => {} });
+    const box = form.querySelector('#ctl-tap-jump').children.find((c) => c.type === 'checkbox');
+    box.checked = true;
+    box.handlers.get('change')();
+    assert.equal(store.get('melee.input.ctl-tap-jump'), '1');
+    assert.equal(inputPref('ctl-tap-jump'), true);
+  } finally { delete globalThis.localStorage; }
+});
+
+test('a Wide deadzone reads a 0.25 deflection as centred, Default does not', async () => {
+  const { shapeStick } = await import('../../platforms/browser/touch.mjs');
+  try {
+    stubStorage();
+    assert.notEqual(shapeStick(0.25, 0).x, 0, 'Default reports at 0.25');
+    stubStorage({ 'melee.input.ctl-deadzone': 'wide' });
+    assert.equal(shapeStick(0.25, 0).x, 0, 'Wide is still centred at 0.25');
+    assert.notEqual(shapeStick(0.4, 0).x, 0, 'Wide reports at 0.4');
+  } finally { delete globalThis.localStorage; }
+});
+
+test('Linear and Eased differ at mid travel and agree at full deflection', async () => {
+  const { shapeStick } = await import('../../platforms/browser/touch.mjs');
+  try {
+    stubStorage({ 'melee.input.ctl-curve': 'linear' });
+    const linearMid = shapeStick(0.5, 0).x;
+    const linearFull = shapeStick(1, 0).x;
+    stubStorage({ 'melee.input.ctl-curve': 'eased' });
+    const easedMid = shapeStick(0.5, 0).x;
+    const easedFull = shapeStick(1, 0).x;
+    assert.equal(linearMid, 30, 'linear: (0.5-0.2)/0.8 of 80');
+    assert.equal(easedMid, 44, 'eased: 0.28 + 0.375*0.72 of 80');
+    assert.equal(linearFull, 80);
+    assert.equal(easedFull, 80);
+  } finally { delete globalThis.localStorage; }
+});
+
+test('Tap to jump lets the upward axis reach full in one frame, off takes several', async () => {
+  const { createUpRamp } = await import('../../platforms/browser/touch.mjs');
+  try {
+    stubStorage({ 'melee.input.ctl-tap-jump': '1' });
+    assert.equal(createUpRamp()(80), 80, 'checked: instant');
+    stubStorage();
+    const ramp = createUpRamp();
+    const frames = [];
+    for (let i = 0; i < 12; i++) frames.push(ramp(80));
+    assert.equal(frames[0], 8, 'unchecked: first frame is a tenth');
+    assert.equal(frames.indexOf(80), 9, 'unchecked: ten frames to full');
+  } finally { delete globalThis.localStorage; }
 });
