@@ -131,9 +131,9 @@
       "n": 5,
       "anchor": "#port-2",
       "side": "left",
-      "state": "closed",
+      "state": "open",
       "title": "Gamepad API for Bluetooth pads",
-      "pin": "A real pad claims a port like any other controller."
+      "pin": "A real pad claims a port like any other controller. Still open: #30 shipped the per-port connect button and the source picker, but only the GameCube adapter routes input so far, so a plain Bluetooth pad is offered and does not yet play."
     },
     {
       "n": 15,
@@ -295,6 +295,30 @@
       "state": "open",
       "title": "Load button and save-state modal, instead of a disc chip",
       "pin": "The chip read a percentage the browser build cannot measure. The slot becomes a press: Load opens the state menu, which holds the four presets and the states this player saved."
+    },
+    {
+      "n": 37,
+      "anchor": "#port-3",
+      "side": "left",
+      "state": "open",
+      "title": "Export pc_net_connect so a net session can start",
+      "pin": "Why a third player cannot join yet. The two peers pair and the data channel opens, then nothing starts a net session: pc_net_connect is not in -sEXPORTED_FUNCTIONS, so the page cannot call it. Blocks the ports past 2 that #6 and #23 both wait on."
+    },
+    {
+      "n": 38,
+      "anchor": "#log-tab",
+      "side": "left",
+      "state": "open",
+      "title": "Document the progress board in the architecture map",
+      "pin": "This board is undocumented in the repo that owns it. docs/ARCHITECTURE-MAP.md (264 lines) and platforms/browser/README.md mention tools/progress/ zero times, so an agent reading the index never learns the board exists, let alone that it is the spec."
+    },
+    {
+      "n": 39,
+      "anchor": "#setting-tabs",
+      "side": "right",
+      "state": "open",
+      "title": "Gate demo-to-artifact parity; --audit does not cover it",
+      "pin": "How this panel drifted from the demo without anything failing. --audit compares pins to the tracker and never opens the artifact, so spec->artifact and demo->artifact are ungated. Measured 2026-10-11: the demo declares 27 settings rows across 5 tabs and the build creates 12 across 4, Input absent entirely. An id-attribute grep misses it too -- the demo builds rows from f-strings, so the gate has to walk the TABS row set."
     }
   ]
 }
