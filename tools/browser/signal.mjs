@@ -38,6 +38,18 @@ export function signalHandler(req, res, prefix = '') {
   const url = new URL(req.url, 'http://x');
   const pathname = prefix && url.pathname.startsWith(prefix)
     ? url.pathname.slice(prefix.length) : url.pathname;
+  // The open rooms, for the lobby's Join list. A room with no subscribers is
+  // already gone from the Map (the close handler deletes it), so everything
+  // here has someone in it. A full room is listed with free:0 rather than
+  // left out: a visitor can see it is full instead of wondering where it went.
+  // free counts the same two pairable slots state() sends, for the same reason.
+  if (req.method === 'GET' && pathname === '/rooms') {
+    const open = [...rooms].map(([name, r]) => ({
+      name, here: r.subs.size, free: r.claims.slice(0, 2).filter((c) => !c).length,
+    }));
+    res.writeHead(200, { ...CORS, 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' });
+    return res.end(JSON.stringify(open));
+  }
   const m = /^\/r\/([\w-]+)(\/events)?$/.exec(pathname);
   if (!m) { res.writeHead(404, CORS); return res.end(); }
   const name = m[1];

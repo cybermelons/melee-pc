@@ -222,7 +222,7 @@ export const roomLink = (location) => {
  * a control points at the same control here.
  */
 export function addLobby(host, {
-  room, onClaim, onRelease, onCopy, onConnect, onLoad, sources = detectSources(),
+  room, onClaim, onRelease, onCopy, onConnect, onLoad, onJoin, sources = detectSources(),
 } = {}) {
   const doc = host.ownerDocument ?? document;
   const el = (tag, cls, text) => {
@@ -261,6 +261,10 @@ export function addLobby(host, {
   if (onCopy) code.addEventListener('click', onCopy);
   const join = el('button', null, 'Join');
   join.id = 'join-btn';
+  join.type = 'button';
+  // Opens the join modal. Wired by the page for the same reason as onLoad:
+  // the modal is a sibling of the panel and the lobby does not own it.
+  if (onJoin) join.addEventListener('click', onJoin);
   right.append(code, join);
   bar.append(left, right);
 

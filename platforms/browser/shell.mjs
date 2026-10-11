@@ -12,6 +12,7 @@ import { addTierToggle } from './tier.mjs';
 import { showCrash } from './crash.mjs';
 import { addSettings, applyStoredLive } from './settings.mjs';
 import { addLobby, ensureRoom, mySlot, roomLink, sessionId } from './lobby.mjs';
+import { addJoin } from './join.mjs';
 import { addStates } from './states.mjs';
 
 const $ = (id) => document.getElementById(id);
@@ -379,11 +380,14 @@ const lobby = addLobby($('lobby'), {
   // here rather than inside addLobby, because the modal is a sibling of the
   // panel and the lobby does not own it.
   onLoad: () => states.open(),
+  // The Join button lists the open lobbies (#45); same wiring as Load.
+  onJoin: () => join.open(),
 });
 // The modal hangs off <body>, not off #menu-panel: showModal puts a dialog in
 // the top layer, so the panel's own position, max-height and overflow:auto
 // would otherwise clip and scroll it mid-match.
 const states = addStates(document.body);
+const join = addJoin(document.body);
 // Set by joinLobby once the signal channel is open; before that a tile press
 // has nothing to post to.
 let claim = null;

@@ -391,7 +391,7 @@
      trap and Esc with it, so none of that is written here. A closed dialog is
      display:none by the UA stylesheet, which is why the panel gets its height
      back when the modal is shut. */
-  #load-modal {
+  #load-modal, #join-modal {
     margin: auto; padding: 14px; width: min(92vw, 420px);
     /* The fit-the-viewport half of the issue: the sheet may use the height it
        needs up to the viewport, and no more, so the modal never scrolls the
@@ -401,15 +401,16 @@
     background: #0f1117; color: #eee;
     font: 15px/1.4 system-ui, sans-serif;
   }
-  #load-modal::backdrop { background: #000000b0; }
-  #load-modal .sheet { display: grid; gap: 10px; }
-  #load-modal .group-h { margin: 0; font-size: 15px; }
+  #load-modal::backdrop, #join-modal::backdrop { background: #000000b0; }
+  #load-modal .sheet, #join-modal .sheet { display: grid; gap: 10px; }
+  #load-modal .group-h, #join-modal .group-h { margin: 0; font-size: 15px; }
   #load-modal .sub-h { margin-left: 6px; color: #999; font-size: 12px; font-weight: 400; }
   .states { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .state { text-align: left; display: grid; gap: 2px; min-height: 44px;
            padding: 9px 10px; background: #191b24; color: #eee;
            border: 1px solid #333; border-radius: 9px; }
   .state b { font-size: 14px; }
+  .state:disabled { opacity: .5; }
   .state i { font-style: normal; color: #999; font-size: 12px; }
   .sheet-row { display: flex; gap: 8px; flex-wrap: wrap; }
   .sheet-row button { min-height: 44px; padding: 7px 12px; border-radius: 8px;
@@ -417,8 +418,8 @@
                       border: 1px solid #333; }
   .sheet-row .primary { background: #e8c349; color: #1a1405;
                         border-color: #e8c349; font-weight: 600; }
-  #load-modal .sub { margin: 0; color: #6f7280; font-size: 12px; }
-  #load-modal .sub[hidden] { display: none; }
+  #load-modal .sub, #join-modal .sub { margin: 0; color: #6f7280; font-size: 12px; }
+  #load-modal .sub[hidden], #join-modal .sub[hidden] { display: none; }
 </style>
 <h1>Melee Web</h1>
 <div id="menu-panel"><div id="lobby"></div>
