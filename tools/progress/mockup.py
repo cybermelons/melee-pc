@@ -25,6 +25,8 @@ individually selectable children is what the code actually does.
 Keep this in step with platforms/browser/settings.mjs. A flag that gains a
 control there wants a row here, or the mockup stops being the target.
 """
+import os
+import re
 
 # Tab -> rows. Each row is (id-suffix, label, control-html, hint).
 # The ids match the MELEE_* flag where one exists, so a pin can anchor to the
@@ -157,6 +159,12 @@ PORTS = """
          here because the mockup shows you holding P1, so the state cannot be
          shown on the tiles at the same time. -->
     <p id="no-port" class="sub seat-none">Spectating · you hold no port · take a free one or queue</p>
+    <!-- #45's target: open lobbies a visitor can join. -->
+    <div id="open-lobbies" class="ports">
+      <button class="pbtn" disabled>FIG-7K2 · 2/4</button>
+      <button class="pbtn" disabled>QRT-3M9 · 1/2</button>
+    </div>
+    <p class="sub">Open lobbies · pick one to join</p>
 """
 
 
@@ -235,3 +243,17 @@ MODAL = """
 def launcher_html():
     return (LAUNCHER.replace('%PORTS%', PORTS).replace('%TABS%', _tabs())
             + MODAL)
+
+
+def _check_manifest():
+    path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__)))), 'platforms/browser/setting-ids.mjs')
+    with open(path) as f:
+        manifest = set(re.findall(r"'(ctl-[^']+)'", f.read()))
+    mine = {r[0] for rows in TABS.values() for r in rows}
+    if mine != manifest:
+        raise SystemExit('mockup TABS and setting-ids.mjs diverge: '
+                         f'{sorted(mine ^ manifest)}')
+
+
+_check_manifest()

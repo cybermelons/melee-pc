@@ -32,7 +32,7 @@
       "n": 6,
       "anchor": "#room-code",
       "side": "left",
-      "state": "open",
+      "state": "closed",
       "title": "Shared lobby URL with port claiming",
       "pin": "The room code is the lobby, top right, and clicking it copies the link. Two players pair for real, and a phone-shaped browser is one of them: measured over the routable tailnet address, both claim a port and the touch overlay draws. Two defects had to go first, and both hid behind loopback. signal.mjs sent claims as an object while lobby.mjs calls .indexOf on it, so every state event threw and no claim ever rendered (9fee67ca). Then crypto.randomUUID, which exists only in a secure context: http://127.0.0.1 is one by exemption and a tailnet IP is not, so the page could mint neither a room nor an identity on the only origin a visitor uses (f303d4a8). A third defect was in the offer itself: gathered() cut ICE gathering off after 3 seconds without checking that a srflx candidate had arrived, so on a slow network the offer went out with LAN addresses only. Measured here the first srflx lands at 11 ms while gathering is still open after 12 s, so the cutoff is now a ceiling and the srflx arrival releases the offer (c51bf783). Also measured over an https origin, which is what a shared link really has and which plain http on an IP is not: both ports claim and the data channel opens there too. Remaining: ports 3 and 4 need a transport for more than two peers, a friend on another network still has to exercise STUN. The link is a private tailnet address, shared privately rather than published, so the server needs no auth gate of its own."
     },
@@ -40,7 +40,7 @@
       "n": 22,
       "anchor": "#ports",
       "side": "left",
-      "state": "open",
+      "state": "closed",
       "title": "Lobby replaces the mode list",
       "pin": "One persistent room per URL, shipped in 00480d1b: lobby.mjs mints the room with replaceState and draws four port tiles, 42 tests cover it. The mode links are gone, and the last MELEE_BOOT_SCENE links on the page -- the #perf render-scale row -- are gone too: they duplicated the Video setting and dropped ?room= on every press, which the #35 ruling makes a real bug rather than a cosmetic one. One correction to this issue's text: it says 'the ports stay as they are' across a save-state load. Per #35 a load now mints a NEW room, so the loader keeps its seat through the reload but re-invites instead of rejoining. Still open on gitea; the owner closes it."
     },
@@ -48,7 +48,7 @@
       "n": 35,
       "anchor": "#settings-apply",
       "side": "right",
-      "state": "open",
+      "state": "closed",
       "title": "Boot flags are bound to the room code, not to the URL",
       "pin": "Owner ruling landed: a load mints a new room code. Implemented -- states.mjs withRoom now replaces ?room= instead of preserving it, with a test that fails if the old room rides along. Reason: a preset load is a reload (no snapshot path in the browser build), so the old room already saw this player leave and reassigned the port. Rejoining it would make the two sides disagree about the port map. Unblocks #22."
     },
@@ -72,7 +72,7 @@
       "n": 23,
       "anchor": "#queue",
       "side": "left",
-      "state": "open",
+      "state": "closed",
       "title": "Spectators and the port queue",
       "pin": "Past four players everybody watches and queues. Server side shipped: a release message frees a port and the first waiter still subscribed gets it, in claim order. The lobby does not draw the line yet; the place is a status string."
     },
@@ -88,7 +88,7 @@
       "n": 24,
       "anchor": "#states",
       "side": "left",
-      "state": "open",
+      "state": "closed",
       "title": "Modes become save states",
       "pin": "Versus and Training stop being places to go. The port-loss bug is fixed: sessionId keyed on sessionStorage survives the reload, so the loader keeps its seat. Per the #35 ruling a load now opens a NEW room, so the loader re-invites rather than rejoining a room that wrote them off."
     },
@@ -130,7 +130,7 @@
       "n": 5,
       "anchor": "#port-2",
       "side": "left",
-      "state": "closed",
+      "state": "open",
       "title": "Gamepad API for Bluetooth pads",
       "pin": "A real pad claims a port like any other controller."
     },
@@ -146,7 +146,7 @@
       "n": 26,
       "anchor": "#setting-tabs",
       "side": "right",
-      "state": "open",
+      "state": "closed",
       "title": "Settings into tabs",
       "pin": "Four tabs of five. Netplay arrived with MELEE_NET_DELAY in #28. Input stays empty because no input setting exists in the engine to put in it -- see #32, measured."
     },
@@ -162,7 +162,7 @@
       "n": 28,
       "anchor": "#ctl-MELEE_UCF",
       "side": "right",
-      "state": "open",
+      "state": "closed",
       "title": "Port the native launcher settings",
       "pin": "Measured. Only 3 of 16 have a getenv the query string can reach -- MELEE_UCF, MELEE_FROZEN_STADIUM, MELEE_NET_DELAY. Those 3 shipped. Correction to the earlier pin: prefs does not exist in the web build at all -- launcher.cpp is not in BROWSER_PC_SOURCES (CMakeLists.txt:25 excludes the launcher), so there is no prefs to reach. But 6 of the 12 need no prefs: they have a live setter already compiled in, and want only an -sEXPORTED_FUNCTIONS entry -- pc_widescreen_set_mode (widescreen.c:45), pc_audio_set_volume/_music_volume/_sfx_volume (audio.c:101,107,111), pc_audio_set_reverb (:271), and mute via set_volume(0). The remaining 6 (hud_mode, custom_textures, free_camera, filter_mode, anisotropy, net_name) have neither setter nor getenv and stay out."
     },
@@ -210,7 +210,7 @@
       "n": 7,
       "anchor": "#ctl-MELEE_PAUSE_ON_BLUR",
       "side": "right",
-      "state": "open",
+      "state": "closed",
       "title": "Browser QoL: resume, pause, settings",
       "pin": "Pause-on-blur landed. Resume after refresh and pause on crash did not. Parked."
     },
@@ -250,7 +250,7 @@
       "n": 19,
       "anchor": "#log-tab",
       "side": "left",
-      "state": "open",
+      "state": "closed",
       "title": "Headless runs can draw on the desktop",
       "pin": "Fixed in melee-pc: the display variables are removed inside cage. melee-web still needs the same line."
     },
@@ -258,7 +258,7 @@
       "n": 29,
       "anchor": "#kids-20xx",
       "side": "right",
-      "state": "open",
+      "state": "closed",
       "title": "Condense the 20XX children into a closed grid",
       "pin": "Measured at 390px: the fold is already closed on load and now holds 2 children, not the 5 this was written against. The issue calls one-per-row the right shape for 2, so the grid would save one 50px row and break the Tournament rules hint, which spans full width. Unlock everything stays out: the owner chose to condense the UI rather than add the C env read."
     },
@@ -266,7 +266,7 @@
       "n": 30,
       "anchor": "#port-1-pad",
       "side": "left",
-      "state": "open",
+      "state": "closed",
       "title": "Controller connect belongs on the port",
       "pin": "Shipped: every tile has this button, and it offers only the sources this browser can do. The page-level WebHID button is gone, and the picker opens from the press. Picking a source labels the port; only the adapter routes input so far, which is #5 and #2."
     },
@@ -282,7 +282,7 @@
       "n": 32,
       "anchor": "#ctl-deadzone",
       "side": "right",
-      "state": "open",
+      "state": "closed",
       "title": "Fill the Input tab, including controller options",
       "pin": "Measured: none of the 4 rows drawn here exists in the engine. No deadzone, stick curve, tap-jump or C-stick mode anywhere in src/pc, in any of the 60 getenv readers, or among the 28 prefs fields in launcher.cpp. The per-port question is moot until something exists to set. The rows are mockup-only; building them needs native input settings first."
     },
@@ -290,7 +290,7 @@
       "n": 33,
       "anchor": "#load-btn",
       "side": "right",
-      "state": "open",
+      "state": "closed",
       "title": "Load button and save-state modal, instead of a disc chip",
       "pin": "The chip read a percentage the browser build cannot measure. The slot becomes a press: Load opens the state menu, which holds the four presets and the states this player saved."
     },
@@ -301,6 +301,62 @@
       "state": "open",
       "title": "Shared settings manifest so parity checks the loop at its source",
       "pin": "The 27 ctl-* rows in this body are emitted from a loop in mockup.py, and settings.mjs builds the real ones from a loop too, so --parity sees them as js-only and scores them absent. That rule is right: a grep cannot tell a real DOM creation from a dead mention. The fix is one declarative settings manifest both loops read, with --parity asserting manifest ids == mockup ctl-* ids, so the loop is checked at its source rather than at its output. Hand-writing 27 rows into index.html to satisfy a grep would be the wrong fix."
+    },
+    {
+      "n": 37,
+      "anchor": "#port-2",
+      "side": "left",
+      "state": "closed",
+      "title": "Export pc_net_connect so the page can start a net session after the data channel opens",
+      "pin": "The export lets the page start a net session once the data channel is open, so a second player joins the shared match instead of sitting beside it. The visible result is P2 occupied by that player, which is why the pin sits on the P2 tile."
+    },
+    {
+      "n": 39,
+      "anchor": "#setting-tabs",
+      "side": "right",
+      "state": "closed",
+      "title": "Gate the demo-to-artifact id parity; --audit does not cover it",
+      "pin": "--audit compares the board to the tracker and never opens the artifact. The gate this issue adds compares demo ids to artifact ids, and the settings tabs are the region whose id drift it catches."
+    },
+    {
+      "n": 40,
+      "anchor": "#port-3",
+      "side": "left",
+      "state": "open",
+      "title": "Three and four player netplay needs an N-way engine net layer",
+      "pin": "A third human needs a seat in a shared match. P3 is that seat: the tile must show a remote player holding it, which the two-peer net layer cannot do today."
+    },
+    {
+      "n": 41,
+      "anchor": "#room-code",
+      "side": "left",
+      "state": "open",
+      "title": "Two players on two real phones through one shared link",
+      "pin": "The shared link is the room code button. Done means a second phone opens that link and lands in the same match, with its player on P2."
+    },
+    {
+      "n": 42,
+      "anchor": "#ctl-reverb",
+      "side": "right",
+      "state": "closed",
+      "title": "Live engine controls: audio sliders, reverb, aspect",
+      "pin": "The reverb toggle is one of the five live setters, so changing it in the Audio tab takes effect in the running engine without a restart."
+    },
+    {
+      "n": 44,
+      "anchor": "#room-code",
+      "side": "left",
+      "state": "closed",
+      "title": "Lobby: remove the \"copy link\" text",
+      "pin": "The room code button carries the code alone. The copy-link label is gone, and the title and aria-label still say what the button does."
+    },
+    {
+      "n": 45,
+      "anchor": "#open-lobbies",
+      "side": "left",
+      "state": "closed",
+      "title": "Lobby: list open lobbies to join",
+      "pin": "The lobby lists open lobbies a visitor can join. #open-lobbies is that list, drawn under the ports."
     }
   ]
 }
