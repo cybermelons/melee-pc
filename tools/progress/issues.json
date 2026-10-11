@@ -173,7 +173,8 @@
       "state": "open",
       "title": "Port the native launcher settings",
       "pin": "Boot-time env route only. Of the 22 demo rows that are not live controls, 10 are built (MELEE_20XX, _BOOT_CSS, _20XX_RULES, UCF, FROZEN_STADIUM, PAUSE, PAUSE_ON_BLUR, SCALE, HITBOXES, NET_DELAY), so 10 of 22. Each is a query param read once in preRun, so changing one costs a page reload. The other 12 are not done: six have no getenv anywhere in src/ and no exported setter, so there is no route to the engine at all (hud_mode, texture filter, custom_textures, free_camera, mute, net_name); the rest are owned by #29 (unlock-all), #32 (four input rows) and #17 (relay). The five audio and aspect controls are not counted here: they went in by a different mechanism, see #42.",
-      "seen": 3680
+      "seen": 3680,
+      "proof": "/home/kiri/.nvm/versions/node/v20.5.1/bin/node --test --test-name-pattern 'every boot setting has a real env reader the browser compiles \\(#28\\)' tests/browser/settings.test.mjs 2>&1 | grep -qx '# pass 1'"
     },
     {
       "n": 8,
@@ -264,7 +265,8 @@
       "side": "left",
       "state": "open",
       "title": "Headless runs can draw on the desktop",
-      "pin": "Fixed in melee-pc: the display variables are removed inside cage. melee-web still needs the same line."
+      "pin": "Fixed in melee-pc: the display variables are removed inside cage. melee-web still needs the same line.",
+      "proof": "grep -q 'env -u WAYLAND_DISPLAY -u DISPLAY' tools/display.sh && grep -q 'WLR_BACKENDS=headless' tools/display.sh && ! grep -qE 'WLR_BACKEND=' tools/display.sh"
     },
     {
       "n": 29,
