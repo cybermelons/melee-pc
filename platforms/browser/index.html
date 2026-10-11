@@ -339,15 +339,25 @@
   }
   #crash-hint { margin: 0; color: #999; font-size: 13px; }
 
+  /* Ported from the board mockup (tools/progress/mockup.py). The literals
+     stand in for the demo's custom properties; --line is #2a2c36.
+     The demo's panel measures 648px wide because it sits in a max-content
+     phone frame, and border-box keeps the 18px padding inside that width
+     instead of adding to it. */
+  #menu-panel {
+    background: #111; border: 1px solid #2a2c36; border-radius: 12px;
+    padding: 18px; display: grid; gap: 18px;
+    max-width: 648px; box-sizing: border-box;
+  }
   /* The settings form. Inside #menu-panel, so body.playing.menu reveals it
      with the rest of the panel and no separate rule is needed. */
   #settings {
-    display: grid; gap: 8px; justify-items: start;
+    display: grid; gap: 8px;
     margin: 12px 0 0; padding: 12px 0 0;
     border-top: 1px solid #333;
   }
-  /* The tab heads and the pane stack both span the grid, which
-     justify-items: start would otherwise shrink-wrap. */
+  /* The tab heads and the pane stack are stretched explicitly so they fill
+     the panel width. */
   #settings #setting-body, #settings .tab-heads, #settings .panes { justify-self: stretch; width: 100%; }
   #settings .tab-heads {
     display: flex; gap: 4px; flex-wrap: wrap; border-bottom: 1px solid #333;
@@ -358,13 +368,17 @@
     border-bottom: none; border-radius: 6px 6px 0 0;
   }
   #settings .tab.on { color: #fff; background: #1c1c1c; border-color: #333; margin-bottom: -1px; }
+  /* The demo's numbers on a mouse; the 44px form above stays for touch. */
+  @media not all and (pointer: coarse) {
+    #settings .tab { min-height: 0; padding: 7px 12px; font-size: .82rem; }
+  }
   /* Every pane shares one grid cell, so the stack is as tall as the tallest
      pane and switching a tab does not move the Apply button under it. */
   #settings .panes { display: grid; }
-  #settings .panes > .pane { grid-area: 1 / 1; display: grid; gap: 8px; justify-items: start; padding: 10px 0 0; }
+  #settings .panes > .pane { grid-area: 1 / 1; display: grid; gap: 8px; padding: 10px 0 0; }
   /* An off pane keeps its box so it still measures, and takes no clicks. */
   #settings .pane.off { opacity: 0; z-index: -1; pointer-events: none; }
-  #settings .setting { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  #settings .setting { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; font-size: .84rem; }
   /* A child is indented under its parent and shares its rule, so the group
      reads as one decision with exceptions rather than three equal rows. */
   #settings .setting.child { margin-left: 14px; border-left: 2px solid #333; padding-left: 10px; }
@@ -375,13 +389,17 @@
      rule of its own. */
   #settings .kids { margin-left: 14px; display: flex; flex-direction: column; }
   /* 44px targets and 16px text: the same minimums the rest of the panel uses,
-     so a tap lands and iOS does not zoom the page on focus. */
-  #settings select, #settings input, #settings button { min-height: 44px; font-size: 16px; }
+     so a tap lands and iOS does not zoom the page on focus. Now pointer:coarse
+     only: on a mouse the 44px minimum made every row about three times the
+     demo's height. */
+  @media (pointer: coarse) {
+    #settings select, #settings input, #settings button { min-height: 44px; font-size: 16px; }
+  }
   /* Ported from the board's mockup (docs/site/progress.html). The page has no
      custom properties, so the demo's literals stand in: accent #e4b04a, fg
      #e8e8ec, dim #a4a6b3, line #2a2c36. Colour and layout only; the 44px/16px
-     minimums above stay. */
-  #settings .pane-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px 18px; justify-items: start; }
+     minimums above stay on a touch pointer. */
+  #settings .pane-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px 18px; }
   #settings .kids { grid-column: 1 / -1; }
   #settings .setting.parent { font-weight: 600; grid-column: 1 / -1; }
   #settings .setting-label { color: #e8e8ec; }
