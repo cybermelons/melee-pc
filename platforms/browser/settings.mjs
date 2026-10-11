@@ -195,13 +195,18 @@ export function addSettings(host, { reload = (search) => location.assign(search 
       if (!fold) {
         fold = document.createElement('details');
         fold.className = 'kids';
+        // MELEE_20XX -> kids-20xx: the board pins the fold by this id.
+        fold.id = `kids-${setting.parent.replace(/^MELEE_/, '').toLowerCase()}`;
         const summary = document.createElement('summary');
         summary.textContent = 'Individual settings';
         fold.append(summary);
+        const grid = document.createElement('div');
+        grid.className = 'kid-grid';
+        fold.append(grid);
         folds.set(setting.parent, fold);
         pane(setting.tab ?? TABS[0]).append(fold);
       }
-      fold.append(row);
+      fold.querySelector('.kid-grid').append(row);
     } else {
       pane(setting.tab ?? TABS[0]).append(row);
     }
@@ -240,13 +245,17 @@ export function addSettings(host, { reload = (search) => location.assign(search 
     });
     heads.append(head);
   }
-  form.append(heads);
   // The panes share one grid cell, so the stack keeps the height of the
   // tallest and a switch does not move the Apply button below it.
   const stack = document.createElement('div');
   stack.className = 'panes';
   for (const body of panes.values()) stack.append(body);
-  form.append(stack);
+  // One wrapper over heads and panes, so the board can pin the tabbed body.
+  const settingBody = document.createElement('div');
+  settingBody.id = 'setting-body';
+  settingBody.append(heads);
+  settingBody.append(stack);
+  form.append(settingBody);
 
   const current = () => {
     const out = {};

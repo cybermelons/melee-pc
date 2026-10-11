@@ -307,10 +307,17 @@ test('the children sit in one fold under the parent, not as loose rows', async (
   const folds = form.querySelectorAll('.kids');
   assert.equal(folds.length, 1, 'one fold per parent');
   // Every child is inside it, so the pane costs one row for the group rather
-  // than one per child.
+  // than one per child. The rows sit in a .kid-grid inside the fold because
+  // that is the shape the progress-board demo declares (mockup.py:114); pin
+  // both levels so the build cannot drift from the demo.
   for (const setting of SETTINGS.filter((s) => s.parent)) {
     const row = form.querySelector(`[name=${setting.key}]`).parent;
-    assert.equal(row.parent, folds[0], `${setting.key} is not in the fold`);
+    assert.equal(
+      row.parent.className.split(' ').includes('kid-grid'),
+      true,
+      `${setting.key} is not in the kid-grid`,
+    );
+    assert.equal(row.parent.parent, folds[0], `${setting.key} is not in the fold`);
   }
   assert.equal(folds[0].parent.className.split(' ').includes('pane'), true);
 });

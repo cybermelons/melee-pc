@@ -436,6 +436,36 @@ test('the shell opens the WebHID picker from the press and never from a load', (
     'the page-level connect button is gone (#30)');
 });
 
+test('the queue line reports its length and who is next, not your place (#23)', () => {
+  // render() took two arguments until the queue was drawn, so the server's
+  // queue array was parsed in shell.mjs and dropped. These assert the element
+  // the board pins #23 to, because a hidden element and an absent one look the
+  // same from a rendered-DOM probe and only one of them is this feature.
+  const { host, api } = buildLobby({ getGamepads: () => [] });
+  const line = () => host.descendants().find((n) => n.id === 'queue');
+
+  // No queue: the line is hidden rather than empty, so it takes no height.
+  api.render(['a', 'b', null, null], 'me', []);
+  assert.equal(line().hidden, true);
+
+  // A caller that passes no queue at all is the three 2-arg callers, which
+  // must keep working -- the default is load-bearing, not tidiness.
+  api.render(['a', 'b', null, null], 'me');
+  assert.equal(line().hidden, true);
+
+  api.render(['a', 'b', null, null], 'me', ['mango', 'armada']);
+  assert.equal(line().hidden, false);
+  assert.match(line().textContent, /^2 in line/);
+  // The stub's textContent ignores appended children, so the next player's
+  // <b> is read off children directly.
+  const nextUp = line().children.find((n) => n.tagName === 'b');
+  assert.ok(nextUp, 'the next player is drawn in a <b>');
+  assert.equal(nextUp.textContent, 'mango');
+  // Your own place belongs to the status string (shell.mjs:526). Two elements
+  // for one fact is how they drift apart.
+  assert.ok(!/in line for/.test(line().textContent));
+});
+
 test('a spectator is told to take a free port or queue (#23)', () => {
   // The exact wording the issue asks for, middle dots and all. It drifted
   // once already -- the page said "wait for one to free up" while the mockup

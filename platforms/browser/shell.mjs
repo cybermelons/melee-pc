@@ -487,7 +487,7 @@ async function joinLobby() {
     // to know which port is this page's, and it runs from onRuntimeInitialized
     // rather than from inside the signalling.
     mySeat = slot;
-    lobby.render(claims, me);
+    lobby.render(claims, me, queue ?? []);
     // Holding a port and having a peer is what opens the channel. Neither
     // this nor the engine boot waits on the other: the engine is already
     // running, or will be, and pairing catches up.

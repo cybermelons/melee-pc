@@ -75,7 +75,7 @@
       "side": "left",
       "state": "open",
       "title": "Spectators and the port queue",
-      "pin": "Past four players everybody watches and queues. Server side shipped: a release message frees a port and the first waiter still subscribed gets it, in claim order. The lobby does not draw the line yet; the place is a status string."
+      "pin": "Past four players everybody watches and queues. Server side shipped: a release message frees a port and the first waiter still subscribed gets it, in claim order. The lobby draws the line now: #queue reports how long the queue is and who is next, hidden when nobody waits. It deliberately does not repeat where this user stands -- that is already in the status string, and a second copy of one fact is a second thing to drift. Still open: ports 3 and 4 need a transport for more than two peers before a real queue can form."
     },
     {
       "n": 17,
@@ -262,7 +262,7 @@
       "side": "right",
       "state": "open",
       "title": "Condense the 20XX children into a closed grid",
-      "pin": "Measured at 390px: the fold is already closed on load and now holds 2 children, not the 5 this was written against. The issue calls one-per-row the right shape for 2, so the grid would save one 50px row and break the Tournament rules hint, which spans full width. Unlock everything stays out: the owner chose to condense the UI rather than add the C env read."
+      "pin": "Measured at 390px: the fold is already closed on load and now holds 2 children, not the 5 this was written against. The issue calls one-per-row the right shape for 2, so the grid would save one 50px row and break the Tournament rules hint, which spans full width. Unlock everything stays out: the owner chose to condense the UI rather than add the C env read. The fold now carries this anchor's id and wraps its children in a .kid-grid, so the board can pin it; the grid is the shape the demo declares at mockup.py:114."
     },
     {
       "n": 30,
