@@ -450,6 +450,25 @@ test('every boot setting has a real env reader the browser compiles (#28)', asyn
   }
 });
 
+test('the free camera is refused in a netplay session', async () => {
+  // The camera feeds back into the simulation (src/melee/cm/camera.c:1972 sets
+  // pause_eye_distance from it), so one player moving it desyncs lockstep.
+  // launcher.cpp:1854 guards the native path with !pc_net_deterministic() and
+  // the browser stub dropped the guard, which made the control a desync switch
+  // in exactly the mode the board is building toward.
+  const fs = await import('node:fs/promises');
+  const stubs = await fs.readFile(
+    new URL('../../platforms/browser/pc_stubs.c', import.meta.url), 'utf8');
+  const fn = stubs.match(/bool pc_is_free_camera_enabled\(void\) \{([\s\S]*?)\n\}/);
+  assert.ok(fn, 'pc_is_free_camera_enabled is gone from pc_stubs.c');
+  assert.match(fn[1], /!pc_net_deterministic\(\)/,
+    'the free camera no longer refuses a netplay session, so the control can desync lockstep');
+  // The guard needs its declaration; without the include this is an implicit
+  // decl that returns int, and -sERROR_ON_UNDEFINED_SYMBOLS would not catch it.
+  assert.match(stubs, /#include "pc\/net\.h"/,
+    'pc_net_deterministic is called with no declaration in scope');
+});
+
 test('every live descriptor names a function the wasm exports', async () => {
   // Read the real link line, not a copy of it: a renamed or mistyped fn must
   // fail here, where a hardcoded list would stay green.

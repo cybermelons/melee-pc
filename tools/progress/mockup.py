@@ -77,7 +77,10 @@ TABS = {
          _sel('1.0 · 960x720', '0.667 · 640x480', '0.5 · 480x360'), ''),
         ('ctl-filter', 'Texture filter', _sel('1x', '4x', '16x'), ''),
         ('ctl-custom-textures', 'Custom textures', _chk(), ''),
-        ('ctl-free-camera', 'Camera', _sel('Normal', 'Free'), ''),
+        # A flag under a two-option label, exactly as the native launcher draws it
+        # (launcher.cpp:360 and 1356 print prefs.free_camera as Normal/Free).
+        # platforms/browser/pc_stubs.c:61 reads MELEE_FREE_CAMERA, so no C work.
+        ('ctl-MELEE_FREE_CAMERA', 'Camera', _sel('Normal', 'Free'), ''),
         ('ctl-MELEE_HITBOXES', 'Show hitboxes', _chk(), ''),
     ],
     'Audio': [

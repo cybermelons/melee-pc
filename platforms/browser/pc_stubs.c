@@ -22,6 +22,7 @@
  * CMakeLists.txt, src/pc/compat.h); this file is in the browser target, which
  * does not, so the melee headers below need it named explicitly. */
 #include "pc/disc.h"
+#include "pc/net.h"
 
 #include <melee/ft/inlines.h>
 #include <melee/ft/types.h>
@@ -58,7 +59,11 @@ bool pc_is_frozen_stadium_enabled(void) {
     return env_flag("MELEE_FROZEN_STADIUM");
 }
 bool pc_is_free_camera_enabled(void) {
-    return env_flag("MELEE_FREE_CAMERA");
+    /* A netplay session refuses it: the camera feeds back into the simulation
+     * (src/melee/cm/camera.c:1972 changes pause_eye_distance), so one player
+     * moving the camera desyncs lockstep. launcher.cpp:1854 guards it the same
+     * way; the browser stub used to drop the guard. */
+    return !pc_net_deterministic() && env_flag("MELEE_FREE_CAMERA");
 }
 bool pc_is_ucf_enabled(void) {
     const char* env = getenv("MELEE_UCF");

@@ -63,6 +63,13 @@ export const SETTINGS = [
     label: 'Unlock everything',
     hint: '20XX turns this on.' },
   { key: 'MELEE_HITBOXES', tab: 'Video', kind: 'flag', label: 'Show hitboxes' },
+  // A flag, drawn as two named options because that is how the native launcher
+  // shows it (launcher.cpp:360 and 1356 print prefs.free_camera as Normal/Free)
+  // and what the board declares. platforms/browser/pc_stubs.c:61 reads it, and
+  // refuses it in a netplay session, where a moving camera desyncs lockstep.
+  { key: 'MELEE_FREE_CAMERA', tab: 'Video', kind: 'choice', label: 'Camera',
+    options: [['', 'Normal'], ['1', 'Free']],
+    hint: 'Netplay keeps the normal camera.' },
   { key: 'MELEE_PAUSE', tab: 'Game', kind: 'flag', label: 'Allow pausing',
     hint: 'Tournament rules turn pausing off.' },
   { key: 'MELEE_PAUSE_ON_BLUR', tab: 'Audio', kind: 'flag', label: 'Pause when unfocused',
