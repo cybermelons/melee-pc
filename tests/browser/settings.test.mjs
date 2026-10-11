@@ -497,3 +497,21 @@ test('the new settings are not children, so the parent logic is untouched', () =
   // Still exactly one fold's worth of children: the 20XX family.
   assert.equal(parents.size, 2);
 });
+
+test('the shell pushes stored live values once the runtime is up', async () => {
+  // applyStoredLive is the only thing that replays a stored live value into the
+  // engine. Exported but uncalled, every live control still works for the
+  // session and silently forgets across a reload, which reads as the storage
+  // being broken rather than the call being absent.
+  const shell = await import('node:fs/promises')
+    .then((fs) => fs.readFile(new URL('../../platforms/browser/shell.mjs', import.meta.url), 'utf8'));
+  assert.match(shell, /import \{[^}]*\bapplyStoredLive\b[^}]*\} from '\.\/settings\.mjs'/,
+    'shell.mjs does not import applyStoredLive');
+  // The setters it pushes are Module exports, so the call is only valid after
+  // the runtime exists. Bound to onRuntimeInitialized's body, not the file, so
+  // moving the call out to module scope fails here instead of at runtime.
+  const hook = shell.match(/onRuntimeInitialized: \(\) => \{([\s\S]*?)\n  \},/);
+  assert.ok(hook, 'shell.mjs no longer defines onRuntimeInitialized as expected');
+  assert.match(hook[1], /\bapplyStoredLive\(\)/,
+    'onRuntimeInitialized does not call applyStoredLive()');
+});

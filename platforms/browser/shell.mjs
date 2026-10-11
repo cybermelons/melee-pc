@@ -10,7 +10,7 @@ import { iceServers, natKind, gathered } from './nat.mjs';
 import { addMenuButton } from './menu-button.mjs';
 import { addTierToggle } from './tier.mjs';
 import { showCrash } from './crash.mjs';
-import { addSettings } from './settings.mjs';
+import { addSettings, applyStoredLive } from './settings.mjs';
 import { addLobby, ensureRoom, mySlot, roomLink, sessionId } from './lobby.mjs';
 import { addStates } from './states.mjs';
 
@@ -182,6 +182,10 @@ window.Module = {
     ready = true;
     status(idleStatus());
     updateStart();
+    // The live setters are Module exports, so a value stored in an earlier
+    // visit can only be pushed now. Without this the live controls work for the
+    // session and forget on reload, which reads as broken storage.
+    applyStoredLive();
     adapter = createGCAdapter(Module, log);
     // An adapter authorised in an earlier visit reopens without a gesture.
     // Reconnecting it is not a choice of seat, so it lands on the port this
