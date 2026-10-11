@@ -364,7 +364,7 @@
      Every pin marks a control that still needs work, and links to its issue.</p>
   <div class="bar2"><i style="width:36%"></i></div>
   <p class="counts">15 closed · 27 open · 36% of 42</p>
-  <div class="links"><span><b>deploy</b> <span class="dead">the published build, GitHub Pages: Pages is not enabled for this fork: set Settings &gt; Pages &gt; Source = &quot;GitHub Actions&quot;. The workflow already builds and succeeds; only the publish step is off, and GITHUB_TOKEN cannot enable it (&quot;Resource not accessible by integration&quot;).</span></span><span><b>dev</b> <a href="http://100.113.182.40:8104/index.html" target="_blank" rel="noopener">the lobby and controls from source, tailnet only; no wasm engine here, so Start will not boot a game</a></span></div>
+  <div class="links"><span><b>deploy</b> <span class="dead">the published build, served on botan from a container the gitea runner builds on every push: The deploy workflow cannot run yet. Gitea Actions is enabled and the runner is registered, but a job runs in a container and act_runner permits no volume mount unless valid_volumes names it, so the job cannot reach botan&#x27;s docker daemon to build the image. Until then this URL serves the old hand-started process, whose page is missing join.mjs.</span></span><span><b>dev</b> <a href="http://100.113.182.40:8104/index.html" target="_blank" rel="noopener">the lobby and controls from source, tailnet only; no wasm engine here, so Start will not boot a game</a></span></div>
   <div class="legend">
     <span><i style="background:var(--open)"></i> still to build</span>
     <span><i style="background:var(--closed)"></i> done</span>

@@ -5,10 +5,10 @@
   "note": "The board draws the launcher as issue 21 proposes it, not as it is today, and pins each issue to the control that has to exist for that design to be true. A pin whose anchor is not in the mockup fails the build, so the target and the issue list cannot drift apart silently.",
   "links": {
     "deploy": {
-      "url": "https://cybermelons.github.io/melee-pc/play/",
-      "label": "the published build, GitHub Pages",
+      "url": "https://botan.tail623785.ts.net:2001/index.html",
+      "label": "the published build, served on botan from a container the gitea runner builds on every push",
       "live": false,
-      "blocked": "Pages is not enabled for this fork: set Settings > Pages > Source = \"GitHub Actions\". The workflow already builds and succeeds; only the publish step is off, and GITHUB_TOKEN cannot enable it (\"Resource not accessible by integration\")."
+      "blocked": "The deploy workflow cannot run yet. Gitea Actions is enabled and the runner is registered, but a job runs in a container and act_runner permits no volume mount unless valid_volumes names it, so the job cannot reach botan's docker daemon to build the image. Until then this URL serves the old hand-started process, whose page is missing join.mjs."
     },
     "dev": {
       "url": "http://100.113.182.40:8104/index.html",

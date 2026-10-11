@@ -16,7 +16,7 @@ FROM debian:bookworm AS build
 # natively and as wasm.
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates curl git gnupg lsb-release make ninja-build \
-      python3 python3-venv xz-utils gcc g++ \
+      python3 python3-venv xz-utils gcc g++ software-properties-common \
  && curl -fsSL https://apt.llvm.org/llvm.sh -o /tmp/llvm.sh \
  && bash /tmp/llvm.sh 22 \
  && apt-get install -y --no-install-recommends \
