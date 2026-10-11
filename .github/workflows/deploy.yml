@@ -62,38 +62,52 @@ jobs:
       # most likely to be missing: it is the only artifact a compiler produces.
       - name: Check the image serves the page and the engine
         run: |
+          # curl must not run in this job container: its 127.0.0.1 is its own,
+          # not botan's. Probe from a throwaway container that shares the
+          # check container's network namespace, so 127.0.0.1 is the server.
+          probe() { docker run --rm --network "container:melee-web-check" \
+            curlimages/curl:8.11.1 "$@"; }
           docker rm -f melee-web-check >/dev/null 2>&1 || true
-          docker run -d --name melee-web-check -p 127.0.0.1:8098:8099 "$IMAGE:$GITHUB_SHA"
+          docker run -d --name melee-web-check "$IMAGE:$GITHUB_SHA"
           for i in $(seq 30); do
-            curl -fsS -o /dev/null http://127.0.0.1:8098/index.html && break
+            probe -fsS -o /dev/null http://127.0.0.1:8099/index.html && break
             sleep 1
           done
           fail=0
           for f in index.html melee_browser.js melee_browser.wasm \
                    lobby.mjs settings.mjs states.mjs touch.mjs join.mjs \
                    shell.mjs deployed.json; do
-            code=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:8098/$f")
+            code=$(probe -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:8099/$f")
             echo "$f $code"
             [ "$code" = 200 ] || fail=1
           done
           # A served wasm of a few KB is an error page, not an engine.
-          size=$(curl -sI http://127.0.0.1:8098/melee_browser.wasm | awk 'tolower($1)=="content-length:"{print $2+0}')
+          size=$(probe -sI http://127.0.0.1:8099/melee_browser.wasm | awk 'tolower($1)=="content-length:"{print $2+0}')
           echo "engine bytes $size"
           [ "${size:-0}" -gt 10000000 ] || fail=1
-          curl -s http://127.0.0.1:8098/deployed.json
-          docker rm -f melee-web-check >/dev/null
+          probe -s http://127.0.0.1:8099/deployed.json
           [ "$fail" = 0 ] || { echo "::error::the image does not serve the full page"; exit 1; }
+
+      # Runs even when the check fails. Without this, a failed check keeps the
+      # container and its name, and the next run collides on docker run --name.
+      - name: Remove the check container
+        if: always()
+        run: docker rm -f melee-web-check >/dev/null 2>&1 || true
 
       - name: Replace the running container
         run: |
           docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
           docker run -d --name "$CONTAINER" --restart unless-stopped \
             -p "$PUBLISH:8099" "$IMAGE:$GITHUB_SHA"
+          # Again, not from this job container. 127.0.0.1 inside the published
+          # container is the server itself.
+          pub() { docker run --rm --network "container:$CONTAINER" \
+            curlimages/curl:8.11.1 "$@"; }
           for i in $(seq 30); do
-            curl -fsS -o /dev/null "http://$PUBLISH/index.html" && break
+            pub -fsS -o /dev/null http://127.0.0.1:8099/index.html && break
             sleep 1
           done
-          curl -fsS "http://$PUBLISH/deployed.json"
+          pub -fsS http://127.0.0.1:8099/deployed.json
 
       # Keep the two newest builds so a bad deploy can be rolled back by hand,
       # and no further: botan runs at about 90% of its disk.
