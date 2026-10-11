@@ -170,10 +170,11 @@ const idleStatus = () => remoteDisc ? 'Ready.' : 'Choose a GALE01 disc image (.i
 // SDL listens for keys on window and cancels the ones it takes, Space and
 // Enter included. Its window exists from browser_prewarm, before Start, so
 // until the game runs keep key events on the page: the Start button, the
-// settings form and the room field still need them.
+// settings form and the room field still need them. Alt+Shift+A passes: it
+// toggles the dev pinnotate overlay (tools/browser/serve.py, PINNOTATE_URL).
 for (const type of ['keydown', 'keyup', 'keypress']) {
   document.addEventListener(type, (event) => {
-    if (!document.body.classList.contains('playing')) event.stopPropagation();
+    if (!document.body.classList.contains('playing') && !(event.altKey && event.shiftKey && event.code === 'KeyA')) event.stopPropagation();
   });
 }
 // A disc served alongside the page, so a visitor does not supply their own.
