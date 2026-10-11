@@ -865,7 +865,12 @@ def probe(selectors):
 
 
 def proofs(data):
-    """Run every pin's proof. Returns (hard, ready)."""
+    """Run every pin's proof. Returns (hard, ready, drawn).
+
+    ready counts open pins with a passing proof of their own: work that can be
+    closed. drawn counts open pins that have no proof and whose anchor merely
+    exists in the artifact, which is not evidence about the work.
+    """
     issues = data['issues']
     need = sorted({i['anchor'] for i in issues if 'proof' not in i and i['anchor'].startswith('#')})
     found = {}
@@ -874,8 +879,8 @@ def proofs(data):
             found = probe(need)
         except RuntimeError as err:
             print(f'gate: probe failed: {err}')
-            return 1, 0
-    hard = ready = 0
+            return 1, 0, 0
+    hard = ready = drawn = 0
     for i in issues:
         label = f"{i.get('tag', '#')}{i['n']}"
         if 'proof' in i:
@@ -892,9 +897,21 @@ def proofs(data):
             print(f'REGRESSED {label} ({why})')
             hard += 1
         elif i['state'] == 'open' and ok:
-            print(f"READY {label} ({i['anchor'] if 'proof' not in i else why})")
-            ready += 1
-    return hard, ready
+            # Only a pin with its own proof can claim it is ready to close. For
+            # the rest, ok means the anchor renders, which is what the mockup
+            # guarantees for every anchor anyway -- 12 of the 22 pins this used
+            # to call READY say in their own text that the work is not done
+            # (#5 "does not yet play", #18 "aurora refuses a CPU adapter",
+            # #45 "Not built"). A reader scans for READY to find closeable
+            # work, so the wrong word there is worse than no word.
+            if 'proof' in i:
+                print(f'READY {label} ({why})')
+                ready += 1
+            else:
+                print(f"drawn {label} ({i['anchor']} renders; no proof, so this "
+                      'says nothing about the work)')
+                drawn += 1
+    return hard, ready, drawn
 
 
 def unread(data, ack=None):
@@ -966,7 +983,7 @@ def unread(data, ack=None):
 def gate(data, ack=None):
     t0 = time.monotonic()
     hard = check(data) + audit(data)
-    h, ready = proofs(data)
+    h, ready, drawn = proofs(data)
     h2, nunread = unread(data, ack)
     hard += h + h2
     # Reported, not enforced: the missing rows are tracked engine work (pins
@@ -974,8 +991,8 @@ def gate(data, ack=None):
     # train everyone to ignore it.
     nparity = parity(data)
     bad = hard or nunread
-    print(f"gate: {'FAIL' if bad else 'ok'} hard={hard} unread={nunread} ready={ready} parity={nparity} "
-          f"{time.monotonic() - t0:.1f}s")
+    print(f"gate: {'FAIL' if bad else 'ok'} hard={hard} unread={nunread} ready={ready} "
+          f"drawn={drawn} parity={nparity} {time.monotonic() - t0:.1f}s")
     return 1 if bad else 0
 
 

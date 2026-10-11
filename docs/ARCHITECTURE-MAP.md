@@ -249,10 +249,18 @@ Three checks, three different questions. Do not read one as the others:
   permanently red gate trains everyone to ignore it. A broken extraction
   asserts instead of reporting, because a dead walk reports every control as
   undeclared and looks alarming while meaning nothing.
-- `--gate` runs the pin proofs. A pin either carries a `proof` shell command or
-  falls back to a Playwright DOM probe for its anchor id, served over HTTP —
-  never `file://`, where the shell's ES module imports are CORS-blocked and so
-  every control reads as absent.
+- `--gate` runs the pin proofs and reports two different counts. `ready=N`
+  counts open pins whose own `proof` command passes: work that can be closed.
+  `drawn=N` counts open pins with no proof, where all the probe found is that
+  the anchor id renders. **Only `ready` is evidence.** Every anchor is required
+  to exist in the mockup, so `drawn` is close to a restatement of that rule —
+  of the 22 pins the gate once called READY, 12 said in their own pin text that
+  the work was not done. A pin claims readiness by carrying a proof, not by
+  having a container.
+
+  A closed pin whose proof fails is `REGRESSED` and fails the gate. The probe
+  serves over HTTP, never `file://`, where the shell's ES module imports are
+  CORS-blocked and every control reads as absent.
 
 ### Reading parity: two rules learned the hard way
 
