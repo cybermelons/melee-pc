@@ -259,9 +259,11 @@ TEMPLATE = """<!DOCTYPE html>
 
   /* ---- settings tabs: horizontal space instead of one long column ----
      Every pane stays in the markup so a pin can anchor to a control on a tab
-     that is not in front; the hidden panes are moved off-screen rather than
-     display:none, because a display:none element measures 0x0 and the pin
-     placer would stack its label at the top of the column. */
+     that is not in front. A hidden pane gets .pane.off (opacity:0, z-index:-1,
+     pointer-events:none) rather than display:none or being moved off-screen:
+     display:none measures 0x0 and the pin placer would stack its label at the
+     top of the column. The placement script ghosts any pin whose control is
+     inside an off pane (see .pin.ghost below). */
   .tab-heads {{ display:flex; gap:4px; flex-wrap:wrap;
                 border-bottom:1px solid var(--line); }}
   .tab {{ padding:7px 12px; font-size:.82rem; background:none; color:var(--dim);
@@ -439,6 +441,26 @@ TEMPLATE = """<!DOCTYPE html>
   .pin.closed .pin-t {{ color:var(--dim); font-weight:500; }}
   .pin:hover .pin-t {{ color:var(--accent); }}
 
+  /* Hover on a label lights the whole chain: label, dot, leader line and the
+     control it points at. `hot` is its own class because open/closed are the
+     issue state and shown is the narrow tooltip. */
+  .dot {{ transition:transform .12s; }}
+  .dot.hot {{ transform:scale(1.6);
+              box-shadow:0 0 0 3px var(--bg), 0 0 0 5px var(--accent); }}
+  #leads line.hot {{ stroke:var(--accent); opacity:1; stroke-width:2; }}
+  .pin.hot .pin-t {{ color:var(--accent); }}
+  /* outline, not border: it takes no space, so lighting a control moves
+     nothing around it. */
+  .hot-target {{ outline:2px solid var(--accent); outline-offset:3px;
+                 border-radius:4px; }}
+
+  /* A pin whose control sits on a tab that is not in front is faded and its
+     line dashed, so the board does not claim a control is on screen when it
+     is behind another tab. Hovering still lights it, a little less. */
+  .pin.ghost, .dot.ghost {{ opacity:.35; }}
+  #leads line.ghost {{ stroke-dasharray:3 3; }}
+  .pin.ghost.hot, .dot.ghost.hot {{ opacity:.7; }}
+
   /* Narrow: the board is still a board. The earlier fallback hid the dots
      and printed the labels as a list under the mockup, which is the one
      thing this page must not be. The dots stay on the control; the label
@@ -453,6 +475,9 @@ TEMPLATE = """<!DOCTYPE html>
             background:#171922; border:1px solid #3c4252; border-radius:9px;
             padding:.6rem .7rem; box-shadow:0 8px 24px #000a; }}
     .pin.shown {{ display:grid; }}
+    /* An opened tooltip has to be readable even when its control is behind
+       another tab; the dot stays faded to say so. */
+    .pin.ghost.shown {{ opacity:1; }}
     .dot {{ pointer-events:auto; cursor:pointer; width:14px; height:14px;
             margin:-7px 0 0 -7px; }}
   }}
@@ -491,9 +516,23 @@ const stage = document.getElementById('stage');
 const leads = document.getElementById('leads');
 const pins = [...document.querySelectorAll('.pin')];
 const MIN_GAP = 8;   // px between two labels before they are pushed apart
+// pin -> its current anchor, dot and line. place() rebuilds the dots and
+// lines on every resize and tab switch, so hover looks them up at event time.
+let refs = new Map();
+let hovered = null;
+
+function setHot(pin, on) {{
+  const r = refs.get(pin);
+  if (!r) return;
+  pin.classList.toggle('hot', on);
+  r.dot.classList.toggle('hot', on);
+  if (r.line) r.line.classList.toggle('hot', on);
+  r.el.classList.toggle('hot-target', on);
+}}
 
 function place() {{
   leads.replaceChildren();
+  refs = new Map();
   document.querySelectorAll('.dot').forEach((d) => d.remove());
   // Below the breakpoint there is no label column and no leader line, but
   // the dots still belong on the controls: they are the whole board. Only
@@ -510,9 +549,13 @@ function place() {{
     // the generator and the mockup have come apart.
     if (!el) {{ console.error('no anchor for pin', pin.dataset.anchor); continue; }}
     const r = el.getBoundingClientRect();
+    // An off pane is opacity:0, which checkVisibility sees through the
+    // ancestor chain; the pin for a control behind another tab is a ghost.
+    const hidden = !el.checkVisibility({{ opacityProperty: true, visibilityProperty: true }});
+    pin.classList.toggle('ghost', hidden);
     const left = pin.parentElement.id === 'pin-left';
     want.push({{
-      pin, left,
+      pin, left, el, hidden,
       // Just outside the box, not on its edge: on a line of text the edge
       // is the first letter, and the dot covered it.
       ax: (left ? r.left - 7 : r.right + 7) - base.left,
@@ -545,7 +588,8 @@ function place() {{
     }}
 
     const dot = document.createElement('span');
-    dot.className = 'dot' + (w.pin.classList.contains('closed') ? ' closed' : '');
+    dot.className = 'dot' + (w.pin.classList.contains('closed') ? ' closed' : '')
+      + (w.hidden ? ' ghost' : '');
     dot.style.left = `${{w.ax}}px`;
     dot.style.top = `${{w.ay}}px`;
     // Narrow mode has no room for a label column, so the dot opens its own
@@ -568,6 +612,7 @@ function place() {{
       w.pin.style.left = `${{x}}px`;
     }});
     stage.append(dot);
+    refs.set(w.pin, {{ el: w.el, dot, line: null }});
 
     if (!wide) continue;
     const line = document.createElementNS(ns, 'line');
@@ -575,9 +620,21 @@ function place() {{
     line.setAttribute('y1', w.ay);
     line.setAttribute('x2', w.ex);
     line.setAttribute('y2', w.ly + w.h / 2);
-    if (w.pin.classList.contains('closed')) line.setAttribute('class', 'closed');
+    line.setAttribute('class', [
+      w.pin.classList.contains('closed') ? 'closed' : '', w.hidden ? 'ghost' : '',
+    ].filter(Boolean).join(' '));
     leads.append(line);
+    refs.get(w.pin).line = line;
   }}
+  // The dot under a hovered label was just replaced; light the new one.
+  if (hovered) setHot(hovered, true);
+}}
+
+// Pins are static, so these attach once. mouseenter/leave rather than
+// over/out: the label has children and over/out would flicker between them.
+for (const pin of pins) {{
+  pin.addEventListener('mouseenter', () => {{ hovered = pin; setHot(pin, true); }});
+  pin.addEventListener('mouseleave', () => {{ setHot(pin, false); hovered = null; }});
 }}
 
 place();
