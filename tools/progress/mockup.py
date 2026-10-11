@@ -108,26 +108,28 @@ TABS = {
 
 
 def _one(rid, label, control, hint, cls='setting'):
-    hint_html = f'<span class="setting-hint">{hint}</span>' if hint else ''
-    return (f'<label class="{cls}" id="{rid}">{control}'
-            f'<span class="setting-label">{label}</span>{hint_html}</label>')
+    # The hint is a tooltip, not a row of its own (#29 comment 3809: "don't add
+    # more text bloat that could just be tooltips"). A hint that costs a line
+    # per control spent the one phone viewport the panel has.
+    title = f' title="{hint}"' if hint else ''
+    return (f'<label class="{cls}" id="{rid}"{title}>{control}'
+            f'<span class="setting-label">{label}</span></label>')
 
 
 def _rows(rows):
-    """Emit the rows, with a run of children folded under its parent.
+    """Emit the rows, with a run of children nested under its parent.
 
-    A select-all whose members are always open costs four rows for one
-    decision, and the panel has one viewport to spend. The parent carries
-    the common case; the fold carries the exceptions.
+    Not a fold: the owner ruled twice that the children sit open under the
+    parent with no summary row (#29 comments 3181 and 3809). The fold saved a
+    row and cost a click on every visit, and the "Individual settings" summary
+    was itself the text bloat the ruling removes.
     """
     out, kids = [], []
 
     def flush():
         if not kids:
             return
-        out.append('<details class="kids" id="kids-20xx"><summary>'
-                   f'Individual settings</summary>'
-                   f'<div class="kid-grid">{"".join(kids)}</div></details>')
+        out.append(f'<div class="kids" id="kids-20xx">{"".join(kids)}</div>')
         kids.clear()
 
     for rid, label, control, hint in rows:

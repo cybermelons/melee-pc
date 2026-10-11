@@ -303,19 +303,10 @@ TEMPLATE = """<!DOCTYPE html>
   .pane.off {{ z-index:-1; opacity:0; pointer-events:none; }}
   .pane-grid {{ display:grid; grid-template-columns:1fr 1fr; gap:7px 18px; }}
 
-  /* A run of children folds under its select-all. The fold is open on the
-     board so every pinned control has a box to measure. */
-  .kids {{ grid-column:1/-1; }}
-  .kids > summary {{ margin-left:22px; color:var(--dim); font-size:.74rem;
-                     cursor:pointer; list-style:none; }}
-  .kids > summary::before {{ content:"\\25b8 "; }}
-  .kids[open] > summary::before {{ content:"\\25be "; }}
-  .kids .setting {{ margin-top:5px; }}
-  /* #29: the children as a grid, so five short labels cost two rows rather
-     than five. auto-fit rather than a fixed count: the pane is one column at
-     390px, where two children per row do not fit. */
-  .kid-grid {{ display:grid; grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr));
-               gap:2px 10px; }}
+  /* #29: a run of children sits open under its select-all, with no fold and
+     no summary row. The summary was itself the text bloat the ruling removes,
+     and a fold cost a click on every visit to save one row. */
+  .kids {{ grid-column:1/-1; display:flex; flex-direction:column; gap:2px; }}
   .setting.parent {{ font-weight:600; grid-column:1/-1; }}
   .setting.child {{ padding-left:18px;
                     border-left:2px solid #2a2d38; margin-left:4px; }}
@@ -327,7 +318,6 @@ TEMPLATE = """<!DOCTYPE html>
   .setting select {{ background:#191b24; color:var(--fg); font:inherit;
                      border:1px solid var(--line); border-radius:6px;
                      padding:3px 6px; max-width:11rem; }}
-  .setting-hint {{ flex-basis:100%; color:#6f7280; font-size:.73rem; }}
   .primary {{ background:var(--accent) !important; color:#1a1405 !important;
               border-color:var(--accent) !important; font-weight:600; }}
   .apply-row button {{ padding:9px 14px; border-radius:8px;
@@ -378,7 +368,6 @@ TEMPLATE = """<!DOCTYPE html>
     .pane {{ padding:10px 0 0; }}
     .pane-grid {{ grid-template-columns:1fr; gap:4px; }}
     .setting {{ font-size:.78rem; gap:6px; }}
-    .setting-hint {{ display:none; }}
     .setting select {{ max-width:8.5rem; padding:2px 5px; }}
     .setting.child {{ padding-left:12px; }}
     .apply-row {{ gap:6px; }}

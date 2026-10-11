@@ -243,32 +243,24 @@ export function addSettings(host, { reload = (search) => location.assign(search 
     }
     input.name = setting.key;
     inputs.set(setting.key, input);
-    if (setting.hint) {
-      const hint = document.createElement('span');
-      hint.className = 'setting-hint';
-      hint.textContent = setting.hint;
-      row.append(hint);
-    }
+    // The hint is a tooltip, not a row of its own (#29 comment 3809). A hint
+    // that costs a line per control spent the one phone viewport the panel has.
+    if (setting.hint) row.title = setting.hint;
     if (setting.parent) {
-      // A run of children folded under one summary. Always-open children cost
-      // a row each for an exception most players never take, and the panel has
-      // one phone viewport to spend. The parent carries the common case.
-      let fold = folds.get(setting.parent);
-      if (!fold) {
-        fold = document.createElement('details');
-        fold.className = 'kids';
-        // MELEE_20XX -> kids-20xx: the board pins the fold by this id.
-        fold.id = `kids-${setting.parent.replace(/^MELEE_/, '').toLowerCase()}`;
-        const summary = document.createElement('summary');
-        summary.textContent = 'Individual settings';
-        fold.append(summary);
-        const grid = document.createElement('div');
-        grid.className = 'kid-grid';
-        fold.append(grid);
-        folds.set(setting.parent, fold);
-        pane(setting.tab ?? TABS[0]).append(fold);
+      // A run of children sits open under its parent, with no fold and no
+      // summary row (#29 comments 3181 and 3809). The summary was itself the
+      // text bloat the ruling removes, and the fold cost a click on every
+      // visit to save one row.
+      let kidBox = folds.get(setting.parent);
+      if (!kidBox) {
+        kidBox = document.createElement('div');
+        kidBox.className = 'kids';
+        // MELEE_20XX -> kids-20xx: the board pins this box by this id.
+        kidBox.id = `kids-${setting.parent.replace(/^MELEE_/, '').toLowerCase()}`;
+        folds.set(setting.parent, kidBox);
+        pane(setting.tab ?? TABS[0]).append(kidBox);
       }
-      fold.querySelector('.kid-grid').append(row);
+      kidBox.append(row);
     } else {
       pane(setting.tab ?? TABS[0]).append(row);
     }

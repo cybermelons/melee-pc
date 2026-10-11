@@ -368,14 +368,12 @@
   /* A child is indented under its parent and shares its rule, so the group
      reads as one decision with exceptions rather than three equal rows. */
   #settings .setting.child { margin-left: 14px; border-left: 2px solid #333; padding-left: 10px; }
-  #settings .kids { margin-left: 14px; }
-  /* A closed details hides its content with content-visibility on the slot,
-     which an explicit display on the child defeats: .setting is display:flex,
-     so both children stayed visible and 44px tall. Hide them here instead. */
-  #settings .kids:not([open]) .setting { display: none; }
-  #settings .kids > summary { min-height: 44px; display: flex; align-items: center; color: #999; font-size: 13px; }
-  #settings .kids[open] > summary { color: #ccc; }
-  #settings .setting-hint { color: #999; font-size: 12px; flex-basis: 100%; }
+  /* #29: the children sit open under the parent, so .kids is a plain div with
+     no fold and no summary. The rules that hid a closed fold's children are
+     gone with it -- a div has no [open], so :not([open]) would have matched
+     and hidden every child. The hint is a title attribute now, so it needs no
+     rule of its own. */
+  #settings .kids { margin-left: 14px; display: flex; flex-direction: column; }
   /* 44px targets and 16px text: the same minimums the rest of the panel uses,
      so a tap lands and iOS does not zoom the page on focus. */
   #settings select, #settings input, #settings button { min-height: 44px; font-size: 16px; }

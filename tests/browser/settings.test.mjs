@@ -334,39 +334,41 @@ test('every child names a parent that is a flag in SETTINGS', () => {
   }
 });
 
-test('the children sit in one fold under the parent, not as loose rows', async () => {
+test('the children sit open under the parent, in one box and with no fold', async () => {
+  // #29 comments 3181 and 3809 ruled against the fold twice: the children sit
+  // open under the parent and the "Individual settings" summary is gone.
   const host = stubDom('');
   const { addSettings } = await import('../../platforms/browser/settings.mjs');
   const form = addSettings(host, { reload: () => {} });
-  const folds = form.querySelectorAll('.kids');
-  assert.equal(folds.length, 1, 'one fold per parent');
-  // Every child is inside it, so the pane costs one row for the group rather
-  // than one per child. The rows sit in a .kid-grid inside the fold because
-  // that is the shape the progress-board demo declares (mockup.py:114); pin
-  // both levels so the build cannot drift from the demo.
+  const boxes = form.querySelectorAll('.kids');
+  assert.equal(boxes.length, 1, 'one box per parent');
+  assert.equal(boxes[0].tagName, 'div', 'the box must not be a details again');
+  assert.equal(boxes[0].querySelectorAll('summary').length, 0, 'no summary row');
+  // Every child is a direct child of the box, so nothing hides them and the
+  // group costs no click. One level, not two: the .kid-grid is gone with the
+  // fold, and mockup.py emits the same single div.
   for (const setting of SETTINGS.filter((s) => s.parent)) {
     const row = form.querySelector(`[name=${setting.key}]`).parent;
-    assert.equal(
-      row.parent.className.split(' ').includes('kid-grid'),
-      true,
-      `${setting.key} is not in the kid-grid`,
-    );
-    assert.equal(row.parent.parent, folds[0], `${setting.key} is not in the fold`);
+    assert.equal(row.parent, boxes[0], `${setting.key} is not directly in the box`);
   }
-  assert.equal(folds[0].parent.className.split(' ').includes('pane'), true);
+  assert.equal(boxes[0].parent.className.split(' ').includes('pane'), true);
 });
 
-test('the fold is closed on load, so the group costs one row', async () => {
-  // #29 asks for it closed: "The fold currently opens on its own, which costs
-  // the rows it was added to save." A <details> with no open attribute is
-  // closed by the UA, so this guards against someone adding one back.
+test('a hint is a tooltip, so it costs no row', async () => {
+  // #29 comment 3809: "don't add more text bloat that could just be tooltips".
+  // A hint used to render as a .setting-hint span with flex-basis 100%, which
+  // is a line of its own under the control.
   const host = stubDom('');
   const { addSettings } = await import('../../platforms/browser/settings.mjs');
   const form = addSettings(host, { reload: () => {} });
-  const fold = form.querySelectorAll('.kids')[0];
-  assert.ok(fold, 'no fold to check');
-  assert.ok(!fold.open, 'the fold must start closed');
-  assert.equal(fold.getAttribute?.('open') ?? null, null, 'no open attribute');
+  assert.equal(form.querySelectorAll('.setting-hint').length, 0,
+    'a hint must not render as a row');
+  const withHints = SETTINGS.filter((s) => s.hint);
+  assert.ok(withHints.length > 0, 'no hinted setting to check');
+  for (const setting of withHints) {
+    const row = form.querySelector(`[name=${setting.key}]`).parent;
+    assert.equal(row.title, setting.hint, `${setting.key} does not carry its hint as a title`);
+  }
 });
 
 test('the render scale hint is gone: the option labels carry the pixel counts', () => {

@@ -35,7 +35,7 @@
       "side": "left",
       "state": "open",
       "title": "Shared lobby URL with port claiming",
-      "pin": "The room code is the lobby, top right, and clicking it copies the link. Two players pair for real, and a phone-shaped browser is one of them: measured over the routable tailnet address, both claim a port and the touch overlay draws. Two defects had to go first, and both hid behind loopback. signal.mjs sent claims as an object while lobby.mjs calls .indexOf on it, so every state event threw and no claim ever rendered (9fee67ca). Then crypto.randomUUID, which exists only in a secure context: http://127.0.0.1 is one by exemption and a tailnet IP is not, so the page could mint neither a room nor an identity on the only origin a visitor uses (f303d4a8). A third defect was in the offer itself: gathered() cut ICE gathering off after 3 seconds without checking that a srflx candidate had arrived, so on a slow network the offer went out with LAN addresses only. Measured here the first srflx lands at 11 ms while gathering is still open after 12 s, so the cutoff is now a ceiling and the srflx arrival releases the offer (c51bf783). Also measured over an https origin, which is what a shared link really has and which plain http on an IP is not: both ports claim and the data channel opens there too. On the two-seat path this is done: two players pair over a real shared link and both claim a port. Ports 3 and 4 are no longer counted here -- they are not a transport gap but an engine one (#40, out of goal), and the lobby now says so on the tile instead of promising a fix: an unreachable tile reads \"2P only\" (lobby.mjs:347) and the spec's P3/P4 are drawn unavailable to match. The link is a private tailnet address, shared privately rather than published, so the server needs no auth gate of its own. Requested and not yet drawn on the board: drop the \"copy link\" text from the room-code button (comment 3076), and add a list of all open lobbies to join (comment 3101)."
+      "pin": "The room code is the lobby, top right, and clicking it copies the link. Two players pair for real, and a phone-shaped browser is one of them: measured over the routable tailnet address, both claim a port and the touch overlay draws. Two defects had to go first, and both hid behind loopback. signal.mjs sent claims as an object while lobby.mjs calls .indexOf on it, so every state event threw and no claim ever rendered (9fee67ca). Then crypto.randomUUID, which exists only in a secure context: http://127.0.0.1 is one by exemption and a tailnet IP is not, so the page could mint neither a room nor an identity on the only origin a visitor uses (f303d4a8). A third defect was in the offer itself: gathered() cut ICE gathering off after 3 seconds without checking that a srflx candidate had arrived, so on a slow network the offer went out with LAN addresses only. Measured here the first srflx lands at 11 ms while gathering is still open after 12 s, so the cutoff is now a ceiling and the srflx arrival releases the offer (c51bf783). Also measured over an https origin, which is what a shared link really has and which plain http on an IP is not: both ports claim and the data channel opens there too. On the two-seat path this is done: two players pair over a real shared link and both claim a port. Ports 3 and 4 are no longer counted here -- they are not a transport gap but an engine one (#40, out of goal), and the lobby now says so on the tile instead of promising a fix: an unreachable tile reads \"2P only\" (lobby.mjs:347) and the spec's P3/P4 are drawn unavailable to match. The link is a private tailnet address, shared privately rather than published, so the server needs no auth gate of its own. The two requests on this issue are split out so the board can pin them separately: #44 (the \"copy link\" text, comment 3076) and #45 (a list of open lobbies, comment 3101)."
     },
     {
       "n": 22,
@@ -264,7 +264,8 @@
       "side": "right",
       "state": "open",
       "title": "Condense the 20XX children into a closed grid",
-      "pin": "Measured at 390px: the fold is already closed on load and now holds 2 children, not the 5 this was written against. The issue calls one-per-row the right shape for 2, so the grid would save one 50px row and break the Tournament rules hint, which spans full width. Unlock everything stays out: the owner chose to condense the UI rather than add the C env read. The fold now carries this anchor's id and wraps its children in a .kid-grid, so the board can pin it; the grid is the shape the demo declares at mockup.py:114."
+      "pin": "Ruled twice and now built that way (comments 3181 and 3809): the children sit open under the parent with no fold, and a hint is a tooltip rather than a row. The <details> and its \"Individual settings\" summary are gone -- the summary was itself the text bloat the ruling removes, and the fold cost a click on every visit to save one row. #kids-20xx is now a plain div and keeps the id, so the board still pins it. Hints move to title, so the Tournament rules line no longer spends a row. Correction to this pin: it said Unlock everything stays out because the C env read does not exist. That is wrong for the browser target. platforms/browser/pc_stubs.c:51 reads MELEE_UNLOCK_ALL and falls back to pc_is_20xx_enabled; pc_stubs.c is in the link at CMakeLists.txt:46, launcher.cpp is not in the browser build at all, and gm_1601.c consumes it at 2451, 2562 and 2620. So the control needs a SETTINGS row and no C work. The row is not added here: the owner condensed the UI on the old premise, so whether it comes back is theirs to say.",
+      "seen": 3809
     },
     {
       "n": 30,
@@ -347,6 +348,23 @@
       "side": "right",
       "state": "closed",
       "title": "Live engine controls: audio sliders, reverb, aspect"
+    },
+    {
+      "n": 44,
+      "anchor": "#room-code",
+      "side": "left",
+      "state": "closed",
+      "title": "Lobby: remove the \"copy link\" text",
+      "pin": "Closed, and it shipped before the issue was split out of #6. The room code button carries the code alone: the <i> label is gone, the title says what the press does, and aria-label carries the action for a screen reader, which the title alone does not -- it reads the code as the name and the title only as a hint. The spec draws the same button at mockup.py:235.",
+      "proof": "grep -q \"aria-label', 'Copy the link to this lobby\" platforms/browser/lobby.mjs && ! grep -q \"el('i', null, 'copy\" platforms/browser/lobby.mjs"
+    },
+    {
+      "n": 45,
+      "anchor": "#join-btn",
+      "side": "left",
+      "state": "open",
+      "title": "Lobby: list open lobbies to join",
+      "pin": "Not built, and the demo does not draw it either, so this is a spec gap before it is a build gap. Nothing in the browser lists rooms and signal.mjs has no endpoint that enumerates them, so the server side is missing too: a visitor can only reach a lobby through a link somebody sends. Join next to the room code is where it belongs. The row has to reach the demo first, which is #39."
     }
   ]
 }
