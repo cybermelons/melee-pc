@@ -1,0 +1,97 @@
+# Build the browser target into an image and serve it on botan. Gitea Actions
+# only; GitHub ignores this file because no GitHub runner carries the
+# self-hosted label.
+#
+# The job runs in a container, not on the runner host, so the toolchain lives in
+# the image (tools/deploy/Dockerfile) and Docker caches it as a layer. A
+# page-only change rebuilds in seconds; an engine change pays the full build.
+#
+# This replaces a hand-copied directory and a hand-started `node serve.mjs`.
+# Those drifted: the published page carried 7 of the branch's 19 modules, so
+# join.mjs returned 404 on the live site while the source had it. An image built
+# from the pushed commit cannot drift that way.
+name: Deploy
+
+on:
+  push:
+    branches: [wave/board-parity]
+  workflow_dispatch:
+
+# The engine build takes minutes. Let a started deploy finish rather than
+# cancelling it on every push, and deploy only the newest queued run.
+concurrency:
+  group: melee-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    env:
+      IMAGE: melee-web
+      CONTAINER: melee-web
+      # Loopback only. The tailnet proxy is the only thing in front of it.
+      PUBLISH: 127.0.0.1:8099
+    steps:
+      - uses: actions/checkout@v4
+
+      # The job container has no docker client. The runner mounts the host
+      # socket, so install the client and talk to botan's daemon.
+      - name: Install the Docker client
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends docker.io
+          docker version --format '{{.Server.Version}}'
+
+      - name: Build the image
+        run: |
+          docker build -f tools/deploy/Dockerfile \
+            --build-arg GIT_COMMIT="$GITHUB_SHA" \
+            --build-arg GIT_BRANCH="$GITHUB_REF_NAME" \
+            -t "$IMAGE:$GITHUB_SHA" -t "$IMAGE:latest" .
+
+      # Check the image before it replaces a working one. A build can succeed
+      # and still produce a page that does not load, and the engine is the part
+      # most likely to be missing: it is the only artifact a compiler produces.
+      - name: Check the image serves the page and the engine
+        run: |
+          docker rm -f melee-web-check >/dev/null 2>&1 || true
+          docker run -d --name melee-web-check -p 127.0.0.1:8098:8099 "$IMAGE:$GITHUB_SHA"
+          for i in $(seq 30); do
+            curl -fsS -o /dev/null http://127.0.0.1:8098/index.html && break
+            sleep 1
+          done
+          fail=0
+          for f in index.html melee_browser.js melee_browser.wasm \
+                   lobby.mjs settings.mjs states.mjs touch.mjs join.mjs \
+                   shell.mjs deployed.json; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:8098/$f")
+            echo "$f $code"
+            [ "$code" = 200 ] || fail=1
+          done
+          # A served wasm of a few KB is an error page, not an engine.
+          size=$(curl -sI http://127.0.0.1:8098/melee_browser.wasm | awk 'tolower($1)=="content-length:"{print $2+0}')
+          echo "engine bytes $size"
+          [ "${size:-0}" -gt 10000000 ] || fail=1
+          curl -s http://127.0.0.1:8098/deployed.json
+          docker rm -f melee-web-check >/dev/null
+          [ "$fail" = 0 ] || { echo "::error::the image does not serve the full page"; exit 1; }
+
+      - name: Replace the running container
+        run: |
+          docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
+          docker run -d --name "$CONTAINER" --restart unless-stopped \
+            -p "$PUBLISH:8099" "$IMAGE:$GITHUB_SHA"
+          for i in $(seq 30); do
+            curl -fsS -o /dev/null "http://$PUBLISH/index.html" && break
+            sleep 1
+          done
+          curl -fsS "http://$PUBLISH/deployed.json"
+
+      # Keep the two newest builds so a bad deploy can be rolled back by hand,
+      # and no further: botan runs at about 90% of its disk.
+      - name: Drop superseded images
+        run: |
+          docker images "$IMAGE" --format '{{.Tag}} {{.ID}}' \
+            | grep -v '^latest ' | tail -n +3 \
+            | while read -r tag id; do docker rmi "$IMAGE:$tag" || true; done
+          docker images "$IMAGE" --format '{{.Repository}}:{{.Tag}} {{.Size}}'
