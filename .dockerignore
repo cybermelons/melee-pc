@@ -1,0 +1,13 @@
+# Keep the build context to sources. A copied build/ directory carries a
+# CMakeCache.txt that records the path it was generated in, and CMake then
+# refuses to configure in the image: "The current CMakeCache.txt directory ...
+# is different than the directory ... where CMakeCache.txt was created."
+# The image build must not depend on what happens to sit in the working tree.
+build/
+.git/
+docs/site/
+**/__pycache__/
+**/node_modules/
+*.grf
+*.iso
+*.gcm

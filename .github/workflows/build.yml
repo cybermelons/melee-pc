@@ -4,6 +4,16 @@ on:
   push:
     branches: ['**']
     tags: ['v*']
+    # The progress board and the deploy image cannot change a platform build.
+    # These jobs need GitHub-hosted runners for the Android SDK, Xcode and
+    # MSVC, so on a self-hosted runner every one of them fails in seconds; a
+    # board-only push used to queue 8 red runs that hid a real failure.
+    paths-ignore:
+      - 'docs/**'
+      - 'tools/progress/**'
+      - 'tools/deploy/**'
+      - '.github/workflows/deploy.yml'
+      - '.dockerignore'
   pull_request:
   workflow_dispatch:
 
