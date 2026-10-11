@@ -248,8 +248,6 @@ TEMPLATE = """<!DOCTYPE html>
   .psrc {{ font-size:.68rem; color:var(--dim); letter-spacing:.03em; }}
   .cbtn {{ justify-self:start; padding:2px 7px; border-radius:6px; font-size:.8rem;
            background:#191b24; color:var(--fg); border:1px solid var(--line); }}
-  #queue {{ margin:0; color:var(--dim); font-size:.78rem; }}
-  #queue b {{ color:var(--fg); font-weight:600; }}
   /* #31: stated rather than left to be inferred from four taken tiles. */
   .seat-none {{ margin:0; padding:5px 9px; border-radius:7px;
                 border:1px dashed var(--line); color:var(--dim); font-size:.76rem; }}

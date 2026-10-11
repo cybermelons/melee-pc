@@ -12,7 +12,7 @@ page opens, and the URL is the lobby, so the same link is always the same
 room. Modes are not places to go, they are save states to load into the room
 that already exists, the way a group on a couch puts on a different game
 without changing seats. Ports are therefore the real state: four of them,
-claimed and released, with everybody over four watching and queued.
+claimed and released, with everybody over four watching.
 
 The settings are tabs. The real flag list is long (96 MELEE_* names in the C
 source), most of it debug instrumentation. The native launcher
@@ -178,14 +178,13 @@ PORTS = """
       <div class="port off" id="port-3"><b>P3</b><i>2P only</i><span class="psrc">—</span><button class="cbtn" title="Connect a controller to this port">⌘</button><button class="pbtn" disabled>Take</button></div>
       <div class="port off" id="port-4"><b>P4</b><i>2P only</i><span class="psrc">—</span><button class="cbtn" title="Connect a controller to this port">⌘</button><button class="pbtn" disabled>Take</button></div>
     </div>
-    <!-- The roster is who is in the room; the queue is an ordering within it.
-         Two facts, two elements, so neither has to restate the other. -->
+    <!-- The roster is who is in the room. There is no queue: a free port is
+         takeable by anyone (#23). -->
     <p id="here" class="sub">In the room: kiri, guest-4f, mango, armada</p>
-    <p id="queue" class="sub"><b>mango</b> next up</p>
     <!-- The other half of #31: what a visitor holding no port is told. Drawn
          here because the mockup shows you holding P1, so the state cannot be
          shown on the tiles at the same time. -->
-    <p id="no-port" class="sub seat-none">Spectating · you hold no port · take a free one or queue</p>
+    <p id="no-port" class="sub seat-none">Spectating · you hold no port · take a free one</p>
 """
 
 

@@ -71,11 +71,12 @@
     },
     {
       "n": 23,
-      "anchor": "#queue",
+      "anchor": "#here",
       "side": "left",
       "state": "open",
-      "title": "Spectators and the port queue",
-      "pin": "Past four players everybody watches and queues. Server side shipped: a release message frees a port and the first waiter still subscribed gets it, in claim order. The lobby draws the line now: #queue reports how long the queue is and who is next, hidden when nobody waits. It deliberately does not repeat where this user stands -- that is already in the status string, and a second copy of one fact is a second thing to drift. The roster beside it is the other half of this issue: #here lists who is in the room, read off the signalling server's subscriber map, which the close handler already prunes. It is a separate element because membership and queue order are separate facts -- the demo's old \"2 watching\" count is gone, since no message carried it and the list says more anyway. Measured over three real subscriptions: the server publishes here:[kiri,guest-4f,mango] and the lobby draws \"In the room: kiri, guest-4f, mango\". The queue is complete for the seat count the game has: with two seats a waiter is a real spectator and the release path promotes them. It no longer waits on a transport for more peers -- that is #40 and out of goal; the invalid #37 it used to cite is closed."
+      "title": "Spectators and the room roster",
+      "pin": "The owner ruled the port queue out: \"there's no 'up next'. it's just a lobby that people can take ports on. like a living room with people and a gamecube, anyone can do whatever\" (comment 3880). So the ordering is gone from all four layers -- the server keeps no queue and promotes nobody, a freed port is takeable by anyone, a taken one answers 409 and enrols the claimant in nothing, and the lobby draws no #queue line. What remains is the half the ruling keeps: #here lists who is in the room, read off the signalling server's subscriber map, which the close handler already prunes. The demo's old \"2 watching\" count is gone, since no message carried it and the list says more anyway. Measured over three real subscriptions: the server publishes here:[kiri,guest-4f,mango] and the lobby draws \"In the room: kiri, guest-4f, mango\". Past the seat count everybody simply watches: #no-port tells a portless visitor \"Spectating - you hold no port - take a free one\", and #31 marks the tile of whoever does hold one. The transport for more peers is #40 and out of goal.",
+      "proof": "grep -q \"roster.id = 'here'\" platforms/browser/lobby.mjs && ! grep -rq \"id = 'queue'\" platforms/browser/lobby.mjs"
     },
     {
       "n": 17,
@@ -281,7 +282,7 @@
       "side": "left",
       "state": "closed",
       "title": "Signify which port is you",
-      "pin": "Closed. The tile you hold carries a left bar and the word 'you', because colour alone fails a colour-blind reader and a screenshot. The id moves with a claim and a release, and matching is on the server id, so two players with one display name still mark one tile. The spectator line below is the other half, and the queue on it is #23. #port-mine only exists once a port is claimed, so a plain page load cannot see it; the proof reads the assignment that puts it there.",
+      "pin": "Closed. The tile you hold carries a left bar and the word 'you', because colour alone fails a colour-blind reader and a screenshot. The id moves with a claim and a release, and matching is on the server id, so two players with one display name still mark one tile. The spectator line below is the other half, and the roster beside it is #23. #port-mine only exists once a port is claimed, so a plain page load cannot see it; the proof reads the assignment that puts it there.",
       "proof": "grep -q \"tag.id = 'port-mine'\" platforms/browser/lobby.mjs"
     },
     {

@@ -415,9 +415,6 @@ async function joinLobby() {
   status('Take a port.');
   const events = new EventSource(`${base}/events?me=${me}`);
   let slot = -1;
-  // Place in the port queue, or -1. Read from the same `state` event as the
-  // claims, so it cannot disagree with what the server thinks.
-  let place = -1;
   const open = (dc) => {
     dc.binaryType = 'arraybuffer';
     dc.onopen = () => {
@@ -484,14 +481,13 @@ async function joinLobby() {
     }
   };
   events.addEventListener('state', (e) => {
-    const { claims, queue, here } = JSON.parse(e.data);
-    place = (queue ?? []).indexOf(me);
+    const { claims, here } = JSON.parse(e.data);
     slot = mySlot(claims, me);
     // Published out of the handler because the adapter reconnect (#30) needs
     // to know which port is this page's, and it runs from onRuntimeInitialized
     // rather than from inside the signalling.
     mySeat = slot;
-    lobby.render(claims, me, queue ?? [], here ?? []);
+    lobby.render(claims, me, here ?? []);
     // Holding a port and having a peer is what opens the channel. Neither
     // this nor the engine boot waits on the other: the engine is already
     // running, or will be, and pairing catches up.
@@ -523,14 +519,8 @@ async function joinLobby() {
   };
   claim = async (i) => {
     const r = await post({ type: 'claim', player: i });
-    // A refused claim is not a dead end any more: the server put this page in
-    // line, so report the place rather than only the rejection. The state
-    // event carrying it may not have arrived yet, hence the fallback.
-    if (!r.ok) {
-      return status(place >= 0
-        ? `P${i + 1} is taken. You are ${place + 1} in line for the next free port.`
-        : `P${i + 1} is taken. You are in line for the next free port.`);
-    }
+    // A taken port refuses; it is free for anyone once its holder lets go.
+    if (!r.ok) return status(`P${i + 1} is taken.`);
     // No reload: dc.onopen attaches the channel at runtime through
     // browser_net_start (main.c), so the claim only has to reach the server.
   };

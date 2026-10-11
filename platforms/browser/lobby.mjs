@@ -317,10 +317,6 @@ export function addLobby(host, {
     tiles.push({ tile, name, who, act, tag, src, cbtn, menu });
   }
 
-  const line = el('p', 'sub');
-  line.id = 'queue';
-  line.hidden = true;
-
   const roster = el('p', 'sub');
   roster.id = 'here';
   roster.hidden = true;
@@ -329,7 +325,7 @@ export function addLobby(host, {
   seat.id = 'no-port';
   seat.hidden = true;
 
-  host.append(bar, ports, roster, line, seat);
+  host.append(bar, ports, roster, seat);
 
   // The per-port source record lives here, because nothing else holds it: the
   // signal server tracks claims only, and C keeps no map back from a port.
@@ -337,7 +333,7 @@ export function addLobby(host, {
 
   const api = {
     /** Paint the claims array onto the tiles. */
-    render(claims, me, queue = [], here = []) {
+    render(claims, me, here = []) {
       for (const s of portStates(claims, me)) {
         const { tile, who, act, tag, src } = tiles[s.port];
         src.textContent = sourceLabel(portSources[s.port]);
@@ -358,17 +354,7 @@ export function addLobby(host, {
       }
       const alone = spectating(claims, me);
       seat.hidden = !alone;
-      if (alone) seat.textContent = 'Spectating · you hold no port · take a free one or queue';
-      // `queue` is the same array shell.mjs reads `place` from, so the two
-      // cannot disagree. The line says how long it is and who is next, never
-      // where this user stands: that is already in the status string, and a
-      // second copy of one fact is a second thing to drift.
-      line.hidden = queue.length === 0;
-      if (queue.length > 0) {
-        const next = el('b', '', queue[0]);
-        line.textContent = `${queue.length} in line · next up: `;
-        line.append(next);
-      }
+      if (alone) seat.textContent = 'Spectating · you hold no port · take a free one';
       // A room of one has nobody to list, so the line hides when the roster is
       // empty or holds only this user. Ids are joined plain, this user's
       // included, as the mockup draws them.

@@ -448,34 +448,11 @@ test('the shell opens the WebHID picker from the press and never from a load', (
     'the page-level connect button is gone (#30)');
 });
 
-test('the queue line reports its length and who is next, not your place (#23)', () => {
-  // render() took two arguments until the queue was drawn, so the server's
-  // queue array was parsed in shell.mjs and dropped. These assert the element
-  // the board pins #23 to, because a hidden element and an absent one look the
-  // same from a rendered-DOM probe and only one of them is this feature.
+test('the lobby draws no queue line (#23)', () => {
+  // The owner ruled the port queue out: a free port is takeable by anyone.
   const { host, api } = buildLobby({ getGamepads: () => [] });
-  const line = () => host.descendants().find((n) => n.id === 'queue');
-
-  // No queue: the line is hidden rather than empty, so it takes no height.
-  api.render(['a', 'b', null, null], 'me', []);
-  assert.equal(line().hidden, true);
-
-  // A caller that passes no queue at all is the three 2-arg callers, which
-  // must keep working -- the default is load-bearing, not tidiness.
-  api.render(['a', 'b', null, null], 'me');
-  assert.equal(line().hidden, true);
-
-  api.render(['a', 'b', null, null], 'me', ['mango', 'armada']);
-  assert.equal(line().hidden, false);
-  assert.match(line().textContent, /^2 in line/);
-  // The stub's textContent ignores appended children, so the next player's
-  // <b> is read off children directly.
-  const nextUp = line().children.find((n) => n.tagName === 'b');
-  assert.ok(nextUp, 'the next player is drawn in a <b>');
-  assert.equal(nextUp.textContent, 'mango');
-  // Your own place belongs to the status string (shell.mjs:526). Two elements
-  // for one fact is how they drift apart.
-  assert.ok(!/in line for/.test(line().textContent));
+  api.render(['a', 'b', null, null], 'me', ['me', 'mango']);
+  assert.ok(!host.descendants().some((n) => n.id === 'queue'));
 });
 
 test('the roster lists who is in the room, and hides for a room of one', () => {
@@ -485,7 +462,7 @@ test('the roster lists who is in the room, and hides for a room of one', () => {
   const roster = () => host.descendants().find((n) => n.id === 'here');
   const claims = ['a', 'b', null, null];
 
-  api.render(claims, 'me', [], []);
+  api.render(claims, 'me', []);
   assert.equal(roster().hidden, true);
 
   // Callers that pass no roster must keep working.
@@ -493,19 +470,19 @@ test('the roster lists who is in the room, and hides for a room of one', () => {
   assert.equal(roster().hidden, true);
 
   // Only this user: nobody to list.
-  api.render(claims, 'me', [], ['me']);
+  api.render(claims, 'me', ['me']);
   assert.equal(roster().hidden, true);
 
-  api.render(claims, 'me', [], ['me', 'guest-4f', 'mango']);
+  api.render(claims, 'me', ['me', 'guest-4f', 'mango']);
   assert.equal(roster().hidden, false);
   assert.equal(roster().textContent, 'In the room: me, guest-4f, mango');
 
   // It hides again when the others leave.
-  api.render(claims, 'me', [], ['me']);
+  api.render(claims, 'me', ['me']);
   assert.equal(roster().hidden, true);
 });
 
-test('a spectator is told to take a free port or queue (#23)', () => {
+test('a spectator is told to take a free port (#23)', () => {
   // The exact wording the issue asks for, middle dots and all. It drifted
   // once already -- the page said "wait for one to free up" while the mockup
   // said this -- so the string is asserted whole rather than by keyword.
@@ -515,7 +492,7 @@ test('a spectator is told to take a free port or queue (#23)', () => {
   assert.equal(seat.hidden, false);
   assert.equal(
     seat.textContent,
-    'Spectating · you hold no port · take a free one or queue');
+    'Spectating · you hold no port · take a free one');
 });
 
 test('the room code button shows no "copy link" label but still has a name (#6)', () => {
