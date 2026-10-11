@@ -27,7 +27,7 @@
       "side": "left",
       "state": "open",
       "title": "Redesign the launcher UI",
-      "pin": "This panel is the target. Today the same controls are one flat column with no grouping and no first step."
+      "pin": "This panel is the target, and the premise this pin carried is now stale: it said the controls are one flat column with no grouping and no first step. Both shipped. The rows are grouped into tabs (#26, proved: TABS at settings.mjs:43, one pane per tab) and the first step is the lobby, where Load opens the state menu (#33). What is left is the parity list the board measures: 10 of the 29 spec rows are unbuilt and the Input tab has no row to show, which is engine work under #32, #17 and #28 rather than a redesign. This pin stays open as the umbrella for the panel as a whole; it is not blocked on a design decision."
     },
     {
       "n": 6,
@@ -345,7 +345,7 @@
       "side": "left",
       "state": "open",
       "title": "Three and four player netplay needs an N-way engine net layer",
-      "pin": "OUT OF GOAL -- recorded so the board stops blaming a wasm export for it, not because it is queued. The standing goal is two people on two phones, which works. Seating a third is an engine rewrite, measured: the session holds one local and one remote and no player table (net_internal.h:349); net.c:2161 collapses the player argument to a boolean and derives remote = 1 - local, so seats 2 and 3 cannot be named; there is one remote input ring and one have/newest counter (net.c:65-68) that wait_remote waits on (net.c:1569); per-frame injection fills exactly 2 of the 4 pad ports (net.c:2736,2745); the handshake branches on local==0/1 (net_handshake.c:751, net_sync.c:182,251); net_rank.h:18-32 is fixed [2] arrays. There is no PC_NET_MAX_PLAYERS -- PC_LAN_MAX_PEERS 8 (net_lan.h:19) sizes LAN discovery, not seats. Lifting it needs per-seat tables and rings, a wait on the minimum across peers, and a peer-addressed transport. Only then do the browser caps matter, and they are the smaller half: signal.mjs claims are literally [null,null] with a 400 above slot 1 (:6,:65,:99), offer/answer are broadcast with no addressing so 3+ peers cannot pair, shell.mjs holds one RTCPeerConnection, net_rtc.c carries one channel with no peer id, and lobby.mjs:31 PAIRABLE=2 gates the UI."
+      "pin": "OUT OF GOAL -- recorded so the board stops blaming a wasm export for it, not because it is queued. The standing goal is two people on two phones, which works. Seating a third is an engine rewrite, measured: the session holds one local and one remote and no player table (net_internal.h:349); net.c:2161 collapses the player argument to a boolean and derives remote = 1 - local, so seats 2 and 3 cannot be named; there is one remote input ring and one have/newest counter (net.c:65-68) that wait_remote waits on (net.c:1569); per-frame injection fills exactly 2 of the 4 pad ports (net.c:2736,2745); the handshake branches on local==0/1 (net_handshake.c:751, net_sync.c:182,251); net_rank.h:18-32 is fixed [2] arrays. There is no PC_NET_MAX_PLAYERS -- PC_LAN_MAX_PEERS 8 (net_lan.h:19) sizes LAN discovery, not seats. Lifting it needs per-seat tables and rings, a wait on the minimum across peers, and a peer-addressed transport. Only then do the browser caps matter, and they are the smaller half: signal.mjs claims are literally [null,null] with a 400 above slot 1 (:6,:65,:99), offer/answer are broadcast with no addressing so 3+ peers cannot pair, shell.mjs holds one RTCPeerConnection, net_rtc.c carries one channel with no peer id, and lobby.mjs:34 PAIRABLE=2 gates the UI."
     },
     {
       "n": 41,
@@ -378,7 +378,7 @@
       "side": "left",
       "state": "open",
       "title": "Lobby: list open lobbies to join",
-      "pin": "Not built, and the demo does not draw it either, so this is a spec gap before it is a build gap. Nothing in the browser lists rooms and signal.mjs has no endpoint that enumerates them, so the server side is missing too: a visitor can only reach a lobby through a link somebody sends. Join next to the room code is where it belongs. The row has to reach the demo first, which is #39."
+      "pin": "Not built, but no longer a spec gap: both stated reasons are stale. The demo draws #join-btn (mockup.py:243, since 99c24923) and the artifact builds it too (lobby.mjs:263), and #39, named here as the prerequisite, is closed. What is missing is the behaviour. The button is appended with no click handler at all -- the room code next to it gets addEventListener and Join gets none -- so it is a dead control, and no test names it beyond asserting it sits in the bar (states.test.mjs:125). The server side is still absent: the route regex in tools/browser/signal.mjs:41 matches only /r/<name>, so no endpoint enumerates rooms, and a visitor can still reach a lobby only through a link somebody sends. Note the path -- signal.mjs is in tools/browser/, not platforms/browser/, which is where this pin used to point."
     }
   ]
 }
