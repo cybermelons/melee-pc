@@ -73,7 +73,7 @@ def render(data):
                              f"a pin nobody can read is worse than no pin")
         pins.append((i['side'],
             f'<a class="pin {i["state"]} {i["side"]}" '
-            f'data-anchor="{e(i["anchor"])}" '
+            f'data-anchor="{e(i["anchor"])}" data-issue="{i["n"]}" '
             f'href="{e(i.get("base", data["base"]))}{i["n"]}" '
             f'target="_blank" rel="noopener">'
             f'<span class="pin-n">{e(i.get("tag", ""))}{i["n"]}</span>'
@@ -87,6 +87,8 @@ def render(data):
         pins_right='\n  '.join(h for side, h in pins if side == 'right'),
         done=done, total=total, pct=pct, open_count=total - done,
         note=e(data.get('note', '')), base=e(data['base']),
+        pinnotate=(f'<script src="{e(data["pinnotate"].rstrip("/"))}/annotate.js" defer></script>\n'
+                   if data.get('pinnotate') else ''),
     )
 
 
@@ -677,7 +679,7 @@ for (const tab of document.querySelectorAll('.tab')) {{
   }});
 }}
 </script>
-</body>
+{pinnotate}</body>
 </html>
 """
 
