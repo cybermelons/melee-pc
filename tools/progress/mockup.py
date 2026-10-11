@@ -55,7 +55,11 @@ TABS = {
          'Tournament rules turn pausing off.'),
     ],
     'Video': [
-        ('ctl-aspect', 'Aspect', _sel('Original (73:60)', 'Widescreen 16:9'), ''),
+        # Three modes, as src/pc/widescreen.c:33-49 has them: 0 = 73:60 (the
+        # hardware PAR), 1 = exactly 16:9, 2 = fmaxf(73:60, width/height),
+        # which fills the actual window (a phone in landscape).
+        ('ctl-aspect', 'Aspect',
+         _sel('Original (73:60)', 'Widescreen 16:9', 'Fill the window'), ''),
         ('ctl-hud-mode', 'HUD', _sel('Classic (4:3)', 'Wide (16:9)'), ''),
         ('ctl-MELEE_SCALE', 'Render scale',
          _sel('1.0 · 960x720', '0.667 · 640x480', '0.5 · 480x360'), ''),
@@ -65,9 +69,12 @@ TABS = {
         ('ctl-MELEE_HITBOXES', 'Show hitboxes', _chk(), ''),
     ],
     'Audio': [
-        ('ctl-volume', 'Master', '<input type="range" disabled value="80">', ''),
-        ('ctl-music-volume', 'Music', '<input type="range" disabled value="70">', ''),
-        ('ctl-sfx-volume', 'Effects', '<input type="range" disabled value="90">', ''),
+        # The three sliders are not disabled: pc_audio_set_volume,
+        # pc_audio_set_music_volume and pc_audio_set_sfx_volume are exported
+        # and the web sliders are being wired to them.
+        ('ctl-volume', 'Master', '<input type="range" value="80">', ''),
+        ('ctl-music-volume', 'Music', '<input type="range" value="70">', ''),
+        ('ctl-sfx-volume', 'Effects', '<input type="range" value="90">', ''),
         ('ctl-reverb', 'Reverb', _chk(True), ''),
         ('ctl-mute', 'Mute when unfocused', _chk(), ''),
         ('ctl-MELEE_PAUSE_ON_BLUR', 'Pause when unfocused', _chk(),

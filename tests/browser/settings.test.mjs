@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import test from 'node:test';
 import assert from 'assert/strict';
-import { SETTINGS, TABS, isOn, buildSearch, readSearch } from '../../platforms/browser/settings.mjs';
+import { SETTINGS, LIVE, TABS, isOn, buildSearch, readSearch } from '../../platforms/browser/settings.mjs';
 
 test('a default-valued setting stays out of the URL', () => {
   assert.equal(buildSearch({ MELEE_20XX: '', MELEE_BOOT_SCENE: '' }), '');
@@ -97,6 +97,7 @@ function stubDom(search) {
       querySelectorAll(sel) {
         const name = sel.match(/^\[name=(.+)\]$/);
         const cls = sel.match(/^\.(.+)$/);
+        const byId = sel.match(/^#(.+)$/);
         const out = [];
         const walk = (node) => {
           // createTextNode returns a bare {text}, which has no children.
@@ -106,7 +107,8 @@ function stubDom(search) {
             // document does. An exact string match would miss "setting child"
             // for ".setting" and silently undercount the rows.
             else if (cls && (kid.className ?? '').split(' ').includes(cls[1])) out.push(kid);
-            else if (!name && !cls && kid.tagName === sel) out.push(kid);
+            else if (byId && kid.id === byId[1]) out.push(kid);
+            else if (!name && !cls && !byId && kid.tagName === sel) out.push(kid);
             walk(kid);
           }
         };
@@ -125,12 +127,20 @@ function stubDom(search) {
   return host;
 }
 
+// Rows come in two kinds: boot rows (query-string settings) and live rows
+// (class "setting live"). Both carry .setting, so a count must say which.
+const isLive = (el) => el.className.split(' ').includes('live');
+const bootRows = (form) => form.querySelectorAll('.setting').filter((r) => !isLive(r));
+const liveRows = (form) => form.querySelectorAll('.setting').filter(isLive);
+
 test('the form renders one row per setting, with the URL applied', async () => {
   const host = stubDom('?MELEE_20XX=1&MELEE_BOOT_SCENE=training');
   const { addSettings } = await import('../../platforms/browser/settings.mjs');
   const form = addSettings(host);
   assert.equal(form.id, 'settings');
-  assert.equal(form.querySelectorAll('.setting').length, SETTINGS.length);
+  assert.equal(bootRows(form).length, SETTINGS.length);
+  assert.equal(liveRows(form).length, LIVE.length);
+  assert.equal(form.querySelectorAll('.setting').length, SETTINGS.length + LIVE.length);
   assert.equal(form.querySelector('[name=MELEE_20XX]').checked, true);
   assert.equal(form.querySelector('[name=MELEE_HITBOXES]').checked, false);
   // The select reflects the URL by selecting the matching option.
@@ -175,10 +185,11 @@ test('the rows are grouped into tabs, one head per pane', async () => {
   const { addSettings } = await import('../../platforms/browser/settings.mjs');
   const form = addSettings(host, { reload: () => {} });
   const heads = form.querySelectorAll('.tab').concat(form.querySelectorAll('.tab on'));
-  const used = new Set(SETTINGS.map((s) => s.tab ?? TABS[0]));
+  const used = new Set([...SETTINGS.map((s) => s.tab ?? TABS[0]), ...LIVE.map((d) => d.tab)]);
   assert.equal(heads.length, used.size, 'one head per tab that has a row');
   // Every row still reaches the form, so no setting is lost in a pane.
-  assert.equal(form.querySelectorAll('.setting').length, SETTINGS.length);
+  assert.equal(bootRows(form).length, SETTINGS.length);
+  assert.equal(form.querySelectorAll('.setting').length, SETTINGS.length + LIVE.length);
 });
 
 test('exactly one pane is in front, and a head switches it', async () => {
@@ -213,7 +224,8 @@ test('a setting that names no tab still gets a control', async () => {
   SETTINGS.push(loose);
   try {
     const form = mod.addSettings(host, { reload: () => {} });
-    assert.equal(form.querySelectorAll('.setting').length, SETTINGS.length);
+    assert.equal(bootRows(form).length, SETTINGS.length);
+    assert.equal(form.querySelectorAll('.setting').length, SETTINGS.length + LIVE.length);
     assert.ok(form.querySelector('[name=MELEE_NO_TAB]'), 'the untabbed row is missing');
   } finally {
     SETTINGS.pop();
@@ -362,22 +374,62 @@ test('the 20XX family stays condensed, and keeps the pausing fact', () => {
     'nothing tells the player that tournament rules and pausing interact');
 });
 
-test('only the settings with a real env reader got a control (#28)', () => {
+test('boot settings need a real env reader (#28)', () => {
   // The web launcher writes a query string that becomes Module.ENV and is read
-  // by std::getenv. The other twelve settings #28 names are `prefs` fields
-  // with no getenv anywhere in src/, so a control for one would do nothing.
-  // Precedent: asked about unlock_all, the owner condensed the UI rather than
-  // add a MELEE_UNLOCK_ALL read in C.
+  // by std::getenv. These keys are `prefs` fields with no getenv in src/ and no
+  // exported C setter, so neither route reaches them. The five audio/widescreen
+  // ones that used to be listed here are reachable through exported setters and
+  // are LIVE controls now; the next test checks that claim against the link line.
   const keys = new Set(SETTINGS.map((s) => s.key));
   for (const reachable of ['MELEE_UCF', 'MELEE_FROZEN_STADIUM', 'MELEE_NET_DELAY']) {
     assert.ok(keys.has(reachable), `${reachable} has an env reader and needs a control`);
   }
-  for (const unreachable of ['MELEE_WIDESCREEN', 'MELEE_HUD_MODE', 'MELEE_CUSTOM_TEXTURES',
-    'MELEE_FREE_CAMERA', 'MELEE_FILTER_MODE', 'MELEE_ANISOTROPY', 'MELEE_VOLUME',
-    'MELEE_MUSIC_VOLUME', 'MELEE_SFX_VOLUME', 'MELEE_REVERB', 'MELEE_MUTE',
+  for (const unreachable of ['MELEE_HUD_MODE', 'MELEE_CUSTOM_TEXTURES',
+    'MELEE_FREE_CAMERA', 'MELEE_FILTER_MODE', 'MELEE_ANISOTROPY', 'MELEE_MUTE',
     'MELEE_NET_NAME', 'MELEE_UNLOCK_ALL']) {
     assert.equal(keys.has(unreachable), false,
-      `${unreachable} has no getenv in src/, so a control cannot reach it`);
+      `${unreachable} has no getenv in src/ and no exported setter, so a control cannot reach it`);
+  }
+});
+
+test('every live descriptor names a function the wasm exports', async () => {
+  // Read the real link line, not a copy of it: a renamed or mistyped fn must
+  // fail here, where a hardcoded list would stay green.
+  const fs = await import('node:fs/promises');
+  const cmake = await fs.readFile(
+    new URL('../../platforms/browser/CMakeLists.txt', import.meta.url), 'utf8');
+  const line = cmake.match(/-sEXPORTED_FUNCTIONS=(\S+)/);
+  assert.ok(line, 'CMakeLists.txt no longer has a -sEXPORTED_FUNCTIONS= value');
+  const exported = new Set(line[1].replace(/^["']|["']$/g, '').split(','));
+  assert.ok(exported.has('_main'), 'parsed export list looks wrong');
+  for (const d of LIVE) {
+    assert.ok(exported.has('_' + d.fn), `${d.fn} is not in -sEXPORTED_FUNCTIONS, so Module._${d.fn} never exists`);
+  }
+});
+
+test('a slider move drives the engine with the scaled value and stores the UI value', async () => {
+  const host = stubDom('');
+  const store = new Map();
+  globalThis.localStorage = {
+    getItem: (k) => (store.has(k) ? store.get(k) : null),
+    setItem: (k, v) => { store.set(k, String(v)); },
+  };
+  const calls = [];
+  globalThis.Module = { _pc_audio_set_volume: (v) => calls.push(v) };
+  try {
+    const { addSettings } = await import('../../platforms/browser/settings.mjs');
+    const form = addSettings(host, { reload: () => {} });
+    const row = form.querySelector('#ctl-volume');
+    assert.ok(row, 'ctl-volume row missing');
+    const range = row.children.find((c) => c.type === 'range');
+    assert.ok(range, 'ctl-volume has no range input');
+    range.value = '50';
+    range.handlers.get('input')();
+    assert.deepEqual(calls, [0.5], 'the engine takes 0..1, not the 0..100 UI value');
+    assert.equal(store.get('melee.live.pc_audio_set_volume'), '50');
+  } finally {
+    delete globalThis.Module;
+    delete globalThis.localStorage;
   }
 });
 

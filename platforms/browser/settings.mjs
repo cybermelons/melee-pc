@@ -29,13 +29,17 @@
 // which this is the curated subset. Tabs use the width instead of the height.
 // A setting with no tab lands in the first one, so adding a flag cannot drop
 // its control off the page.
-// Most of what the native launcher (src/pc/launcher.cpp) offers cannot be
-// reached from here at all. Twelve of its settings -- widescreen, hud_mode,
-// custom_textures, free_camera, filter_mode, anisotropy, volume,
-// music_volume, sfx_volume, reverb, mute, net_name -- are `prefs` fields with
-// no std::getenv anywhere, so the query string has nothing to write into.
-// Only UCF, frozen stadium and net delay have a real env reader, and those
-// are the three controls below. See issue #28.
+// Two kinds of control, because the engine offers two ways in.
+// SETTINGS (below) are env flags read once at boot: they go through the query
+// string and a reload. LIVE (further below) are the five `prefs` fields that
+// have no std::getenv but DO have an exported C setter -- widescreen, volume,
+// music_volume, sfx_volume, reverb. They call the setter directly while the
+// engine runs and persist in localStorage (`melee.live.<fn>`). They are never
+// written to the URL: a volume slider behind a page reload would cost the
+// player the match, and a room link must not carry your volume to a friend.
+// The rest of the launcher's prefs (hud_mode, custom_textures, free_camera,
+// filter_mode, anisotropy, mute, net_name) have neither an env reader nor an
+// exported setter, so they are not reachable from here. See issue #28.
 export const TABS = ['Game', 'Video', 'Audio', 'Netplay'];
 
 export const SETTINGS = [
@@ -117,6 +121,59 @@ export function readSearch(search = '') {
     values[key] = kind === 'flag' ? (isOn(value) ? '1' : '') : value;
   }
   return values;
+}
+
+// Live controls: NOT query-string settings, see the header. `fn` is the exported
+// C name without its leading underscore. The UI value is a 0-100 integer for a
+// range, 0|1 for a flag, and the option value for a choice; it is stored as
+// such and converted only at the call (range / 100 -> float, flag -> 1.0|0.0,
+// choice -> int).
+export const LIVE = [
+  { fn: 'pc_audio_set_volume', ctl: 'ctl-volume', tab: 'Audio', label: 'Volume',
+    control: 'range', default: 80 },
+  { fn: 'pc_audio_set_music_volume', ctl: 'ctl-music-volume', tab: 'Audio', label: 'Music',
+    control: 'range', default: 70 },
+  { fn: 'pc_audio_set_sfx_volume', ctl: 'ctl-sfx-volume', tab: 'Audio', label: 'Sound effects',
+    control: 'range', default: 90 },
+  { fn: 'pc_audio_set_reverb', ctl: 'ctl-reverb', tab: 'Audio', label: 'Reverb',
+    control: 'flag', default: 1 },
+  { fn: 'pc_widescreen_set_mode', ctl: 'ctl-aspect', tab: 'Video', label: 'Aspect',
+    control: 'choice', default: 0,
+    options: [[0, 'Original (73:60)'], [1, 'Widescreen 16:9'], [2, 'Fill the window']] },
+];
+
+const liveKey = (d) => `melee.live.${d.fn}`;
+
+function liveArg(d, raw) {
+  const n = Number(raw);
+  if (d.control === 'range') return n / 100;
+  if (d.control === 'flag') return n ? 1.0 : 0.0;
+  return n | 0;
+}
+
+function storedLive(d) {
+  try {
+    const v = localStorage.getItem(liveKey(d));
+    return v == null ? null : v;
+  } catch { return null; }
+}
+
+// Calls the setter (when the runtime is up) and persists the UI value. With no
+// runtime the value is still stored and applyStoredLive pushes it later.
+function applyLive(d, raw) {
+  const fn = globalThis.Module?.['_' + d.fn];
+  if (typeof fn === 'function') fn(liveArg(d, raw));
+  try { localStorage.setItem(liveKey(d), String(raw)); } catch { /* storage blocked: engine call above still took effect */ }
+}
+
+// The page calls this once after the runtime is up so stored values take
+// effect. A control never touched has no stored value and is left alone, so the
+// engine's own pref stays in force.
+export function applyStoredLive() {
+  for (const d of LIVE) {
+    const v = storedLive(d);
+    if (v != null) applyLive(d, v);
+  }
 }
 
 // Builds the form into `host`. Returns the element, or null if `host` is
@@ -210,6 +267,47 @@ export function addSettings(host, { reload = (search) => location.assign(search 
     } else {
       pane(setting.tab ?? TABS[0]).append(row);
     }
+  }
+
+  // Live rows. Deliberately not added to `inputs`: current() iterates only that
+  // Map, so these can never reach buildSearch(). They have no `name` either.
+  for (const d of LIVE) {
+    const row = document.createElement('label');
+    row.className = 'setting live';
+    row.id = d.ctl;
+    const label = document.createElement('span');
+    label.className = 'setting-label';
+    label.textContent = d.label;
+    const saved = storedLive(d);
+    const start = saved ?? d.default;
+    let input;
+    let event = 'change';
+    if (d.control === 'range') {
+      input = document.createElement('input');
+      input.type = 'range';
+      input.min = '0';
+      input.max = '100';
+      input.step = '1';
+      input.value = String(start);
+      event = 'input';
+    } else if (d.control === 'flag') {
+      input = document.createElement('input');
+      input.type = 'checkbox';
+      input.checked = Number(start) !== 0;
+    } else {
+      input = document.createElement('select');
+      for (const [value, text] of d.options) {
+        const option = document.createElement('option');
+        option.value = String(value);
+        option.textContent = text;
+        if (String(value) === String(start)) option.selected = true;
+        input.append(option);
+      }
+    }
+    input.addEventListener(event, () => applyLive(
+      d, d.control === 'flag' ? (input.checked ? 1 : 0) : input.value));
+    row.append(label, input);
+    pane(d.tab).append(row);
   }
 
   // The select-all. Only an untouched child follows, which is what

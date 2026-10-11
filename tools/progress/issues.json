@@ -165,7 +165,7 @@
       "side": "right",
       "state": "open",
       "title": "Port the native launcher settings",
-      "pin": "Split: this issue is now the boot-time env route only. 10 of 22 non-live demo rows are built; a query param is read once in preRun, so a change costs a reload. Shipped from the earlier measurement: MELEE_UCF, MELEE_FROZEN_STADIUM, MELEE_NET_DELAY (each has a getenv). Prefs does not exist in the web build (launcher.cpp is not in BROWSER_PC_SOURCES, CMakeLists.txt:25), so six of the rest have no route at all: hud_mode, filter, custom textures, free camera, mute, net name (no getenv in src/, no exported setter). The remaining rows belong to #29, #32 and #17. The five rows that were missing for a different reason now exist as live controls (exported setter, localStorage, never in the URL) and are tracked in #42.",
+      "pin": "Boot-time env route only. Of the 22 demo rows that are not live controls, 10 are built (MELEE_20XX, _BOOT_CSS, _20XX_RULES, UCF, FROZEN_STADIUM, PAUSE, PAUSE_ON_BLUR, SCALE, HITBOXES, NET_DELAY), so 10 of 22. Each is a query param read once in preRun, so changing one costs a page reload. The other 12 are not done: six have no getenv anywhere in src/ and no exported setter, so there is no route to the engine at all (hud_mode, texture filter, custom_textures, free_camera, mute, net_name); the rest are owned by #29 (unlock-all), #32 (four input rows) and #17 (relay). The five audio and aspect controls are not counted here: they went in by a different mechanism, see #42.",
       "seen": 3680
     },
     {
@@ -336,6 +336,14 @@
       "state": "open",
       "title": "Two players on two real phones through one shared link",
       "pin": "The standing goal, and the one pin whose closing needs a measurement no other pin makes. #6 measured two browsers pairing over a routable https origin, one of them phone-shaped -- a viewport, not a phone. This closes when two actual handsets open the same link, both claim a port, and a match runs with the touch overlay driving it on both. Until that is measured the board should not read as done, however green the gates are."
+    },
+    {
+      "anchor": "#ctl-volume",
+      "n": 42,
+      "pin": "Closed: all five exist in settings.mjs LIVE (volume, music, sfx, reverb, aspect), 5 of 5. Each calls its exported C setter directly while the engine runs (pc_audio_set_volume, _music_volume, _sfx_volume, pc_audio_set_reverb, pc_widescreen_set_mode) and persists in localStorage as melee.live.<fn>. They are never in the URL: a slider behind a page reload would cost the player the match, and a value in the URL would carry your volume to a friend through a shared room link.",
+      "side": "right",
+      "state": "closed",
+      "title": "Live engine controls: audio sliders, reverb, aspect"
     }
   ]
 }
