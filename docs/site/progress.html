@@ -242,60 +242,6 @@
     #settings-link { min-width:0; font-size:11px; padding:6px 8px; }
   }
 
-  /* ---- the phone: the viewport is the budget ----
-     The launcher is a game screen. Every option has to be reachable inside
-     one viewport, with no page scroll, so the board draws a real 390x844
-     screen beside the desktop panel. If the controls stop fitting in this
-     box, the design is wrong and the picture says so. */
-  #phone { margin:26px auto 0; width:max-content; }
-  #phone-frame { width:min(390px,100%); aspect-ratio:390/844;
-                  border:10px solid #23252e; box-sizing:border-box;
-                  border-radius:38px; background:#000; overflow:hidden; }
-  #phone { max-width:100%; }
-  #phone-screen { position:relative; width:100%; height:100%;
-                   display:flex; flex-direction:column; }
-  /* The game owns the viewport. The menu is a sheet over it, not a page
-     under it. */
-  #phone-game { flex:1; background:
-      radial-gradient(120% 80% at 50% 10%,#1b2434 0%,#0a0c12 70%);
-      position:relative; }
-  #phone-fps { position:absolute; top:10px; left:12px; color:#4e5260;
-                font-size:.68rem; }
-  #phone-menu { position:absolute; top:8px; right:10px; width:34px;
-                 height:34px; border-radius:9px; font-size:1rem;
-                 background:#ffffff14; color:var(--fg);
-                 border:1px solid #ffffff22; }
-  #phone-sheet { background:#111; border-top:1px solid var(--line);
-                  padding:12px 12px 14px; display:grid; gap:10px; }
-  #phone-bar { display:flex; align-items:center; justify-content:space-between; }
-  #phone-bar b { font-size:.92rem; }
-  #phone-room { padding:5px 10px; border-radius:7px; background:#1d2130;
-                 color:var(--fg); border:1px solid #3c4252;
-                 font:600 .78rem/1 ui-monospace,SFMono-Regular,Menlo,monospace;
-                 letter-spacing:.05em; }
-  #phone-ports { display:grid; grid-template-columns:repeat(4,1fr); gap:5px; }
-  .pp { padding:6px 4px; text-align:center; font-size:.66rem;
-         border-radius:7px; background:#15171f;
-         border:1px solid var(--line); color:var(--dim); }
-  .pp.taken { background:#1d2130; border-color:#3c4252; color:var(--fg); }
-  .pp.free { background:var(--accent); color:#1a1405; border-color:var(--accent);
-              font-weight:600; }
-  #phone-tabs { display:flex; gap:3px; border-bottom:1px solid var(--line); }
-  .pt { flex:1; text-align:center; padding:6px 2px; font-size:.68rem;
-         color:var(--dim); border-radius:6px 6px 0 0; }
-  .pt.on { color:var(--fg); background:#191b24; }
-  /* Two columns, because one column of settings on a phone is the content
-     app this must not be. */
-  #phone-pane { display:grid; grid-template-columns:1fr 1fr; gap:7px 10px; }
-  .pr { display:flex; align-items:center; gap:6px; font-size:.72rem; }
-  .box { width:12px; height:12px; border-radius:3px; flex:none;
-          border:1px solid #4a4e5e; background:#15171f; }
-  .box.on { background:var(--accent); border-color:var(--accent); }
-  #phone-apply { padding:9px; border-radius:8px; font-weight:600;
-                  background:var(--accent); color:#1a1405;
-                  border:1px solid var(--accent); }
-  #phone-cap { text-align:center; margin:.5rem 0 0; font-size:.74rem; }
-
   /* ---- the pins ---- */
   .dot { position:absolute; width:11px; height:11px; margin:-5.5px 0 0 -5.5px;
           border-radius:50%; background:var(--open); z-index:4;
@@ -344,8 +290,8 @@
   <h1>melee-pc — the launcher, and what is left to build it</h1>
   <p class="sub">This is the launcher as it should end up, not as it is today.
      Every pin marks a control that still needs work, and links to its issue.</p>
-  <div class="bar2"><i style="width:32%"></i></div>
-  <p class="counts">11 closed · 23 open · 32% of 34</p>
+  <div class="bar2"><i style="width:31%"></i></div>
+  <p class="counts">11 closed · 24 open · 31% of 35</p>
   <div class="links"><span><b>deploy</b> <span class="dead">GitHub Pages: Pages is not enabled: set Settings &gt; Pages &gt; Source = GitHub Actions. The last 5 runs built the site and failed only at the publish step.</span></span><span><b>dev</b> <a href="http://100.113.182.40:8121/index.html" target="_blank" rel="noopener">the playable shell, tailnet only (wasm built 2026-10-09 12:56)</a></span><span><b>preview</b> <a href="http://100.113.182.40:8120/progress.html" target="_blank" rel="noopener">this board, served from tsunomaki</a></span></div>
   <div class="legend">
     <span><i style="background:var(--open)"></i> still to build</span>
@@ -461,42 +407,6 @@ engine: 60.0 fps</pre></details>
   </div>
 </div>
 
-<div id="phone">
-  <div id="phone-frame">
-    <div id="phone-screen">
-      <div id="phone-game">
-        <span id="phone-fps">60 fps</span>
-        <button id="phone-menu">☰</button>
-      </div>
-      <div id="phone-sheet">
-        <header id="phone-bar">
-          <b>Melee</b>
-          <button id="phone-room">FIG-7K2</button>
-        </header>
-        <div id="phone-ports">
-          <span class="pp taken">P1 kiri</span>
-          <span class="pp taken">P2 guest</span>
-          <span class="pp cpu">P3 CPU</span>
-          <span class="pp free">P4 take</span>
-        </div>
-        <div id="phone-tabs">
-          <span class="pt on">Game</span><span class="pt">Video</span><span class="pt">Audio</span><span class="pt">Input</span><span class="pt">Net</span>
-        </div>
-        <div id="phone-pane">
-          <span class="pr"><i class="box on"></i>20XX</span>
-          <span class="pr"><i class="box"></i>Boot to CSS</span>
-          <span class="pr"><i class="box on"></i>UCF</span>
-          <span class="pr"><i class="box"></i>Hitboxes</span>
-          <span class="pr"><i class="box on"></i>Pausing</span>
-          <span class="pr"><i class="box"></i>Unlock all</span>
-        </div>
-        <button id="phone-apply">Apply &amp; reload</button>
-      </div>
-    </div>
-  </div>
-  <p id="phone-cap" class="sub">390 × 844, nothing scrolls</p>
-</div>
-
   </div>
   <div id="pin-left"><a class="pin open left" data-anchor="#menu-panel" href="http://noel:4530/cybermelon/melee-pc/issues/21" target="_blank" rel="noopener"><span class="pin-n">21</span><span class="pin-t">Redesign the launcher UI</span><span class="pin-p">This panel is the target. Today the same controls are one flat column with no grouping and no first step.</span></a>
   <a class="pin open left" data-anchor="#room-code" href="http://noel:4530/cybermelon/melee-pc/issues/6" target="_blank" rel="noopener"><span class="pin-n">6</span><span class="pin-t">Shared lobby URL with port claiming</span><span class="pin-p">The room code is the lobby, top right, and clicking it copies the link. Two players pair for real, and a phone-shaped browser is one of them: measured over the routable tailnet address, both claim a port and the touch overlay draws. Two defects had to go first, and both hid behind loopback. signal.mjs sent claims as an object while lobby.mjs calls .indexOf on it, so every state event threw and no claim ever rendered (9fee67ca). Then crypto.randomUUID, which exists only in a secure context: http://127.0.0.1 is one by exemption and a tailnet IP is not, so the page could mint neither a room nor an identity on the only origin a visitor uses (f303d4a8). A third defect was in the offer itself: gathered() cut ICE gathering off after 3 seconds without checking that a srflx candidate had arrived, so on a slow network the offer went out with LAN addresses only. Measured here the first srflx lands at 11 ms while gathering is still open after 12 s, so the cutoff is now a ceiling and the srflx arrival releases the offer (c51bf783). Also measured over an https origin, which is what a shared link really has and which plain http on an IP is not: both ports claim and the data channel opens there too. Remaining: ports 3 and 4 need a transport for more than two peers, a friend on another network still has to exercise STUN. The link is a private tailnet address, shared privately rather than published, so the server needs no auth gate of its own.</span></a>
@@ -523,7 +433,7 @@ engine: 60.0 fps</pre></details>
   <a class="pin open right" data-anchor="#state-training" href="http://noel:4530/cybermelon/melee-pc/issues/8" target="_blank" rel="noopener"><span class="pin-n">8</span><span class="pin-t">Training scenarios from a URL</span><span class="pin-p">Training is a state loaded into the lobby. Its tools run outside the player ports, so a scenario needs no seat.</span></a>
   <a class="pin open right" data-anchor="#ctl-cstick" href="http://noel:4530/cybermelon/melee-pc/issues/3" target="_blank" rel="noopener"><span class="pin-n">3</span><span class="pin-t">On-screen control layout</span><span class="pin-p">Where the pad layout is chosen. Needs a device in hand: no code decides where a thumb reaches.</span></a>
   <a class="pin open right" data-anchor="#ctl-tap-jump" href="http://noel:4530/cybermelon/melee-pc/issues/4" target="_blank" rel="noopener"><span class="pin-n">4</span><span class="pin-t">Accessibility defaults for touch</span><span class="pin-p">Tap-jump off, deadzone, curve, C-stick. Defaults chosen; the issue text still argues with itself. Wording only.</span></a>
-  <a class="pin closed right" data-anchor="#phone-frame" href="http://noel:4530/cybermelon/melee-pc/issues/10" target="_blank" rel="noopener"><span class="pin-n">10</span><span class="pin-t">Mobile layout: full-viewport canvas</span><span class="pin-p">The launcher fits this box with no page scroll. (pointer: coarse) and touch-action: none ship, and menu-button.mjs holds the controls. The launcher inside it is now #21&#x27;s.</span></a>
+  <a class="pin closed right" data-anchor="#settings-apply" href="http://noel:4530/cybermelon/melee-pc/issues/10" target="_blank" rel="noopener"><span class="pin-n">10</span><span class="pin-t">Mobile layout: full-viewport canvas</span><span class="pin-p">The launcher fits one small-screen viewport with no page scroll. (pointer: coarse) and touch-action: none ship, and menu-button.mjs holds the controls. The launcher itself is now #21&#x27;s. Repointed from #phone-frame to the Apply row: the phone companion is a separate deliverable and left this mockup, so this pin now binds to the control a small-screen visitor must actually reach. A phone mockup, if wanted, gets its own mockup function and its own pins.</span></a>
   <a class="pin closed right" data-anchor="#ctl-MELEE_SCALE" href="http://noel:4530/cybermelon/melee-pc/issues/9" target="_blank" rel="noopener"><span class="pin-n">9</span><span class="pin-t">Optimize the browser build</span><span class="pin-p">Measured on the phone: 960x720 holds 60 fps. The 17 fps reading was a cold shader cache, not the render size, so this control is headroom rather than a fix.</span></a>
   <a class="pin open right" data-anchor="#ctl-MELEE_PAUSE_ON_BLUR" href="http://noel:4530/cybermelon/melee-pc/issues/7" target="_blank" rel="noopener"><span class="pin-n">7</span><span class="pin-t">Browser QoL: resume, pause, settings</span><span class="pin-p">Pause-on-blur landed. Resume after refresh and pause on crash did not. Parked.</span></a>
   <a class="pin closed right" data-anchor="#ctl-MELEE_HITBOXES" href="http://noel:4530/cybermelon/melee-pc/issues/13" target="_blank" rel="noopener"><span class="pin-n">13</span><span class="pin-t">GC adapter called two missing C functions</span><span class="pin-p">Two calls into functions that were never defined. Removed.</span></a>
@@ -531,7 +441,8 @@ engine: 60.0 fps</pre></details>
   <a class="pin open right" data-anchor="#settings-apply" href="http://noel:4530/cybermelon/melee-pc/issues/20" target="_blank" rel="noopener"><span class="pin-n">20</span><span class="pin-t">launcher-close-repeat loses the GPU device</span><span class="pin-p">Apply reloads the page. Doing that repeatedly under the test harness destroys the GPU device on pass 1, so pass 2 finds none.</span></a>
   <a class="pin open right" data-anchor="#kids-20xx" href="http://noel:4530/cybermelon/melee-pc/issues/29" target="_blank" rel="noopener"><span class="pin-n">29</span><span class="pin-t">Condense the 20XX children into a closed grid</span><span class="pin-p">Measured at 390px: the fold is already closed on load and now holds 2 children, not the 5 this was written against. The issue calls one-per-row the right shape for 2, so the grid would save one 50px row and break the Tournament rules hint, which spans full width. Unlock everything stays out: the owner chose to condense the UI rather than add the C env read.</span></a>
   <a class="pin open right" data-anchor="#ctl-deadzone" href="http://noel:4530/cybermelon/melee-pc/issues/32" target="_blank" rel="noopener"><span class="pin-n">32</span><span class="pin-t">Fill the Input tab, including controller options</span><span class="pin-p">Measured: none of the 4 rows drawn here exists in the engine. No deadzone, stick curve, tap-jump or C-stick mode anywhere in src/pc, in any of the 60 getenv readers, or among the 28 prefs fields in launcher.cpp. The per-port question is moot until something exists to set. The rows are mockup-only; building them needs native input settings first.</span></a>
-  <a class="pin open right" data-anchor="#load-btn" href="http://noel:4530/cybermelon/melee-pc/issues/33" target="_blank" rel="noopener"><span class="pin-n">33</span><span class="pin-t">Load button and save-state modal, instead of a disc chip</span><span class="pin-p">The chip read a percentage the browser build cannot measure. The slot becomes a press: Load opens the state menu, which holds the four presets and the states this player saved.</span></a></div>
+  <a class="pin open right" data-anchor="#load-btn" href="http://noel:4530/cybermelon/melee-pc/issues/33" target="_blank" rel="noopener"><span class="pin-n">33</span><span class="pin-t">Load button and save-state modal, instead of a disc chip</span><span class="pin-p">The chip read a percentage the browser build cannot measure. The slot becomes a press: Load opens the state menu, which holds the four presets and the states this player saved.</span></a>
+  <a class="pin open right" data-anchor="#setting-body" href="http://noel:4530/cybermelon/melee-pc/issues/49" target="_blank" rel="noopener"><span class="pin-n">49</span><span class="pin-t">Shared settings manifest so parity checks the loop at its source</span><span class="pin-p">The 27 ctl-* rows in this body are emitted from a loop in mockup.py, and settings.mjs builds the real ones from a loop too, so --parity sees them as js-only and scores them absent. That rule is right: a grep cannot tell a real DOM creation from a dead mention. The fix is one declarative settings manifest both loops read, with --parity asserting manifest ids == mockup ctl-* ids, so the loop is checked at its source rather than at its output. Hand-writing 27 rows into index.html to satisfy a grep would be the wrong fix.</span></a></div>
 </div>
 <footer>The board draws the launcher as issue 21 proposes it, not as it is today, and pins each issue to the control that has to exist for that design to be true. A pin whose anchor is not in the mockup fails the build, so the target and the issue list cannot drift apart silently. · <a href="http://noel:4530/cybermelon/melee-pc/issues/">All issues</a></footer>
 

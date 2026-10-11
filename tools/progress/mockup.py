@@ -160,48 +160,6 @@ PORTS = """
 """
 
 
-# A phone, drawn at its real size, because "no scrolling" is a claim about a
-# fixed height and cannot be shown on a page that grows. 390x844 is an
-# iPhone 14. The frame is the budget: if the controls do not fit inside it,
-# the design is wrong, and the board shows that rather than describing it.
-PHONE = """
-<div id="phone">
-  <div id="phone-frame">
-    <div id="phone-screen">
-      <div id="phone-game">
-        <span id="phone-fps">60 fps</span>
-        <button id="phone-menu">\u2630</button>
-      </div>
-      <div id="phone-sheet">
-        <header id="phone-bar">
-          <b>Melee</b>
-          <button id="phone-room">FIG-7K2</button>
-        </header>
-        <div id="phone-ports">
-          <span class="pp taken">P1 kiri</span>
-          <span class="pp taken">P2 guest</span>
-          <span class="pp cpu">P3 CPU</span>
-          <span class="pp free">P4 take</span>
-        </div>
-        <div id="phone-tabs">
-          <span class="pt on">Game</span><span class="pt">Video</span><span class="pt">Audio</span><span class="pt">Input</span><span class="pt">Net</span>
-        </div>
-        <div id="phone-pane">
-          <span class="pr"><i class="box on"></i>20XX</span>
-          <span class="pr"><i class="box"></i>Boot to CSS</span>
-          <span class="pr"><i class="box on"></i>UCF</span>
-          <span class="pr"><i class="box"></i>Hitboxes</span>
-          <span class="pr"><i class="box on"></i>Pausing</span>
-          <span class="pr"><i class="box"></i>Unlock all</span>
-        </div>
-        <button id="phone-apply">Apply &amp; reload</button>
-      </div>
-    </div>
-  </div>
-  <p id="phone-cap" class="sub">390 \u00d7 844, nothing scrolls</p>
-</div>
-"""
-
 LAUNCHER = """
 <div id="menu-panel">
 
@@ -276,4 +234,4 @@ MODAL = """
 
 def launcher_html():
     return (LAUNCHER.replace('%PORTS%', PORTS).replace('%TABS%', _tabs())
-            + MODAL + PHONE)
+            + MODAL)

@@ -15,6 +15,7 @@ Every anchor must exist in the mockup. A pin over empty background still looks
 authoritative, so a missing anchor fails the build instead.
 """
 import argparse
+import glob
 import html
 import json
 import os
@@ -28,11 +29,18 @@ import mockup  # noqa: E402
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DATA = os.path.join(ROOT, 'tools/progress/issues.json')
 OUT = os.path.join(ROOT, 'docs/site/progress.html')
+LAUNCHER_HTML = os.path.join(ROOT, 'platforms/browser/index.html')
+LAUNCHER_JS = os.path.join(ROOT, 'platforms/browser')
+
+
+def html_ids(markup):
+    """The ids an HTML fragment defines."""
+    return set(re.findall(r'\bid="([^"]+)"', markup))
 
 
 def check_anchors(issues, launcher):
     """Fail on an issue whose anchor is not an id in the mockup."""
-    ids = set(re.findall(r'\bid="([^"]+)"', launcher))
+    ids = html_ids(launcher)
     missing = [(i['n'], i['anchor']) for i in issues
                if i['anchor'].lstrip('#') not in ids]
     if missing:
@@ -363,60 +371,6 @@ TEMPLATE = """<!DOCTYPE html>
     #settings-link {{ min-width:0; font-size:11px; padding:6px 8px; }}
   }}
 
-  /* ---- the phone: the viewport is the budget ----
-     The launcher is a game screen. Every option has to be reachable inside
-     one viewport, with no page scroll, so the board draws a real 390x844
-     screen beside the desktop panel. If the controls stop fitting in this
-     box, the design is wrong and the picture says so. */
-  #phone {{ margin:26px auto 0; width:max-content; }}
-  #phone-frame {{ width:min(390px,100%); aspect-ratio:390/844;
-                  border:10px solid #23252e; box-sizing:border-box;
-                  border-radius:38px; background:#000; overflow:hidden; }}
-  #phone {{ max-width:100%; }}
-  #phone-screen {{ position:relative; width:100%; height:100%;
-                   display:flex; flex-direction:column; }}
-  /* The game owns the viewport. The menu is a sheet over it, not a page
-     under it. */
-  #phone-game {{ flex:1; background:
-      radial-gradient(120% 80% at 50% 10%,#1b2434 0%,#0a0c12 70%);
-      position:relative; }}
-  #phone-fps {{ position:absolute; top:10px; left:12px; color:#4e5260;
-                font-size:.68rem; }}
-  #phone-menu {{ position:absolute; top:8px; right:10px; width:34px;
-                 height:34px; border-radius:9px; font-size:1rem;
-                 background:#ffffff14; color:var(--fg);
-                 border:1px solid #ffffff22; }}
-  #phone-sheet {{ background:#111; border-top:1px solid var(--line);
-                  padding:12px 12px 14px; display:grid; gap:10px; }}
-  #phone-bar {{ display:flex; align-items:center; justify-content:space-between; }}
-  #phone-bar b {{ font-size:.92rem; }}
-  #phone-room {{ padding:5px 10px; border-radius:7px; background:#1d2130;
-                 color:var(--fg); border:1px solid #3c4252;
-                 font:600 .78rem/1 ui-monospace,SFMono-Regular,Menlo,monospace;
-                 letter-spacing:.05em; }}
-  #phone-ports {{ display:grid; grid-template-columns:repeat(4,1fr); gap:5px; }}
-  .pp {{ padding:6px 4px; text-align:center; font-size:.66rem;
-         border-radius:7px; background:#15171f;
-         border:1px solid var(--line); color:var(--dim); }}
-  .pp.taken {{ background:#1d2130; border-color:#3c4252; color:var(--fg); }}
-  .pp.free {{ background:var(--accent); color:#1a1405; border-color:var(--accent);
-              font-weight:600; }}
-  #phone-tabs {{ display:flex; gap:3px; border-bottom:1px solid var(--line); }}
-  .pt {{ flex:1; text-align:center; padding:6px 2px; font-size:.68rem;
-         color:var(--dim); border-radius:6px 6px 0 0; }}
-  .pt.on {{ color:var(--fg); background:#191b24; }}
-  /* Two columns, because one column of settings on a phone is the content
-     app this must not be. */
-  #phone-pane {{ display:grid; grid-template-columns:1fr 1fr; gap:7px 10px; }}
-  .pr {{ display:flex; align-items:center; gap:6px; font-size:.72rem; }}
-  .box {{ width:12px; height:12px; border-radius:3px; flex:none;
-          border:1px solid #4a4e5e; background:#15171f; }}
-  .box.on {{ background:var(--accent); border-color:var(--accent); }}
-  #phone-apply {{ padding:9px; border-radius:8px; font-weight:600;
-                  background:var(--accent); color:#1a1405;
-                  border:1px solid var(--accent); }}
-  #phone-cap {{ text-align:center; margin:.5rem 0 0; font-size:.74rem; }}
-
   /* ---- the pins ---- */
   .dot {{ position:absolute; width:11px; height:11px; margin:-5.5px 0 0 -5.5px;
           border-radius:50%; background:var(--open); z-index:4;
@@ -660,18 +614,110 @@ def audit(data):
     return bad
 
 
+def parity(data, mock_html=None, real_html=None, js=None):
+    """Compare the mockup's ids to the real launcher; fail on a false close.
+
+    Each mockup id is `markup` (in platforms/browser/index.html), `js-only`
+    (named in a .mjs file as a quoted string or selector) or `absent`.
+    js-only scores as ABSENT: a grep cannot tell a real DOM creation from a
+    dead mention, and must not be taught to. The sibling repo melee-web
+    shipped a page with class="setting" count 0 while JS built a subset at
+    runtime, and a DOM probe blessed it four times.
+
+    Fails (1) only on a CLOSED pin whose anchor is not `markup`. An open pin
+    with an absent anchor is honest; unpinned absent ids are a warn count.
+    The three sources default to the real files; tests inject their own.
+    """
+    if mock_html is None:
+        mock_html = mockup.launcher_html()
+    if real_html is None:
+        with open(LAUNCHER_HTML) as f:
+            real_html = f.read()
+    if js is None:
+        js = ''
+        for path in sorted(glob.glob(os.path.join(LAUNCHER_JS, '*.mjs'))):
+            with open(path) as f:
+                js += f.read() + '\n'
+    mock_ids, real_ids = html_ids(mock_html), html_ids(real_html)
+    print(f'parity: {len(mock_ids)} mockup ids, {len(real_ids)} real launcher ids, '
+          f'{len(js)} bytes of js')
+    if not mock_ids or not real_ids:
+        print('parity: an input set is empty, so this check cannot report '
+              'anything; refusing to call it a pass')
+        return 1
+
+    def classify(i):
+        if i in real_ids:
+            return 'markup'
+        if re.search(r'''["\'#.]%s\b''' % re.escape(i), js):
+            return 'js-only'
+        return 'absent'
+
+    kind = {i: classify(i) for i in mock_ids}
+    count = {k: sum(1 for v in kind.values() if v == k)
+             for k in ('markup', 'js-only', 'absent')}
+    absent = sorted(i for i, v in kind.items() if v == 'absent')
+    print(f"parity: markup={count['markup']} js-only={count['js-only']} "
+          f"absent={count['absent']}  (js-only scores as absent)")
+    print(f'parity: absent mockup ids: {", ".join(absent)}')
+
+    pinned, false_closes = set(), []
+    for i in data['issues']:
+        if 'base' in i:
+            continue
+        a = i['anchor'].lstrip('#')
+        pinned.add(a)
+        k = kind.get(a, 'absent')
+        print(f"#{i['n']} {i['state']} {i['anchor']} -> {k}")
+        if i['state'] == 'closed' and k != 'markup':
+            false_closes.append((i['n'], i['anchor'], k))
+    for n, a, k in false_closes:
+        print(f'FALSE CLOSE: #{n} is closed but {a} is {k} in the real launcher')
+    unpinned = len([a for a in absent if a not in pinned])
+    print(f'parity: {unpinned} absent mockup ids carry no pin (warn only)')
+    print(f'parity: FAIL, {len(false_closes)} closed pins are not built'
+          if false_closes else 'parity: PASS, every closed pin is built')
+    return 1 if false_closes else 0
+
+
+def report(data):
+    """One copy-pasteable completion block: open pins, parity, absent ids."""
+    print('=== BOARD REPORT (build.py --report) ===')
+    print('--- open pins ---')
+    for i in data['issues']:
+        if 'base' not in i and i['state'] != 'closed':
+            print(f"#{i['n']} {i['anchor']} {i['title']}")
+    print('--- audit against tracker ---')
+    a = audit(data)
+    if a:
+        print('report: the audit half FAILED (drift or tracker unreachable)')
+    print('--- parity against the real launcher ---')
+    p = parity(data)
+    print(f'=== END REPORT: audit={"FAIL" if a else "ok"} '
+          f'parity={"FAIL" if p else "ok"} ===')
+    return 1 if (a or p) else 0
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--check', action='store_true',
                     help='exit 1 if the written page differs from the data')
     ap.add_argument('--audit', action='store_true',
                     help='compare the board against the tracker')
+    ap.add_argument('--parity', action='store_true',
+                    help='compare the mockup against the real launcher')
+    ap.add_argument('--report', action='store_true',
+                    help='the one accepted completion block: audit + parity')
     args = ap.parse_args()
 
     with open(DATA) as f:
         data = json.load(f)
     if args.audit:
         return audit(data)
+    if args.parity:
+        return parity(data)
+    if args.report:
+        return report(data)
 
     page = render(data)
     if args.check:

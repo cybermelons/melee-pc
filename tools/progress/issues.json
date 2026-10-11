@@ -192,11 +192,11 @@
     },
     {
       "n": 10,
-      "anchor": "#phone-frame",
+      "anchor": "#settings-apply",
       "side": "right",
       "state": "closed",
       "title": "Mobile layout: full-viewport canvas",
-      "pin": "The launcher fits this box with no page scroll. (pointer: coarse) and touch-action: none ship, and menu-button.mjs holds the controls. The launcher inside it is now #21's."
+      "pin": "The launcher fits one small-screen viewport with no page scroll. (pointer: coarse) and touch-action: none ship, and menu-button.mjs holds the controls. The launcher itself is now #21's. Repointed from #phone-frame to the Apply row: the phone companion is a separate deliverable and left this mockup, so this pin now binds to the control a small-screen visitor must actually reach. A phone mockup, if wanted, gets its own mockup function and its own pins."
     },
     {
       "n": 9,
@@ -293,6 +293,14 @@
       "state": "open",
       "title": "Load button and save-state modal, instead of a disc chip",
       "pin": "The chip read a percentage the browser build cannot measure. The slot becomes a press: Load opens the state menu, which holds the four presets and the states this player saved."
+    },
+    {
+      "n": 49,
+      "anchor": "#setting-body",
+      "side": "right",
+      "state": "open",
+      "title": "Shared settings manifest so parity checks the loop at its source",
+      "pin": "The 27 ctl-* rows in this body are emitted from a loop in mockup.py, and settings.mjs builds the real ones from a loop too, so --parity sees them as js-only and scores them absent. That rule is right: a grep cannot tell a real DOM creation from a dead mention. The fix is one declarative settings manifest both loops read, with --parity asserting manifest ids == mockup ctl-* ids, so the loop is checked at its source rather than at its output. Hand-writing 27 rows into index.html to satisfy a grep would be the wrong fix."
     }
   ]
 }
