@@ -833,6 +833,8 @@ def unread(data, ack=None):
     # ponytail: 7-day default window, so older unfolded comments are not seen;
     # set comments_since in issues.json to widen it.
     since = data.get('comments_since') or (now - datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%SZ')
+    if len(since) == 10:  # bare date; Gitea wants RFC 3339
+        since += 'T00:00:00Z'
     comments = []
     try:
         for page in range(1, 21):
