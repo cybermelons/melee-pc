@@ -6,7 +6,13 @@ has to produce.
     python3 tools/progress/build.py            # writes docs/site/progress.html
     python3 tools/progress/build.py --check    # exit 1 if the page is stale
     python3 tools/progress/build.py --audit    # compare against the tracker
-    python3 tools/progress/build.py --gate     # check + audit + proofs
+    python3 tools/progress/build.py --gate     # check + audit + proofs + unread
+    python3 tools/progress/build.py --ack N    # mark issue N's comments read
+    python3 tools/progress/build.py --gate --ack N
+
+Optional per-issue fields (never read by render): proof (shell command, exit 0
+= the pin is done) and seen (last Gitea comment id folded in). Optional top
+level: comments_since (ISO time), inbox ({"n", "seen"}), pinnotate (URL).
 
 The board is not a screenshot. mockup.py builds the proposed launcher as real
 markup, and each pin measures its own anchor in the browser, so a control that
@@ -16,6 +22,7 @@ Every anchor must exist in the mockup. A pin over empty background still looks
 authoritative, so a missing anchor fails the build instead.
 """
 import argparse
+import datetime
 import functools
 import html
 import http.server
@@ -685,7 +692,7 @@ def audit(data):
     while True:
         try:
             raw = subprocess.run(
-                ['tea', 'issues', 'list', '--login', 'noel',
+                [os.environ.get('TEA', 'tea'), 'issues', 'list', '--login', 'noel',
                  '--repo', data['repo'], '--state', 'all', '--output', 'json',
                  '--limit', '50', '--page', str(page)],
                 capture_output=True, text=True, timeout=60, check=True).stdout
@@ -814,14 +821,78 @@ def proofs(data):
     return hard, ready
 
 
-def gate(data):
+def unread(data, ack=None):
+    """Print UNREAD lines for Gitea comments newer than each issue's seen.
+
+    Returns (hard, unread). With ack=N, N's counted comments are marked seen
+    (issues.json is rewritten) and no longer count.
+    """
+    now = datetime.datetime.now(datetime.timezone.utc)
+    # ponytail: 7-day default window, so older unfolded comments are not seen;
+    # set comments_since in issues.json to widen it.
+    since = data.get('comments_since') or (now - datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%SZ')
+    comments = []
+    try:
+        for page in range(1, 21):
+            cmd = [os.environ.get('TEA', 'tea'), 'api', '--login', 'noel',
+                   f"/repos/{data['repo']}/issues/comments?since={since}&limit=50&page={page}"]
+            raw = subprocess.run(cmd, capture_output=True, text=True, timeout=60).stdout
+            got = json.loads(raw)
+            if not isinstance(got, list):
+                raise ValueError(raw)
+            comments += got
+            if len(got) != 50:
+                break
+        else:
+            print('gate: comments: 20 pages read, newer ones may be cut off; advance comments_since')
+    except (OSError, subprocess.SubprocessError, ValueError) as err:
+        print(f'gate: comments: {str(err)[:200]}')
+        return 1, 0
+
+    inbox = data.get('inbox')
+    seen = {}
+    for i in data['issues']:
+        if 'base' not in i:
+            seen[i['n']] = max(seen.get(i['n'], 0), i.get('seen', 0))
+    if inbox:
+        seen[inbox['n']] = inbox.get('seen', 0)
+    count, top = {}, {}
+    for c in comments:
+        n = int(c['issue_url'].rsplit('/', 1)[1])
+        body = c.get('body', '')
+        if n not in seen or c['id'] <= seen[n]:
+            continue
+        if '<!-- wave -->' in body and '<!-- pinnotate:' not in body:
+            continue
+        count[n] = count.get(n, 0) + 1
+        top[n] = max(top.get(n, 0), c['id'])
+
+    if ack is not None:
+        if ack not in top:
+            print(f'ack: nothing unread on #{ack}')
+        else:
+            recs = [inbox] if inbox and inbox['n'] == ack else [
+                i for i in data['issues'] if i['n'] == ack and 'base' not in i]
+            top_id = top.pop(ack)
+            for rec in recs:
+                rec['seen'] = top_id
+            count.pop(ack)
+            with open(DATA, 'w') as f:
+                f.write(json.dumps(data, indent=2, ensure_ascii=False) + '\n')
+            print(f'acked #{ack} seen={top_id}')
+    for n, k in count.items():
+        print(f'UNREAD #{n} ({k})' + (' inbox: notes to triage' if inbox and inbox['n'] == n else ''))
+    return 0, sum(1 for _ in count)
+
+
+def gate(data, ack=None):
     t0 = time.monotonic()
     hard = check(data) + audit(data)
     h, ready = proofs(data)
-    hard += h
-    unread = 0
-    bad = hard or unread
-    print(f"gate: {'FAIL' if bad else 'ok'} hard={hard} unread={unread} ready={ready} "
+    h2, nunread = unread(data, ack)
+    hard += h + h2
+    bad = hard or nunread
+    print(f"gate: {'FAIL' if bad else 'ok'} hard={hard} unread={nunread} ready={ready} "
           f"{time.monotonic() - t0:.1f}s")
     return 1 if bad else 0
 
@@ -834,6 +905,8 @@ def main():
                     help='compare the board against the tracker')
     ap.add_argument('--gate', action='store_true',
                     help='check + audit + proofs; exit 1 on any failure')
+    ap.add_argument('--ack', type=int, metavar='N',
+                    help="mark issue N's unread comments as seen")
     args = ap.parse_args()
 
     with open(DATA) as f:
@@ -841,7 +914,9 @@ def main():
     if args.audit:
         return audit(data)
     if args.gate:
-        return gate(data)
+        return gate(data, args.ack)
+    if args.ack is not None:
+        return unread(data, args.ack)[0]
     if args.check:
         return check(data)
 
