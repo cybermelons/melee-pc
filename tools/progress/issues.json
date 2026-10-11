@@ -342,7 +342,6 @@
       "anchor": "#port-3",
       "side": "left",
       "state": "open",
-      "tag": "later",
       "title": "Three and four player netplay needs an N-way engine net layer",
       "pin": "OUT OF GOAL -- recorded so the board stops blaming a wasm export for it, not because it is queued. The standing goal is two people on two phones, which works. Seating a third is an engine rewrite, measured: the session holds one local and one remote and no player table (net_internal.h:349); net.c:2161 collapses the player argument to a boolean and derives remote = 1 - local, so seats 2 and 3 cannot be named; there is one remote input ring and one have/newest counter (net.c:65-68) that wait_remote waits on (net.c:1569); per-frame injection fills exactly 2 of the 4 pad ports (net.c:2736,2745); the handshake branches on local==0/1 (net_handshake.c:751, net_sync.c:182,251); net_rank.h:18-32 is fixed [2] arrays. There is no PC_NET_MAX_PLAYERS -- PC_LAN_MAX_PEERS 8 (net_lan.h:19) sizes LAN discovery, not seats. Lifting it needs per-seat tables and rings, a wait on the minimum across peers, and a peer-addressed transport. Only then do the browser caps matter, and they are the smaller half: signal.mjs claims are literally [null,null] with a 400 above slot 1 (:6,:65,:99), offer/answer are broadcast with no addressing so 3+ peers cannot pair, shell.mjs holds one RTCPeerConnection, net_rtc.c carries one channel with no peer id, and lobby.mjs:31 PAIRABLE=2 gates the UI."
     },
