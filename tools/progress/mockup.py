@@ -143,14 +143,16 @@ def _tabs():
             f'\n      <div class="panes">{panes}</div>')
 
 
-# The four ports are the lobby's real state. Two taken, one queued behind a
-# claim, one free.
+# The four ports are the lobby's real state. Two taken and two
+# unavailable, since the networked game seats two.
 PORTS = """
+    <!-- Four tiles because a GameCube has four ports. P3 and P4 are marked
+         unavailable because the networked game seats two, so no one can take them. -->
     <div id="ports" class="ports">
       <div class="port taken mine" id="port-1"><b>P1 <span id="port-mine" class="mine-tag">you</span></b><i>kiri</i><span class="psrc">adapter</span><button class="cbtn" id="port-1-pad" title="Connect a controller to this port">⌘</button><button class="pbtn">Release</button></div>
       <div class="port taken" id="port-2"><b>P2</b><i>guest-4f</i><span class="psrc">touch</span><button class="cbtn" title="Connect a controller to this port">⌘</button><button class="pbtn">Release</button></div>
-      <div class="port cpu" id="port-3"><b>P3</b><i>CPU lv 9</i><span class="psrc">cpu</span><button class="cbtn" title="Connect a controller to this port">⌘</button><button class="pbtn">Take</button></div>
-      <div class="port free" id="port-4"><b>P4</b><i>free</i><span class="psrc">—</span><button class="cbtn" title="Connect a controller to this port">⌘</button><button class="pbtn">Take</button></div>
+      <div class="port off" id="port-3"><b>P3</b><i>2P only</i><span class="psrc">—</span><button class="cbtn" title="Connect a controller to this port">⌘</button><button class="pbtn" disabled>Take</button></div>
+      <div class="port off" id="port-4"><b>P4</b><i>2P only</i><span class="psrc">—</span><button class="cbtn" title="Connect a controller to this port">⌘</button><button class="pbtn" disabled>Take</button></div>
     </div>
     <!-- The roster is who is in the room; the queue is an ordering within it.
          Two facts, two elements, so neither has to restate the other. -->

@@ -106,6 +106,18 @@ test('four tiles are drawn, and the ones past the pairable count say so', () => 
     'a port the transport cannot reach must not be offered as free');
 });
 
+test('an unreachable tile reads "2P only" on screen, not "free" or a pending issue', () => {
+  // portStates().reachable is the boolean; this is the word the visitor reads.
+  // render() assigns <i>.textContent directly, so the field is the right read.
+  const { host, api } = buildLobby({ hid: {}, getGamepads: () => [] });
+  api.render([null, null, null, null], 'me');
+  const labels = host.find('.port').map((t) => t.descendants().find((n) => n.tagName === 'i').textContent);
+  assert.equal(labels[PAIRABLE], '2P only',
+    'port 3 label regressed: an unreachable tile must say 2P only');
+  assert.equal(labels[PORTS - 1], '2P only', 'port 4 label regressed');
+  assert.equal(labels[0], 'free', 'a reachable free tile must still read free');
+});
+
 test('mySlot finds the port you hold, and -1 when you hold none', () => {
   assert.equal(mySlot(['a', 'me'], 'me'), 1);
   assert.equal(mySlot(['a', 'b'], 'me'), -1);

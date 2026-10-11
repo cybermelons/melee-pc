@@ -13,9 +13,11 @@
 //
 // Ports are the lobby's real state. The signal server already tracks claims
 // and already pushes them on its `state` event, so this renders that array
-// rather than keeping a second copy. What it cannot do yet is four of them:
-// the WebRTC path in shell.mjs pairs exactly two peers, so slots 3 and 4 are
-// drawn and disabled until #6 lands the transport that carries more.
+// rather than keeping a second copy. It cannot show four of them as claimable:
+// the engine's netplay seats exactly two (one local, one remote, net.local and
+// net.remote in src/pc/net.c), so ports 3 and 4 are drawn because a GameCube
+// has four and disabled because the network path cannot seat them. Lifting
+// that is an N-way lockstep rewrite of the engine, not a transport change.
 //
 // A controller belongs to a port too (#30). Connecting one was a page-level
 // button, which made sense while the page was one seat; with four ports a
@@ -25,9 +27,9 @@
 // `navigator`, because the combinations are the thing worth testing and a
 // render path that reads a global cannot be driven from a test.
 
-// The signal server accepts slot 0 and 1 only (tools/browser/signal.mjs:59).
+// The signal server accepts slot 0 and 1 only (tools/browser/signal.mjs:99).
 // Four tiles are drawn because four is what a GameCube has and what the
-// design is built around; PAIRABLE is how many a claim can currently reach.
+// design is built around; PAIRABLE is how many a claim can reach.
 export const PORTS = 4;
 export const PAIRABLE = 2;
 
@@ -344,7 +346,7 @@ export function addLobby(host, {
         else if (s.taken) cls.push('taken');
         else cls.push('free');
         tile.className = cls.join(' ');
-        who.textContent = s.mine ? 'you' : s.taken ? 'taken' : s.reachable ? 'free' : 'needs #6';
+        who.textContent = s.mine ? 'you' : s.taken ? 'taken' : s.reachable ? 'free' : '2P only';
         act.textContent = s.mine ? 'Release' : 'Take';
         act.disabled = !s.reachable || s.taken;
         tag.hidden = !s.mine;

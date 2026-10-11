@@ -229,6 +229,12 @@ TEMPLATE = """<!DOCTYPE html>
   .port.cpu i {{ color:var(--dim); }}
   .port.free {{ border-style:dashed; }}
   .port.free i {{ color:#6f7280; }}
+  /* A port the networked game cannot seat. Dashed like .free because it is
+     unoccupied, but dimmed and with a dead button, so it does not read as an
+     invitation the engine cannot accept. */
+  .port.off {{ opacity:.45; border-style:dashed; }}
+  .port.off i {{ color:#6f7280; }}
+  .port.off .pbtn {{ cursor:not-allowed; }}
   .pbtn {{ margin-top:2px; padding:4px 8px; border-radius:6px; font-size:.74rem;
            background:#191b24; color:var(--fg); border:1px solid var(--line); }}
   .port.free .pbtn {{ background:var(--accent); color:#1a1405;
