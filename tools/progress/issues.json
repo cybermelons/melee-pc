@@ -198,7 +198,7 @@
       "side": "right",
       "state": "open",
       "title": "Accessibility defaults for touch",
-      "pin": "Tap-jump off, deadzone, curve, C-stick. Defaults chosen; the issue text still argues with itself. Wording only."
+      "pin": "Tap-jump off, deadzone, curve, C-stick. The code scope is done and tested: the tap-jump ramp and the deadzone rescale are in touch.mjs, with the four engine constants cited from PlCo.dat, and touch.test.mjs covers the ramp, the rescale, and that the rescale moves the magnitude but not the angle. What is left is NOT wording, as this pin used to say. Two things. First, the issue asks for an expectation on the page -- that Melee is a poor fit for touch -- and the page carries no such text at all; index.html has no line about it. Second, the issue points phone visitors at a Bluetooth pad through the Gamepad API, and that path does not route input: getGamepads appears only in detectSources as a capability probe (lobby.mjs:116), and connectPort (shell.mjs:277) gates the adapter and records the label for everything else, so selecting the pad source sends nothing. The page cannot honestly point a visitor at it until #5 lands. Writing copy that tells visitors what plays is a product-voice call, so it waits for the owner. The four settings rows themselves are missing from the panel and belong to #32, not here."
     },
     {
       "n": 10,
