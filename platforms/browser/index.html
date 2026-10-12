@@ -67,6 +67,57 @@
      a desktop visitor never gets controls drawn over the picture. */
   #touch[hidden] { display: none; }
 
+  /* The launcher/game split used to live entirely inside the coarse-pointer
+     block below, so a desktop or TV browser got none of it and fell back to a
+     scrolling document with a 648px bordered card and a small canvas under it.
+     That reads as the old pre-lobby app, not as a console. These rules apply
+     at every pointer type so both states fill the screen like a TV: before
+     Start the launcher alone, after Start the game alone with the menu one
+     button away. The coarse block comes after this and may still override it.
+
+     The button is #pad-menu (menu-button.mjs), not #menu-btn. Its base rule
+     sits at the top-left and is later in the file, so the bottom placement
+     wins on specificity and neutralises top explicitly. */
+  body { max-width: none; padding: 0; height: 100dvh; overflow: hidden; }
+  body.playing h1, body.playing #keys { display: none; }
+  /* Launcher state: a column, so the panel takes the height left under the
+     title and scrolls inside it rather than being clipped by the locked body. */
+  body:not(.playing) { display: flex; flex-direction: column; }
+  body:not(.playing) h1 { margin: 12px auto 0; padding: 0 12px; }
+  body:not(.playing) #menu-panel {
+    flex: 1 1 auto; min-height: 0; width: 100%;
+    max-height: 100dvh; overflow: auto; margin-inline: auto;
+  }
+  /* html prefix: the coarse block draws a preview canvas in the same state at
+     equal specificity and later in the file; the launcher is meant to be alone. */
+  html body:not(.playing) #game, body:not(.playing) #touch { display: none; }
+  /* Game state: the canvas letterboxes to the whole screen. */
+  body.playing #game {
+    position: fixed; inset: 0; display: grid; place-items: center; background: #000;
+  }
+  body.playing canvas {
+    aspect-ratio: 4 / 3; max-height: 100dvh; max-width: calc(100dvh * 4 / 3);
+  }
+  /* :not([hidden]) so a desktop, where shell.mjs leaves the overlay hidden,
+     does not get an empty fixed layer swallowing nothing but painting. */
+  body.playing #touch:not([hidden]) { display: block; }
+  body.playing #menu-panel { display: none; }
+  /* The menu comes down from the top like a start menu, over the game. */
+  body.playing.menu #menu-panel {
+    display: block; position: fixed; z-index: 4;
+    top: calc(6vh + env(safe-area-inset-top));
+    left: 50%; transform: translateX(-50%);
+    width: min(92vw, 648px); max-height: 70dvh; overflow: auto;
+    background: #000000e8; border: 2px solid #ffffff44; border-radius: 12px;
+    pointer-events: auto;
+  }
+  body.playing #pad-menu {
+    display: grid; position: fixed; z-index: 5; top: auto;
+    bottom: calc(3vh + env(safe-area-inset-bottom));
+    left: 50%; transform: translateX(-50%);
+    pointer-events: auto;
+  }
+
   /* Phones and tablets: the game fills the viewport and everything else goes
      away. (pointer: coarse) rather than a width breakpoint, because a narrow
      desktop window still has a mouse and wants the page, while a wide tablet
