@@ -1490,20 +1490,51 @@ void begin_pipeline_frame() {
 }
 
 #ifdef __EMSCRIPTEN__
+/* MELEE_PREPARE_MAX=<n>: how many cached pipelines reveal waits for, 0 for
+ * all of them. The queue is every config the cache has ever learned, so
+ * without a cap each session's reveal is slower than the last: the seed is
+ * already ~12k configs and a player's own rows are added to it. The wait is
+ * not wasted work, only work that does not have to finish before the first
+ * frame -- whatever is left keeps building in the background, and a draw
+ * whose pipeline is not ready yet is skipped rather than stalled on.
+ *
+ * rebuild_pipeline_cache sorts by firstFrameUsed, and wait_pipelines drains
+ * in queue order, so the ones reveal waits for are the earliest-used: what
+ * boot itself draws. The default is a budget, not a measurement; raise it if
+ * a boot shows missing effects, or set 0 to get the old behaviour. */
+static uint32_t prepare_pipeline_limit() {
+  if (const char* v = std::getenv("MELEE_PREPARE_MAX"); v != nullptr && *v != '\0') {
+    return static_cast<uint32_t>(std::strtoul(v, nullptr, 10));
+  }
+  return 2048;
+}
+
 // Restore the cache before simulation begins. Without workers, frames build
 // only what they draw, so known pipelines would otherwise wait for a launcher.
 // wait_pipelines builds the queues on this thread; yielding between slices
 // lets the asynchronous creations resolve and the page paint the progress.
 extern "C" void browser_prepare_graphics() {
-  const uint32_t total = wait_pipelines(0);
-  if (!total) return;
+  const uint32_t queued = wait_pipelines(0);
+  if (!queued) return;
+  /* The progress bar counts to what reveal waits for rather than to the whole
+   * queue, so it still reaches its end when the cap stops the wait early. */
+  const uint32_t limit = prepare_pipeline_limit();
+  const uint32_t total = limit != 0 ? std::min(queued, limit) : queued;
   browser_graphics_progress(0, total);
-  for (uint32_t left = total; left != 0;) {
+  /* left counts the whole queue, so stop once it falls to what the cap leaves
+   * behind instead of waiting for it to reach zero. */
+  const uint32_t stopAt = queued - total;
+  for (uint32_t left = queued; left > stopAt;) {
     left = wait_pipelines(16);
-    browser_graphics_progress(total - left, total);
+    browser_graphics_progress(total - (left > stopAt ? left - stopAt : 0), total);
     browser_yield();
   }
-  Log.info("Prepared {} cached browser pipelines before simulation", total);
+  if (total != queued) {
+    Log.info("Prepared {} of {} cached browser pipelines before simulation; the rest build in the background",
+             total, queued);
+  } else {
+    Log.info("Prepared {} cached browser pipelines before simulation", total);
+  }
 }
 #endif
 

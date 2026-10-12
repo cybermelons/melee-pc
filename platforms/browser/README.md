@@ -29,6 +29,18 @@ python3 tools/browser/build.py --jobs 8   # oracle tests, game, Aurora, link, no
 python3 tools/browser/serve.py            # http://127.0.0.1:5190/
 ```
 
+`setup_sdk.py` clones the emsdk, so it needs network access, and each
+worktree gets its own copy under its own `build/`. To build in a worktree
+without a second clone, point `MELEE_EMSDK` at an SDK that is already
+installed:
+
+```sh
+MELEE_EMSDK=/path/to/main/checkout/build/browser/emsdk python3 tools/browser/build.py
+```
+
+Without it, `test_disc_lower.py` fails early with `'string.h' file not found`,
+because the Emscripten sysroot is part of the SDK that was never installed.
+
 `serve.py` exists because the engine uses threads, which browsers only allow on
 a cross-origin-isolated page (COOP/COEP headers). A host that cannot send them,
 such as GitHub Pages (`.github/workflows/pages.yml` publishes this build under
