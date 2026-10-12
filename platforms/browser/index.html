@@ -112,7 +112,7 @@
     pointer-events: auto;
   }
   body.playing #pad-menu {
-    display: grid; position: fixed; z-index: 5; top: auto;
+    position: fixed; z-index: 5; top: auto;
     bottom: calc(3vh + env(safe-area-inset-bottom));
     left: 50%; transform: translateX(-50%);
     pointer-events: auto;
@@ -342,13 +342,6 @@
   /* Only while the game runs: before Start the page controls are visible
      already, so a button that reveals them has no outcome. */
   body:not(.playing) #pad-menu { display: none; }
-  /* Only on a coarse pointer, the same query as the rules that hide the page
-     controls and reveal #menu-panel. Without a coarse pointer nothing hides
-     them, so the controls stay on the page while the game runs and the button
-     would toggle a class that no rule reads. */
-  @media not all and (pointer: coarse) {
-    #pad-menu { display: none; }
-  }
   #pad-tray .pad {
     position: static;
     width: 11vh; height: 11vh; min-width: 44px; min-height: 44px;

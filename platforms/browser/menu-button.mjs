@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// On a coarse pointer, body.playing hides the page's own controls -- the mode
-// links, the disc picker, Start, the adapter button, the status line and the
-// log -- because they would otherwise sit on top of the picture. Nothing else
-// brings them back: there is no window chrome to scroll to on a phone. So this
-// button toggles one class on <body> and the stylesheet reveals the panel.
-// On a fine pointer the controls stay on the page and the stylesheet hides
-// this button.
+// While the game runs, body.playing hides the launcher at every pointer type
+// -- the mode links, the disc picker, Start, the adapter button, the status
+// line and the log -- because they would otherwise sit on top of the picture.
+// Nothing else brings them back: a phone has no window chrome to scroll to and
+// a desktop page no longer scrolls. So this button is the way back to the
+// launcher everywhere: it toggles one class on <body> and the stylesheet
+// reveals the panel.
 //
 // Its own module rather than touch.mjs so a test can reach it without the
 // overlay, and not inline in shell.mjs so a test can reach it without booting
