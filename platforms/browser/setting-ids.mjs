@@ -4,10 +4,12 @@
 // the mockup, so a row the demo draws and the launcher never builds cannot
 // hide behind a grep.
 export const SETTING_IDS = [
+  'ctl-MELEE_BOOT_SCENE',
+  'ctl-MELEE_DEBUG_VS',
   'ctl-MELEE_20XX',
   'ctl-MELEE_BOOT_CSS',
   'ctl-MELEE_20XX_RULES',
-  'ctl-unlock-all',
+  'ctl-MELEE_UNLOCK_ALL',
   'ctl-MELEE_UCF',
   'ctl-MELEE_FROZEN_STADIUM',
   'ctl-MELEE_PAUSE',
@@ -16,7 +18,7 @@ export const SETTING_IDS = [
   'ctl-MELEE_SCALE',
   'ctl-filter',
   'ctl-custom-textures',
-  'ctl-free-camera',
+  'ctl-MELEE_FREE_CAMERA',
   'ctl-MELEE_HITBOXES',
   'ctl-volume',
   'ctl-music-volume',
