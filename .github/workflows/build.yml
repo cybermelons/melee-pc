@@ -34,8 +34,8 @@ jobs:
 
       - name: Install verification dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends clang-format python3
+          apt-get update
+          apt-get install -y --no-install-recommends clang-format python3
 
       - name: Verify code style and formatting
         run: python3 tools/check_style.py
@@ -55,12 +55,12 @@ jobs:
 
       - name: Install test dependencies
         run: |
-          sudo apt-get update
+          apt-get update
           # No packaging tools here: the test targets only link aurora::dvd,
           # aurora::main, OpenSSL and curl. aurora still builds SDL3 from
           # source (not in Ubuntu 24.04), so its X11/Wayland/audio deps are
           # needed to configure and link.
-          sudo apt-get install -y --no-install-recommends \
+          apt-get install -y --no-install-recommends \
             build-essential ninja-build cmake pkg-config python3 \
             libssl-dev libcurl4-openssl-dev \
             libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev \
@@ -108,10 +108,10 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          sudo apt-get update
+          apt-get update
           # SDL3 is not in Ubuntu 24.04, so aurora builds it from source
           # (AURORA_SDL3_PROVIDER=vendor); these are its X11/Wayland/audio deps.
-          sudo apt-get install -y --no-install-recommends \
+          apt-get install -y --no-install-recommends \
             build-essential ninja-build cmake pkg-config \
             libssl-dev libcurl4-openssl-dev zip file desktop-file-utils \
             libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev \
@@ -153,26 +153,26 @@ jobs:
 
       - name: Install build tools
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
+          apt-get update
+          apt-get install -y --no-install-recommends \
             ninja-build cmake zip cabextract curl
 
       - name: Install MinGW-w64 toolchain (x86_64)
         if: matrix.arch == 'x86_64'
         run: |
-          sudo apt-get install -y --no-install-recommends mingw-w64
+          apt-get install -y --no-install-recommends mingw-w64
           # aurora's C++20 code needs std::thread, which only the POSIX
           # threading model provides; Ubuntu defaults some links to win32.
-          sudo update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
-          sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
+          update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
+          update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
 
       - name: Install LLVM-MinGW and GCC AArch64 (ARM64)
         if: matrix.arch == 'arm64'
         run: |
-          sudo apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu
+          apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu
           LLVM_MINGW_URL="https://github.com/mstorsjo/llvm-mingw/releases/download/20260908/llvm-mingw-20260908-ucrt-ubuntu-22.04-x86_64.tar.xz"
-          sudo mkdir -p /opt/llvm-mingw
-          curl -sSL "${LLVM_MINGW_URL}" | sudo tar -xJ -C /opt/llvm-mingw --strip-components=1
+          mkdir -p /opt/llvm-mingw
+          curl -sSL "${LLVM_MINGW_URL}" | tar -xJ -C /opt/llvm-mingw --strip-components=1
           echo "/opt/llvm-mingw/bin" >> $GITHUB_PATH
 
       - name: Build and package
@@ -199,11 +199,11 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          sudo apt-get update
+          apt-get update
           # The decomp needs scalar_storage_order, which the NDK's Clang does
           # not implement, so tools/gcc_launcher.py routes melee_game through
           # this cross compiler with the NDK sysroot.
-          sudo apt-get install -y --no-install-recommends \
+          apt-get install -y --no-install-recommends \
             ninja-build cmake gcc-aarch64-linux-gnu
           # nod has no Android prebuilt, so aurora builds it from Rust source.
           rustup target add aarch64-linux-android
@@ -277,21 +277,21 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
+          apt-get update
+          apt-get install -y --no-install-recommends \
             build-essential ninja-build cmake gcc-aarch64-linux-gnu \
             clang-19 lld-19 llvm-19 zip python3 || \
-          sudo apt-get install -y --no-install-recommends \
+          apt-get install -y --no-install-recommends \
             build-essential ninja-build cmake gcc-aarch64-linux-gnu \
             clang lld llvm zip python3
-          sudo apt-get install -y --no-install-recommends gcc-14-aarch64-linux-gnu || true
+          apt-get install -y --no-install-recommends gcc-14-aarch64-linux-gnu || true
           for tool in clang clang++ ld.lld ld64.lld llvm-ar llvm-ranlib llvm-strip llvm-otool llvm-install-name-tool; do
             if command -v "${tool}-19" >/dev/null 2>&1; then
-              sudo ln -sf "$(command -v "${tool}-19")" "/usr/local/bin/${tool}"
+              ln -sf "$(command -v "${tool}-19")" "/usr/local/bin/${tool}"
             fi
           done
-          sudo ln -sf "$(command -v llvm-install-name-tool || which llvm-install-name-tool)" /usr/local/bin/install_name_tool || true
-          sudo ln -sf "$(command -v llvm-otool || which llvm-otool)" /usr/local/bin/otool || true
+          ln -sf "$(command -v llvm-install-name-tool || which llvm-install-name-tool)" /usr/local/bin/install_name_tool || true
+          ln -sf "$(command -v llvm-otool || which llvm-otool)" /usr/local/bin/otool || true
 
       - name: Checkout iOS SDK
         run: |

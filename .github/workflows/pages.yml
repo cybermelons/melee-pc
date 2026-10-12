@@ -44,8 +44,8 @@ jobs:
       - name: Install LLVM 22 development libraries
         run: |
           wget -q https://apt.llvm.org/llvm.sh
-          sudo bash llvm.sh 22
-          sudo apt-get install -y --no-install-recommends libclang-22-dev libclang-cpp22-dev llvm-22-dev ninja-build
+          bash llvm.sh 22
+          apt-get install -y --no-install-recommends libclang-22-dev libclang-cpp22-dev llvm-22-dev ninja-build
       - name: Read the pinned Emscripten version
         id: emsdk
         run: echo "version=$(cd tools/browser && python3 -c 'import common; print(common.EMSCRIPTEN_VERSION)')" >> "$GITHUB_OUTPUT"

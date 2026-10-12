@@ -347,6 +347,12 @@
   /* Only while the game runs: before Start the page controls are visible
      already, so a button that reveals them has no outcome. */
   body:not(.playing) #pad-menu { display: none; }
+  /* Only on a touch pointer: the menu panel reveal rule lives in
+     @media (pointer: coarse), so the controls stay on the page while the game
+     runs and the button would toggle a class that no rule reads. */
+  @media not all and (pointer: coarse) {
+    #pad-menu { display: none; }
+  }
   #pad-tray .pad {
     position: static;
     width: 11vh; height: 11vh; min-width: 44px; min-height: 44px;
