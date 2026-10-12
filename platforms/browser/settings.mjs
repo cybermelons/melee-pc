@@ -295,7 +295,10 @@ export function addSettings(host, { reload = (search) => location.assign(search 
         if (!kids.has(setting.parent)) kids.set(setting.parent, []);
         kids.get(setting.parent).push({ key: setting.key, input });
       }
-      row.append(input, document.createTextNode(` ${setting.label}`));
+      const lbl = document.createElement('span');
+      lbl.className = 'setting-label';
+      lbl.textContent = ` ${setting.label}`;
+      row.append(input, lbl);
     } else {
       input = document.createElement('select');
       for (const [value, text] of setting.options) {
@@ -305,7 +308,10 @@ export function addSettings(host, { reload = (search) => location.assign(search 
         if ((values[setting.key] ?? '') === value) option.selected = true;
         input.append(option);
       }
-      row.append(document.createTextNode(`${setting.label} `), input);
+      const lbl = document.createElement('span');
+      lbl.className = 'setting-label';
+      lbl.textContent = `${setting.label} `;
+      row.append(lbl, input);
     }
     input.name = setting.key;
     inputs.set(setting.key, input);
