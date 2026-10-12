@@ -4,8 +4,10 @@
  * a byte length and slice(start, end).arrayBuffer(). createDiscCache does the
  * block sizing and eviction, so this only has to answer one Range request.
  *
- * Returns null when the server has no disc, so the page falls back to the
- * file picker rather than failing to start.
+ * Returns null when the server has no disc. The launcher carries no file
+ * picker any more (the demo has none), so the disc line reports the absence
+ * and nothing boots until a room serves one. tools/browser/serve_disc.py is
+ * the development server that does.
  */
 export async function openRemoteDisc(url = './disc') {
   const head = await fetch(url, { method: 'HEAD' });
