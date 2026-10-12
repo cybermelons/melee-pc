@@ -5,10 +5,9 @@
   "note": "The board draws the launcher as issue 21 proposes it, not as it is today, and pins each issue to the control that has to exist for that design to be true. A pin whose anchor is not in the mockup fails the build, so the target and the issue list cannot drift apart silently.",
   "links": {
     "deploy": {
-      "url": "https://botan.tail623785.ts.net:2001/index.html",
-      "label": "the published build, served on botan from a container the gitea runner builds on every push to dev",
-      "live": false,
-      "blocked": "No deploy has run yet. The act_runner blocker is resolved: valid_volumes in the runner config names /var/run/docker.sock and the runner has it bound, so a job can reach botan docker. The workflow listened on wave/board-parity, which nobody pushes; it now triggers on dev. This goes live on the first green run."
+      "url": "https://botan.tail623785.ts.net:8099/index.html",
+      "label": "the published build, served on botan over https from a container the gitea runner builds on every push to dev",
+      "live": true
     },
     "dev": {
       "url": "http://100.113.182.40:8104/index.html",
