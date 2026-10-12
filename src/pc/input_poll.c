@@ -141,7 +141,7 @@ static bool env_is_set(const char* name) {
 int pc_env_int(const char* name, int def, int lo, int hi) {
     const char* e = getenv(name);
     char* end;
-    long v;
+    long v; /* NOLINT: strtol returns long; the clamp below needs its range. */
 
     if (e == NULL || e[0] == '\0') {
         return def;
@@ -156,7 +156,7 @@ int pc_env_int(const char* name, int def, int lo, int hi) {
     if (v > hi) {
         return hi;
     }
-    return (int) v;
+    return (int)v;
 }
 
 /* MELEE_20XX=1 turns on the boot-time conveniences a 20XX disc gives, so a

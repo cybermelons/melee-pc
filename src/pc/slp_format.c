@@ -567,8 +567,7 @@ static bool writer_start(void) {
     s_thread = SDL_CreateThread(worker, "slp writer", NULL);
     if (s_thread == NULL) {
         s_sync = true;
-        pc_log_line("slp: no writer thread (%s); recording on the game thread",
-            SDL_GetError());
+        pc_log_line("slp: no writer thread (%s); recording on the game thread", SDL_GetError());
     }
     return true;
 }

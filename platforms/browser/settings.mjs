@@ -29,6 +29,7 @@
 // which this is the curated subset. Tabs use the width instead of the height.
 // A setting with no tab lands in the first one, so adding a flag cannot drop
 // its control off the page.
+import { SETTING_IDS } from './setting-ids.mjs';
 // Two kinds of control, because the engine offers two ways in.
 // SETTINGS (below) are env flags read once at boot: they go through the query
 // string and a reload. LIVE (further below) are the five `prefs` fields that
@@ -269,6 +270,9 @@ export function addSettings(host, { reload = (search) => location.assign(search 
   const touched = new Set();
   const kids = new Map();
   const folds = new Map();
+  // The row id comes from the manifest: that is what lets --parity prove a
+  // loop-built row by data instead of by grep.
+  const manifest = new Set(SETTING_IDS);
   // Panes in TABS order, whatever order the rows below arrive in.
   for (const name of TABS) pane(name);
 
@@ -278,7 +282,7 @@ export function addSettings(host, { reload = (search) => location.assign(search 
     // env-backed row is ctl- plus the env name (tools/progress/mockup.py).
     // Without it a built control reads as missing to a parity check, which is
     // how four shipped rows were reported REGRESSED.
-    row.id = `ctl-${setting.key}`;
+    if (manifest.has(`ctl-${setting.key}`)) row.id = `ctl-${setting.key}`;
     row.className = setting.parent ? 'setting child'
       : (SETTINGS.some((s) => s.parent === setting.key) ? 'setting parent' : 'setting');
     let input;
@@ -335,7 +339,7 @@ export function addSettings(host, { reload = (search) => location.assign(search 
     const pref = !d.fn;
     const row = document.createElement('label');
     row.className = pref ? 'setting input' : 'setting live';
-    row.id = d.ctl;
+    if (manifest.has(d.ctl)) row.id = d.ctl;
     const label = document.createElement('span');
     label.className = 'setting-label';
     label.textContent = d.label;
