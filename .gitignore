@@ -48,3 +48,12 @@ mods/*
 # CTest temporary files
 Testing/
 
+
+# Engine build output, copied beside the page so the validation server can
+# serve it. 14 MB of wasm; tools/browser/build.py regenerates it.
+platforms/browser/melee_browser.js
+platforms/browser/melee_browser.wasm
+
+# A disc extraction the page fetches by name. 1.3 GB, and disc data is never
+# committed.
+platforms/browser/iso/

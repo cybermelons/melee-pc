@@ -199,6 +199,46 @@ tap-jump and C-stick mode appear in no `getenv` reader and no `prefs` field.
 Controller *support* is complete (`gcadapter.mjs`, a full WUP-028 WebHID
 transport); controller *settings* are absent. Do not draw a control for one.
 
+## The disc read path (the third route, and why it is half-landed)
+
+The disc is **not** read over either bridge above. It has its own route, and
+there are currently **two of them in the tree at once**. That is the defect, not
+a design.
+
+| Mechanism | Who implements it | Who still uses it |
+|---|---|---|
+| **(a) Byte ranges over the whole ISO.** The page HEADs `./disc`, requires `accept-ranges: bytes`, and slices 512 KiB blocks on demand. | `platforms/browser/remote-disc.mjs` (`openRemoteDisc(url='./disc')`), `disc-cache.mjs` | the **page** still probes it at boot |
+| **(b) Whole files fetched by name from an extracted disc.** `EM_JS browser_file_read(path,dst,off,size)` fetches `iso/<path>` whole and keeps it in a `Module.isoFiles` Map. | `platforms/browser/dvd.c:10-30` | the **wasm engine**, exclusively |
+
+The engine reads by name. Nothing in either repo extracts the ISO or serves
+`iso/`. So a boot gets `GET /iso/sys/boot.bin 404` and
+`iso read sys/boot.bin Error: HTTP 404`, while the page reports a healthy disc,
+because the page checked mechanism (a).
+
+How it got this way:
+
+| Commit | Repo | What it did | State |
+|---|---|---|---|
+| `90c075d1` | melee-pc | the original Emscripten/WebGPU host page, with `dvd.c` and `disc-cache.mjs` | on branch |
+| `03287e2d` (10-07) | melee-pc | "Bring the page sources up to what is actually deployed" — recovered `remote-disc.mjs` and the `/disc` Range path from the deployed copy, which source was 63 lines behind | on branch |
+| `12e6f56a` (10-09) | melee-pc | "browser: read the disc by name from an extracted ISO" — added `browser_file_read`, reading `sys/boot.bin`, `sys/main.dol` and `sys/fst.bin` by name. Its own message: "Nothing is read at a disc address any more." Marked "Part of cybermelon/melee-web#41." | on branch |
+| `5db8026` + `71f4cba` + `8b0cd43` | melee-**web** | the other two thirds of the same cutover: extract the ISO, serve `iso/`, and **delete** the Range path | **`origin/issue-34`, UNMERGED** |
+
+So commit 2 of a 3-commit cutover landed in melee-pc, and commits 1 and 3 sit
+unmerged in melee-web. The engine was switched to the new route before anything
+built the new route.
+
+**melee-web#34 is the authority, and it supersedes #41.** #41 closed with "Keep
+`/disc` and the Range path until the loose set covers a full session"; #34 is the
+owner reversing that: do the flatten as a one-shot cutover, serve a standard
+`nod`-layout extraction (`sys/` + `files/`) as static files, and delete the
+Range-over-ISO path in the same PR. Its point 6 is explicit that a kept
+fallback *is* the in-between that the owner rejected.
+
+Before you add anything to either mechanism, check whether #34 deletes it.
+`tools/extract-iso.mjs` already exists on melee-web `origin/issue-34` and uses
+`nod` with exactly this layout. Do not write a second extractor.
+
 ## The lobby and the room
 
 `lobby.mjs` owns the room: `PORTS = 4`, `PAIRABLE = 2`, `mintRoom` (8 chars of
