@@ -18,6 +18,17 @@ test('requests Aurora features and limits and releases the probe device',async()
  }});
  assert.equal(destroyed,true);
 });
+/* The flag has to reach requestAdapter. Hardcoding forceFallbackAdapter:false
+ * again would keep the test above green and silently strand #18's knob, so
+ * assert both states and that only a set, non-zero value turns it on. */
+test('allowCpu drives forceFallbackAdapter',async()=>{
+ const seen=[];
+ const gpu={requestAdapter:async options=>{seen.push(options.forceFallbackAdapter);return null;}};
+ for (const allow of [undefined,false,true]) {
+  await assert.rejects(checkGraphics(gpu,allow),/requestAdapter returned null/);
+ }
+ assert.deepEqual(seen,[false,false,true]);
+});
 test('device rejection retains its underlying cause',async()=>{
  const cause=Error('driver device creation failed');
  await assert.rejects(checkGraphics({requestAdapter:async()=>({features:new Set(),limits:{},requestDevice:async()=>{throw cause;}})}),error=>error.cause===cause&&error.message.includes(cause.message));

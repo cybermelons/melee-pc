@@ -68,6 +68,17 @@ EMSCRIPTEN_KEEPALIVE void browser_prewarm(void) {
         /* A hidden tab stops anyway; this covers a tab that is still visible
          * but not focused, which is why it is opt-in (src/pc/pc.h). */
         .pauseOnFocusLost = pc_is_pause_on_blur_enabled(),
+        /* MELEE_ALLOW_CPU_ADAPTER is a test-harness knob, not a player
+         * setting (#18). aurora drops a CPU adapter at gpu.cpp:931 unless
+         * config.allowCpuAdapter is set, so a host with no real GPU cannot
+         * boot the game at all and no automated browser check can run. The
+         * software adapter is far too slow to play on; this exists so a
+         * headless check can reach the engine. Parity with .vsync above,
+         * which reads its variable the same inline way: env_flag in
+         * pc_stubs.c is static and not visible here. */
+        .allowCpuAdapter = getenv("MELEE_ALLOW_CPU_ADAPTER") != NULL
+            && getenv("MELEE_ALLOW_CPU_ADAPTER")[0] != '\0'
+            && getenv("MELEE_ALLOW_CPU_ADAPTER")[0] != '0',
         .logLevel = LOG_INFO,
         .windowWidth = 960,
         .windowHeight = 720,

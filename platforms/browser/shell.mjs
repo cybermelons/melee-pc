@@ -553,7 +553,12 @@ joinLobby();
 // Fail with a readable message before the wasm is fetched; otherwise a browser
 // without WebGPU only shows a bare Emscripten abort.
 try {
-  await checkGraphics();
+  // ENV carries MELEE_ALLOW_CPU_ADAPTER straight from the query string
+  // (line 141), the same path main.c reads it back from, so the preflight
+  // and AuroraConfig.allowCpuAdapter cannot disagree.
+  const cpuOk = (ENV.MELEE_ALLOW_CPU_ADAPTER ?? '') !== ''
+    && ENV.MELEE_ALLOW_CPU_ADAPTER !== '0';
+  await checkGraphics(navigator.gpu, cpuOk);
 } catch (error) {
   status(error.message);
   throw error; // stops the module, so melee_browser.js is never injected

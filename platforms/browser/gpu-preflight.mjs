@@ -1,9 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /** Keep in sync with extern/aurora/lib/webgpu/gpu.cpp and emdawnwebgpu. */
-export async function checkGraphics(gpu = navigator.gpu) {
+/* allowCpu mirrors AuroraConfig.allowCpuAdapter, which platforms/browser/main.c
+ * fills from MELEE_ALLOW_CPU_ADAPTER (#18). Both sides have to agree: this
+ * preflight runs before the engine, so leaving it hardcoded to false would
+ * reject the software adapter here and the flag would never reach aurora. The
+ * fallback adapter is for a headless check, never for play. */
+export async function checkGraphics(gpu = navigator.gpu, allowCpu = false) {
  try {
   if (!gpu) throw Error('navigator.gpu is unavailable');
-  const adapter = await gpu.requestAdapter({featureLevel:'compatibility',powerPreference:'high-performance',forceFallbackAdapter:false});
+  const adapter = await gpu.requestAdapter({featureLevel:'compatibility',powerPreference:'high-performance',forceFallbackAdapter:allowCpu});
   if (!adapter) throw Error('requestAdapter returned null');
   const requiredLimits = {maxStorageBuffersPerShaderStage:2,
    minUniformBufferOffsetAlignment:Math.max(64,adapter.limits.minUniformBufferOffsetAlignment),
