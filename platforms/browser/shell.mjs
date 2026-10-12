@@ -182,7 +182,7 @@ window.Module = {
     graphics.catch(log);
     ready = true;
     status(idleStatus());
-    updateStart();
+    maybeBoot();
     // The live setters are Module exports, so a value stored in an earlier
     // visit can only be pushed now. Without this the live controls work for the
     // session and forget on reload, which reads as broken storage.
@@ -224,8 +224,13 @@ for (const type of ['keydown', 'keyup', 'keypress']) {
 // A disc served alongside the page, so a visitor does not supply their own.
 // Probed once at load; null means this server has none.
 let remoteDisc = null;
-function updateStart() {
-  $('start').disabled = !(ready && (remoteDisc || $('disc').files.length));
+// There is no Start button and no disc picker: the room serves the disc, so
+// boot runs as soon as the engine is ready AND the probe found one. A disc
+// found before the engine is ready just waits; the ready handler calls this
+// again.
+let booting = false;
+function maybeBoot() {
+  if (ready && remoteDisc) boot();
 }
 // The disc line under the lobby bar (#33), which replaced the chip in it. No
 // percentage: the disc is read one HTTP Range per block (remote-disc.mjs) and
@@ -233,22 +238,18 @@ function updateStart() {
 // total-loaded figure exists. What the line can honestly report is whether a
 // disc is reachable at all, which is what blocks loading a state.
 function discState() {
-  const picked = $('disc').files?.length ? $('disc').files[0] : null;
   const node = $('disc-state');
   if (!node) return;
-  // One line at 390px, in all three cases. The disc line replaced two taller
+  // One line at 390px, in both cases. The disc line replaced two taller
   // controls -- the chip the issue removes and #launch-hint -- so a text that
   // wraps to three lines on a phone would give the height straight back.
   if (remoteDisc) {
     const mib = (remoteDisc.size / 1048576).toFixed(0);
     node.textContent = `Disc ready · ${mib} MiB, read on demand`;
-  } else if (picked) {
-    node.textContent = `Disc ready · ${picked.name}`;
   } else {
-    node.textContent = 'No disc yet · choose one below';
+    node.textContent = 'No disc served by this room';
   }
 }
-$('disc').addEventListener('change', () => { updateStart(); discState(); });
 
 // Into the menu panel, so the same button that reveals the panel mid-game
 // reveals the settings. Built at load rather than on first open: the form
@@ -289,11 +290,11 @@ async function connectPort(port, source) {
   }
 }
 
-$('start').addEventListener('click', async () => {
-  $('start').disabled = true;
-  $('disc').disabled = true;
+async function boot() {
+  if (booting) return;
+  booting = true;
   try {
-    Module.discFile = remoteDisc || $('disc').files[0];
+    Module.discFile = remoteDisc;
     Module.readDisc = createDiscCache(Module.discFile).read;
     await graphics;
     // The pipeline cache persists on each commit (onPipelineCacheCommit);
@@ -336,7 +337,7 @@ $('start').addEventListener('click', async () => {
     status(error.message);
     log(error.stack || error);
   }
-});
+}
 
 // Probe for a server-side disc before the engine reports ready, so the picker
 // is only offered when there is nothing to fall back on.
@@ -346,12 +347,11 @@ try {
   log(`Server disc: ${error.message}`);
 }
 if (remoteDisc) {
-  $('disc').hidden = true;
   // What used to be said twice -- "Choose a disc image and click Start" in
   // #launch-hint and the served-disc case overwriting it -- is now the one
   // disc line under the bar, which discState() writes from the probe result.
   log(`Server disc: ${(remoteDisc.size / 1048576).toFixed(0)} MiB`);
-  updateStart();
+  maybeBoot();
 }
 discState();
 

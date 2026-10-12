@@ -8,9 +8,16 @@
 <style>
   body { margin: 0 auto; max-width: 960px; padding: 16px; background: #111; color: #eee; font: 15px/1.4 system-ui, sans-serif; }
   canvas { display: block; width: 100%; height: auto; aspect-ratio: 4 / 3; background: #000; }
-  #bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 12px 0; }
+  /* Transient engine text (status messages, the FPS line). It was two spans in
+     the old launcher row; as an overlay it adds nothing to the launcher's flow
+     and reads over the picture while playing. */
+  #hud { position: fixed; top: 4px; left: 8px; right: 8px; z-index: 5;
+         display: flex; gap: 12px; pointer-events: none; font-size: 12px; }
   #stats { margin-left: auto; font-variant-numeric: tabular-nums; color: #9c9; }
   #status { color: #fc6; }
+  /* Visually hidden, not display:none: the label below has to be able to open
+     the picker, and a display:none input will not open in every browser. */
+  label.disc { display: block; cursor: pointer; }
   pre { white-space: pre-wrap; color: #999; font-size: 12px; max-height: 14em; overflow: auto; }
   /* The lobby (#22): the room code top right, four ports as tiles. Ids and
      class names match tools/progress/mockup.py, which is the target the issue
@@ -138,7 +145,7 @@
        a phone with no way to change mode, pick a disc or read an error without
        a reload, because every one of those controls lives on this page rather
        than in the game. */
-    body:not(.playing) #lobby, body:not(.playing) #bar, body:not(.playing) #log {
+    body:not(.playing) #lobby, body:not(.playing) #log {
       padding: 0 12px;
     }
     body:not(.playing) h1 { display: revert; padding: 0 12px; }
@@ -149,7 +156,7 @@
        A class on <body>, toggled by the overlay's menu button. The panel wraps
        the page's existing controls rather than copying them, so the markup
        stays the single definition of what a mode link is. */
-    body.playing #lobby, body.playing #bar, body.playing #log {
+    body.playing #lobby, body.playing #log {
       display: none;
     }
     /* Only while the game runs. #menu-panel wraps the mode links and Start,
@@ -175,11 +182,9 @@
     /* Last, so it wins on order and not only on specificity. */
     body.playing.menu #menu-panel { display: block; }
     body.playing #menu-panel #lobby,
-    body.playing #menu-panel #bar,
     body.playing #menu-panel #log {
       display: revert; padding: 0;
     }
-    #menu-panel #bar { flex-wrap: wrap; gap: 10px; }
     #menu-panel button, #menu-panel input { min-height: 44px; font-size: 16px; }
     #menu-panel #log { max-height: 20dvh; }
     /* Only once the game runs. #game is black and fills the viewport, so
@@ -348,7 +353,7 @@
   }
 
   /* An abort used to be invisible: onAbort only wrote to #status, and
-     body.playing hides #bar. So a crash left a dead canvas and no reason.
+     body.playing hides the log. So a crash left a dead canvas and no reason.
      This panel is a sibling of #game rather than a child, so none of the
      body.playing hiding rules reach it, and it sits above every other layer
      including the menu button. */
@@ -529,19 +534,17 @@
      saying the same thing less precisely ("Choose a disc image and click
      Start") and is in no mockup and on no pin. One line about the disc, not
      two. -->
-<p id="disc-state" class="disc">Looking for a disc…</p>
-<div id="bar">
-  <input id="disc" type="file" accept=".iso,.gcm">
-  <button id="start" disabled>Start</button>
-  <!-- The GC adapter connect button used to sit here. It is per-port now
-       (#30): the lobby tile owns it, because a controller feeds a seat. -->
-  <span id="status">Loading engine…</span>
-  <span id="stats"></span>
-</div>
+<!-- The separate picker row (file input, Start button) was the pre-lobby
+     launcher; the demo (tools/progress/mockup.py) has no such row, and neither
+     has this page. The disc is served by the room: remote-disc.mjs answers one
+     HTTP Range per block, so there is nothing to choose and nothing to upload.
+     This line reports what the probe found. -->
+<p id="disc-state" class="disc">Disc ready &middot; served by this room &middot; read on demand, never loaded whole</p>
 </div>
 <div id="crash" hidden><h2>The engine stopped</h2><p id="crash-why"></p>
 <p id="crash-act"><button id="crash-reload" type="button">Reload</button><a id="crash-report" href="" target="_blank" rel="noopener">Report this</a></p>
 <p id="crash-hint">The log below is kept so it can be copied into the report.</p></div>
+<div id="hud"><span id="status">Loading engine…</span><span id="stats"></span></div>
 <div id="game"><canvas id="canvas" width="960" height="720" tabindex="0"></canvas>
 <div id="touch" hidden></div></div>
 <p id="keys">A WUP-028 GameCube adapter works through WebHID, with raw 8-bit values. Keyboard fallback:<br><kbd>Arrows</kbd> stick · <kbd>X</kbd> A · <kbd>Z</kbd> B · <kbd>C</kbd> X · <kbd>V</kbd> Y · <kbd>Q</kbd> L · <kbd>E</kbd> R · <kbd>Tab</kbd> Z · <kbd>Enter</kbd> Start · <kbd>I</kbd><kbd>J</kbd><kbd>K</kbd><kbd>L</kbd> C-stick</p>

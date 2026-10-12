@@ -444,7 +444,7 @@ export function addSettings(host, { reload = (search) => location.assign(search 
   const note = document.createElement('p');
   note.id = 'settings-note';
   note.textContent =
-    'Settings apply at boot, so the page reloads. A disc you picked yourself has to be chosen again.';
+    'Settings apply at boot, so the page reloads.';
 
   const refresh = () => { link.value = new URL(buildSearch(current()) || '?', location.href).href; };
   form.addEventListener('change', refresh);
