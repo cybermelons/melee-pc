@@ -10,8 +10,11 @@ has to produce.
     python3 tools/progress/build.py --ack N    # mark issue N's comments read
     python3 tools/progress/build.py --gate --ack N
 
+The tracker is read with tea (Gitea) unless "base" is on github.com, then with
+gh. Env: TEA / GH override the binaries.
+
 Optional per-issue fields (never read by render): proof (shell command, exit 0
-= the pin is done) and seen (last Gitea comment id folded in). Optional top
+= the pin is done) and seen (last comment id folded in). Optional top
 level: comments_since (ISO time), inbox ({"n", "seen"}), pinnotate (URL).
 
 The board is not a screenshot. mockup.py builds the proposed launcher as real
@@ -33,6 +36,7 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.parse
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import mockup  # noqa: E402
@@ -716,33 +720,59 @@ for (const tab of document.querySelectorAll('.tab')) {{
 """
 
 
+def tracker(data, kind, since=''):
+    """Rows from the tracker as {'index','state'} (kind 'issues') or Gitea
+    comment dicts (kind 'comments'). github.com in base -> gh (env GH), else tea.
+    Raises OSError, SubprocessError or ValueError on failure."""
+    if urllib.parse.urlparse(data['base']).hostname == 'github.com':
+        path = (f"repos/{data['repo']}/issues?state=all&per_page=100" if kind == 'issues'
+                else f"repos/{data['repo']}/issues/comments?since={since}&per_page=100")
+        raw = subprocess.run([os.environ.get('GH', 'gh'), 'api', '--paginate', '--slurp', path],
+                             capture_output=True, text=True, timeout=120, check=True).stdout
+        try:
+            rows = [r for pg in json.loads(raw) for r in pg]
+        except (json.JSONDecodeError, TypeError):
+            raise ValueError(raw[:200])
+        if kind == 'comments':
+            return rows
+        # GitHub lists pull requests as issues; Gitea's list excludes them.
+        return [{'index': r['number'], 'state': r['state']} for r in rows if 'pull_request' not in r]
+    tea = [os.environ.get('TEA', 'tea'), 'api' if kind == 'comments' else 'issues']
+    rows = []
+    # tea defaults to 30 rows per page and says nothing about it, so page
+    # until one comes back short.
+    for page in range(1, 21 if kind == 'comments' else 10**6):
+        if kind == 'comments':
+            cmd = tea + ['--login', 'noel',
+                         f"/repos/{data['repo']}/issues/comments?since={since}&limit=50&page={page}"]
+            raw = subprocess.run(cmd, capture_output=True, text=True, timeout=60).stdout
+        else:
+            cmd = tea + ['list', '--login', 'noel', '--repo', data['repo'], '--state', 'all',
+                         '--output', 'json', '--limit', '50', '--page', str(page)]
+            raw = subprocess.run(cmd, capture_output=True, text=True, timeout=60, check=True).stdout
+        try:
+            got = json.loads(raw)
+        except json.JSONDecodeError:
+            got = None
+        if not isinstance(got, list):  # tea prints an error page when the login is wrong
+            raise ValueError(f'the tracker did not return JSON: {raw[:200]!r}' if kind == 'issues' else raw)
+        rows += got
+        if len(got) != 50:
+            return rows
+    print('gate: comments: 20 pages read, newer ones may be cut off; advance comments_since')
+    return rows
+
+
 def audit(data):
     """Compare issues.json against the tracker and report what drifted."""
-    # tea defaults to 30 rows per page and says nothing about it, so page
-    # until one comes back short. (#11 and #16 are absent from this list for a
-    # different reason: they are pull requests, and tea issues list excludes
-    # them. The board carries no pins for either, so the audit is unaffected.)
-    live, page = [], 1
-    while True:
-        try:
-            raw = subprocess.run(
-                [os.environ.get('TEA', 'tea'), 'issues', 'list', '--login', 'noel',
-                 '--repo', data['repo'], '--state', 'all', '--output', 'json',
-                 '--limit', '50', '--page', str(page)],
-                capture_output=True, text=True, timeout=60, check=True).stdout
-        except (OSError, subprocess.SubprocessError) as err:
-            print(f'audit: could not reach the tracker: {err}')
-            return 1
-        try:
-            batch = json.loads(raw)
-        except json.JSONDecodeError:
-            # tea prints an error page rather than JSON when the login is wrong.
-            print(f'audit: the tracker did not return JSON: {raw[:200]!r}')
-            return 1
-        live += batch
-        if len(batch) < 50:
-            break
-        page += 1
+    # (#11 and #16 are absent from the Gitea list for a different reason: they
+    # are pull requests, and tea issues list excludes them. The board carries
+    # no pins for either, so the audit is unaffected.)
+    try:
+        live = tracker(data, 'issues')
+    except (OSError, subprocess.SubprocessError, ValueError) as err:
+        print(f'audit: could not reach the tracker: {err}')
+        return 1
 
     live_state = {int(i['index']): i['state'] for i in live}
     mine = {i['n']: i['state'] for i in data['issues'] if 'base' not in i}
@@ -965,20 +995,8 @@ def unread(data, ack=None):
     since = data.get('comments_since') or (now - datetime.timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%SZ')
     if len(since) == 10:  # bare date; Gitea wants RFC 3339
         since += 'T00:00:00Z'
-    comments = []
     try:
-        for page in range(1, 21):
-            cmd = [os.environ.get('TEA', 'tea'), 'api', '--login', 'noel',
-                   f"/repos/{data['repo']}/issues/comments?since={since}&limit=50&page={page}"]
-            raw = subprocess.run(cmd, capture_output=True, text=True, timeout=60).stdout
-            got = json.loads(raw)
-            if not isinstance(got, list):
-                raise ValueError(raw)
-            comments += got
-            if len(got) != 50:
-                break
-        else:
-            print('gate: comments: 20 pages read, newer ones may be cut off; advance comments_since')
+        comments = tracker(data, 'comments', since)
     except (OSError, subprocess.SubprocessError, ValueError) as err:
         print(f'gate: comments: {str(err)[:200]}')
         return 1, 0

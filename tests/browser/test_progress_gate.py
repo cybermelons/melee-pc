@@ -30,6 +30,39 @@ else:
 '''
 
 
+FAKE_GH = '''#!/usr/bin/env python3
+import json, sys
+assert sys.argv[1:3] == ['api', '--paginate'], sys.argv
+if 'issues/comments' in sys.argv[-1]:
+    u = 'https://api.github.com/repos/o/r/issues/'
+    print(json.dumps([[{'id': 5, 'body': 'new', 'issue_url': u + '7'},
+                       {'id': 6, 'body': 'old', 'issue_url': u + '8'}]]))
+else:
+    print(json.dumps([[{'number': 7, 'state': 'open'}, {'number': 8, 'state': 'closed'},
+                       {'number': 9, 'state': 'open', 'pull_request': {}}]]))
+'''
+
+
+def github():
+    """A github.com base reads through gh: PRs dropped, comments mapped."""
+    sys.path.insert(0, os.path.dirname(BUILD))
+    import build
+    tmp = tempfile.mkdtemp()
+    gh = os.path.join(tmp, 'gh')
+    open(gh, 'w').write(FAKE_GH)
+    os.chmod(gh, 0o755)
+    os.environ['GH'] = gh
+    data = {'repo': 'o/r', 'base': 'https://github.com/o/r/issues/', 'issues': [
+        {'n': 7, 'state': 'open', 'seen': 0}, {'n': 8, 'state': 'closed', 'seen': 6}]}
+    try:
+        assert build.tracker(data, 'issues') == [
+            {'index': 7, 'state': 'open'}, {'index': 8, 'state': 'closed'}]
+        assert build.audit(data) == 0  # PR #9 is not reported as missing from the board
+        assert build.unread(data) == (0, 1)  # #7 has comment 5 > seen 0; #8 read
+    finally:
+        shutil.rmtree(tmp)
+
+
 def gate(env, *extra):
     r = subprocess.run([sys.executable, BUILD, '--gate', *extra], env=env,
                        capture_output=True, text=True, cwd=ROOT)
@@ -104,6 +137,7 @@ def main():
     finally:
         srv.shutdown()
         shutil.rmtree(tmp)
+    github()
     print('ok')
 
 
