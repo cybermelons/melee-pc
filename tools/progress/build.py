@@ -438,8 +438,14 @@ TEMPLATE = """<!DOCTYPE html>
                  height:34px; border-radius:9px; font-size:1rem;
                  background:#ffffff14; color:var(--fg);
                  border:1px solid #ffffff22; }}
+  /* The sheet scrolls inside the frame, it does not grow the frame. A phone
+     menu is a sheet you drag up over the game, so the overflow belongs to the
+     sheet and the game above it stays on screen. The frame is still a real
+     390x844 budget: max-height keeps the game visible, and a sheet that needs
+     a long scroll to reach its last control still says the design is wrong. */
   #phone-sheet {{ background:#111; border-top:1px solid var(--line);
-                  padding:12px 12px 14px; display:grid; gap:10px; }}
+                  padding:12px 12px 14px; display:grid; gap:10px;
+                  max-height:72%; overflow-y:auto; overscroll-behavior:contain; }}
   #phone-bar {{ display:flex; align-items:center; justify-content:space-between; }}
   #phone-bar b {{ font-size:.92rem; }}
   #phone-room {{ padding:5px 10px; border-radius:7px; background:#1d2130;
@@ -691,6 +697,11 @@ place();
 // The labels are text, so their height depends on the width, and the stage
 // height depends on the labels. Re-measure on resize and once the fonts land.
 addEventListener('resize', place);
+// The sheet scrolls inside the frame, so its controls move under the pins
+// exactly as a page scroll moves them. w.ay is measured once per place(), so
+// a scroll has to re-measure or every pin on the sheet points above its row.
+const sheet = document.getElementById('phone-sheet');
+if (sheet) sheet.addEventListener('scroll', place, {{ passive: true }});
 if (document.fonts) document.fonts.ready.then(place);
 
 // A tap outside closes the open tooltip. Without this the only way to

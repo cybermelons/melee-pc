@@ -226,7 +226,7 @@ PHONE = """
       </div>
     </div>
   </div>
-  <p id="phone-cap" class="sub">390 \u00d7 844, nothing scrolls</p>
+  <p id="phone-cap" class="sub">390 \u00d7 844, the sheet scrolls, the frame does not grow</p>
 </div>
 """
 
