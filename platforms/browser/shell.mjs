@@ -420,6 +420,9 @@ async function joinLobby() {
   status('Take a port.');
   const events = new EventSource(`${base}/events?me=${me}`);
   let slot = -1;
+  // -1 until a state event places this page in the queue, which is why the
+  // refused-claim message below falls back to the unnumbered wording.
+  let place = -1;
   const open = (dc) => {
     dc.binaryType = 'arraybuffer';
     dc.onopen = () => {
@@ -486,7 +489,8 @@ async function joinLobby() {
     }
   };
   events.addEventListener('state', (e) => {
-    const { claims, here } = JSON.parse(e.data);
+    const { claims, here, queue } = JSON.parse(e.data);
+    place = (queue ?? []).indexOf(me);
     slot = mySlot(claims, me);
     // Published out of the handler because the adapter reconnect (#30) needs
     // to know which port is this page's, and it runs from onRuntimeInitialized
@@ -524,8 +528,14 @@ async function joinLobby() {
   };
   claim = async (i) => {
     const r = await post({ type: 'claim', player: i });
-    // A taken port refuses; it is free for anyone once its holder lets go.
-    if (!r.ok) return status(`P${i + 1} is taken.`);
+    // A refused claim is not a dead end any more: the server put this page in
+    // line, so report the place rather than only the rejection. The state
+    // event carrying it may not have arrived yet, hence the fallback.
+    if (!r.ok) {
+      return status(place >= 0
+        ? `P${i + 1} is taken. You are ${place + 1} in line for the next free port.`
+        : `P${i + 1} is taken. You are in line for the next free port.`);
+    }
     // No reload: dc.onopen attaches the channel at runtime through
     // browser_net_start (main.c), so the claim only has to reach the server.
   };
