@@ -6,13 +6,13 @@
   "links": {
     "deploy": {
       "url": "https://botan.tail623785.ts.net:2001/index.html",
-      "label": "the published build, served on botan from a container the gitea runner builds on every push",
+      "label": "the published build, served on botan from a container the gitea runner builds on every push to dev",
       "live": false,
-      "blocked": "The deploy workflow cannot run yet. Gitea Actions is enabled and the runner is registered, but a job runs in a container and act_runner permits no volume mount unless valid_volumes names it, so the job cannot reach botan's docker daemon to build the image. Until then this URL serves the old hand-started process, whose page is missing join.mjs."
+      "blocked": "No deploy has run yet. The act_runner blocker is resolved: valid_volumes in the runner config names /var/run/docker.sock and the runner has it bound, so a job can reach botan docker. The workflow listened on wave/board-parity, which nobody pushes; it now triggers on dev. This goes live on the first green run."
     },
     "dev": {
       "url": "http://100.113.182.40:8104/index.html",
-      "label": "the lobby and controls from source, tailnet only; no wasm engine here, so Start will not boot a game"
+      "label": "the lobby and controls from the dev worktree source, tailnet only; no wasm engine here, so Start will not boot a game"
     }
   },
   "issues": [
